@@ -122,6 +122,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * Gets the factory which creates joinable futures that do not belong to a joinable future collection.
 	 */
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final JoinableFutureFactory getFactory() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
 			synchronized (getSyncContextLock()) {
@@ -238,6 +239,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	/**
 	 * Gets a value indicating whether the main thread is blocked for the caller's completion.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final boolean isMainThreadBlocked() {
 		JoinableFuture<?> ambientTask = this.getAmbientFuture();
 		if (ambientTask != null) {
@@ -586,6 +588,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * @return The hang report contribution. {@code null} values should be ignored.
 	 */
 	@Override
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public HangReportContribution getHangReport() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
 			synchronized (getSyncContextLock()) {

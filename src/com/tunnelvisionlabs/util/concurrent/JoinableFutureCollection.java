@@ -147,6 +147,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 *
 	 * @param joinableFuture The joinable future to remove.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final void remove(@NotNull JoinableFuture<?> joinableFuture) {
 		Requires.notNull(joinableFuture, "joinableFuture");
 
@@ -188,6 +189,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 * @return A value to close to revert the join.
 	 */
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final JoinRelease join() {
 		JoinableFuture<?> ambientJob = getContext().getAmbientFuture();
 		if (ambientJob == null) {
@@ -221,6 +223,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 *
 	 * @return A future that completes when this collection is empty.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final CompletableFuture<Void> joinUntilEmptyAsync() {
 		return Async.runAsync(() -> {
 			if (emptyEvent.get() == null) {
@@ -244,6 +247,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	/**
 	 * Checks whether the specified joinable future is a member of this collection.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final boolean contains(@NotNull JoinableFuture<?> joinableFuture) {
 		Requires.notNull(joinableFuture, "joinableFuture");
 
@@ -258,6 +262,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 * Iterates the futures in this collection.
 	 */
 	@Override
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final Iterator<JoinableFuture<?>> iterator() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
 			List<JoinableFuture<?>> joinablesList;
@@ -275,6 +280,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 * @param joinableFuture The joinable future that had previously joined this collection, and that now intends to
 	 * revert it.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final void disjoin(@NotNull JoinableFuture<?> joinableFuture) {
 		Requires.notNull(joinableFuture, "joinableFuture");
 

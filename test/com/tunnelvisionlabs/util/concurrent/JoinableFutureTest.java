@@ -2273,6 +2273,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public void testJoinControllingSelf() {
 		AsyncManualResetEvent runSynchronouslyExited = new AsyncManualResetEvent();
 		CompletableFuture<Void> unblockMainThread = new CompletableFuture<>();
@@ -2776,6 +2777,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	 * Rapidly posts messages to several interlinked AsyncPumps to check for thread-safety and deadlocks.
 	 */
 	@Test
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public void testPostStress() {
 		AtomicInteger outstandingMessages = new AtomicInteger(0);
 		CompletableFuture<Void> cancellationFuture = Async.delayAsync(Duration.ofMillis(1000));
@@ -3470,6 +3472,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		});
 	}
 
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	private CompletableFuture<?> testReentrancyOfUnrelatedDependentWork() {
 		AsyncManualResetEvent unrelatedMainThreadWorkWaiting = new AsyncManualResetEvent();
 		AsyncManualResetEvent unrelatedMainThreadWorkInvoked = new AsyncManualResetEvent();

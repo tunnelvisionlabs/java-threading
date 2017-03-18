@@ -7,7 +7,7 @@ import java.util.function.Function;
 enum AsyncFunctions {
 	;
 
-	private static final Function<Object, CompletableFuture<?>> IDENTITY = (Object t) -> CompletableFuture.completedFuture(t);
+	private static final Function<Object, CompletableFuture<?>> IDENTITY = CompletableFuture::completedFuture;
 
 	@NotNull
 	public static <T> Function<T, CompletableFuture<T>> identity() {

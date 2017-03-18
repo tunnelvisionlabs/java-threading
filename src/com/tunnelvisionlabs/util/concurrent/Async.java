@@ -46,9 +46,9 @@ public enum Async {
 
 		Executor executor;
 		if (awaiter instanceof CriticalNotifyCompletion) {
-			executor = command -> ((CriticalNotifyCompletion)awaiter).unsafeOnCompleted(command);
+			executor = ((CriticalNotifyCompletion)awaiter)::unsafeOnCompleted;
 		} else {
-			executor = command -> awaiter.onCompleted(command);
+			executor = awaiter::onCompleted;
 		}
 
 		return Futures.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);

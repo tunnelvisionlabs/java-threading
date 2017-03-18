@@ -125,10 +125,10 @@ public class AsyncLazy<T> {
 
 					resumableAwaiter.set(new InlineResumable());
 					Supplier<? extends CompletableFuture<? extends T>> originalValueFactory = this.valueFactory.getAndSet(null);
-					Supplier<? extends CompletableFuture<? extends T>> localValueFactory =
+					Supplier<? extends CompletableFuture<? extends T>> localValueFactory = () -> Async.runAsync(
 						() -> Async.awaitAsync(
 							resumableAwaiter.get(),
-							() -> Async.awaitAsync(originalValueFactory.get(), false));
+							() -> Async.awaitAsync(originalValueFactory.get(), false)));
 
 					this.recursiveFactoryCheck.setValue(RECURSIVE_CHECK_SENTINEL);
 					try {

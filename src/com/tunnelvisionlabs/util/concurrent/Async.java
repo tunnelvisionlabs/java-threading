@@ -114,6 +114,17 @@ public enum Async {
 	}
 
 	@NotNull
+	public static <T> CompletableFuture<T> runAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
+		try {
+			StrongBox<CompletableFuture<T>> result = new StrongBox<>();
+			ExecutionContext.run(ExecutionContext.capture(), s -> result.set(s.get()), supplier);
+			return result.get();
+		} catch (Throwable ex) {
+			return Futures.fromException(ex);
+		}
+	}
+
+	@NotNull
 	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
 		return delayAsync(time, unit, CancellationToken.none());
 	}

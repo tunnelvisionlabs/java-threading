@@ -454,13 +454,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	public final CompletableFuture<T> joinAsync(@NotNull CancellationToken cancellationToken) {
-		if (cancellationToken.isCancellationRequested()) {
-			return Futures.completedCancelled();
-		}
+		return Async.runAsync(() -> {
+			if (cancellationToken.isCancellationRequested()) {
+				return Futures.completedCancelled();
+			}
 
-		return Async.usingAsync(
-			ambientJobJoinsThis(),
-			() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationToken)));
+			return Async.usingAsync(
+				ambientJobJoinsThis(),
+				() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationToken)));
+		});
 	}
 
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {

@@ -232,25 +232,27 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	 * @return A future that completes when this collection is empty.
 	 */
 	public final CompletableFuture<Void> joinUntilEmptyAsync() {
-		if (emptyEvent.get() == null) {
-			// We need a read lock to protect against the emptiness of this collection changing
-			// while we're setting the initial set state of the new event.
-			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-				ReentrantLock syncObject = getContext().getSyncContextLock();
-				syncObject.lock();
-				try {
-					// We use interlocked here to mitigate race conditions in lazily initializing this field.
-					// We *could* take a write lock above, but that would needlessly increase lock contention.
-					emptyEvent.compareAndSet(null, new AsyncManualResetEvent(joinables.isEmpty()));
-				} finally {
-					syncObject.unlock();
+		return Async.runAsync(() -> {
+			if (emptyEvent.get() == null) {
+				// We need a read lock to protect against the emptiness of this collection changing
+				// while we're setting the initial set state of the new event.
+				try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
+					ReentrantLock syncObject = getContext().getSyncContextLock();
+					syncObject.lock();
+					try {
+						// We use interlocked here to mitigate race conditions in lazily initializing this field.
+						// We *could* take a write lock above, but that would needlessly increase lock contention.
+						emptyEvent.compareAndSet(null, new AsyncManualResetEvent(joinables.isEmpty()));
+					} finally {
+						syncObject.unlock();
+					}
 				}
 			}
-		}
 
-		return Async.usingAsync(
-			join(),
-			() -> Async.awaitAsync(emptyEvent.get().waitAsync(), false));
+			return Async.usingAsync(
+				join(),
+				() -> Async.awaitAsync(emptyEvent.get().waitAsync(), false));
+		});
 	}
 
 	/**

@@ -51,7 +51,7 @@ public class AsyncCountdownEvent {
 	 */
 	@Deprecated
 	final CompletableFuture<Void> signalAsync() {
-		try {
+		return Async.runAsync(() -> {
 			int newCount = remainingCount.decrementAndGet();
 			if (newCount == 0) {
 				return Async.awaitAsync(manualEvent.setAsync(), false);
@@ -60,9 +60,7 @@ public class AsyncCountdownEvent {
 			} else {
 				return Futures.completedNull();
 			}
-		} catch (Throwable ex) {
-			return Futures.completedFailed(ex);
-		}
+		});
 	}
 
 	/**

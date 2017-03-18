@@ -3789,45 +3789,49 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		@NotNull
 		final CompletableFuture<Void> operationAsync() {
-			return Async.awaitAsync(
-				pump.switchToMainThreadAsync(),
-				() -> {
-					CompletableFuture<Void> dependentOperation = Futures.completedNull();
-					if (this.dependentService != null) {
-						this.dependentTask = this.dependentService.operationAsync();
-						dependentOperation = dependentTask;
-					}
+			return Async.runAsync(() -> {
+				return Async.awaitAsync(
+					pump.switchToMainThreadAsync(),
+					() -> {
+						CompletableFuture<Void> dependentOperation = Futures.completedNull();
+						if (this.dependentService != null) {
+							this.dependentTask = this.dependentService.operationAsync();
+							dependentOperation = dependentTask;
+						}
 
-					return Async.awaitAsync(
-						dependentOperation,
-						() -> Async.awaitAsync(
-							stopRequested.waitAsync(),
+						return Async.awaitAsync(
+							dependentOperation,
 							() -> Async.awaitAsync(
-								Async.yieldAsync(),
-								() -> {
-									Assert.assertSame(originalThread, Thread.currentThread());
-									return Futures.completedNull();
-								})));
-				});
+								stopRequested.waitAsync(),
+								() -> Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> {
+										Assert.assertSame(originalThread, Thread.currentThread());
+										return Futures.completedNull();
+									})));
+					});
+			});
 		}
 
 		@NotNull
 		final CompletableFuture<Void> stopAsync(@NotNull CompletableFuture<Void> operation) {
 			Requires.notNull(operation, "operation");
 
-			CompletableFuture<Void> dependentOperation = Futures.completedNull();
-			if (dependentService != null) {
-				dependentOperation = dependentService.stopAsync(dependentTask);
-			}
+			return Async.runAsync(() -> {
+				CompletableFuture<Void> dependentOperation = Futures.completedNull();
+				if (dependentService != null) {
+					dependentOperation = dependentService.stopAsync(dependentTask);
+				}
 
-			return Async.awaitAsync(
-				dependentOperation,
-				() -> {
-					stopRequested.set();
-					return Async.usingAsync(
-						joinableCollection.join(),
-						() -> Async.awaitAsync(operation));
-				});
+				return Async.awaitAsync(
+						dependentOperation,
+						() -> {
+							stopRequested.set();
+							return Async.usingAsync(
+									joinableCollection.join(),
+									() -> Async.awaitAsync(operation));
+						});
+			});
 		}
 	}
 }

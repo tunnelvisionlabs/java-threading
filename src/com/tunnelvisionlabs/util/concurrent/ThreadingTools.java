@@ -123,28 +123,30 @@ public enum ThreadingTools {
 	 */
 	@NotNull
 	private static <T> CompletableFuture<T> withCancellationSlow(@NotNull CompletableFuture<T> future, @NotNull CancellationToken cancellationToken) {
-		assert future != null;
-		assert cancellationToken != null;
+		return Async.runAsync(() -> {
+			assert future != null;
+			assert cancellationToken != null;
 
-		CompletableFuture<T> cancellationFuture = new CompletableFuture<>();
-		return Async.usingAsync(
-			cancellationToken.register(f -> f.cancel(false), cancellationFuture),
-			() -> {
-				return Async.awaitAsync(
-					Async.whenAny(future, cancellationFuture),
-					completedFuture -> {
-						if (future != completedFuture) {
-							if (cancellationFuture.isDone()) {
-								return Futures.completedCancelled();
+			CompletableFuture<T> cancellationFuture = new CompletableFuture<>();
+			return Async.usingAsync(
+				cancellationToken.register(f -> f.cancel(false), cancellationFuture),
+				() -> {
+					return Async.awaitAsync(
+						Async.whenAny(future, cancellationFuture),
+						completedFuture -> {
+							if (future != completedFuture) {
+								if (cancellationFuture.isDone()) {
+									return Futures.completedCancelled();
+								}
 							}
-						}
 
-						// Rethrow any fault/cancellation exception, even if we awaited above.
-						// But if we skipped the above if branch, this will actually yield
-						// on an incompleted future.
-						return Async.awaitAsync(future, false);
-					},
-					false);
-			});
+							// Rethrow any fault/cancellation exception, even if we awaited above.
+							// But if we skipped the above if branch, this will actually yield
+							// on an incompleted future.
+							return Async.awaitAsync(future, false);
+						},
+						false);
+				});
+		});
 	}
 }

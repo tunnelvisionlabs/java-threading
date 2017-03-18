@@ -63,22 +63,24 @@ public enum TplExtensions {
 	 * @return A future that completes with the result of the specified {@code future} or fails with a {@link CancellationException} if {@code timeout} elapses first.
 	 */
 	public static <T> CompletableFuture<T> withTimeout(@NotNull CompletableFuture<T> future, long timeout, @NotNull TimeUnit unit) {
-		Requires.notNull(future, "future");
+		return Async.runAsync(() -> {
+			Requires.notNull(future, "future");
 
-		CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout, unit);
-		return Async.awaitAsync(
-			Async.whenAny(future, timeoutTask),
-			completedFuture -> {
-				if (completedFuture == timeoutTask) {
-					return Futures.completedCancelled();
-				}
+			CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout, unit);
+			return Async.awaitAsync(
+				Async.whenAny(future, timeoutTask),
+				completedFuture -> {
+					if (completedFuture == timeoutTask) {
+						return Futures.completedCancelled();
+					}
 
-				// The timeout did not elapse, so cancel the timer to recover system resources.
-				timeoutTask.cancel(false);
+					// The timeout did not elapse, so cancel the timer to recover system resources.
+					timeoutTask.cancel(false);
 
-				return Async.awaitAsync(future, false);
-			},
-			false);
+					return Async.awaitAsync(future, false);
+				},
+				false);
+		});
 	}
 
 //        /// <summary>

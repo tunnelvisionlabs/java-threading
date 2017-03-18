@@ -81,11 +81,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	private final Thread mainThread;
 
 	/**
-	 * The ID for the main thread;
-	 */
-	private final long mainThreadManagedThreadId;
-
-	/**
 	 * A single joinable future factory that itself cannot be joined.
 	 */
 //        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
@@ -114,7 +109,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 */
 	public JoinableFutureContext(Thread mainThread, SynchronizationContext synchronizationContext) {
 		this.mainThread = mainThread != null ? mainThread : Thread.currentThread();
-		this.mainThreadManagedThreadId = this.getMainThread().getId();
 		this.underlyingSynchronizationContext = synchronizationContext != null ? synchronizationContext : SynchronizationContext.getCurrent();
 	}
 

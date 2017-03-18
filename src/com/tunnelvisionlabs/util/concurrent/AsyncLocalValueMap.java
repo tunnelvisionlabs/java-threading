@@ -12,7 +12,7 @@ enum AsyncLocalValueMap {
 	private static final class EmptyAsyncLocalValueMap implements IAsyncLocalValueMap {
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// If the value isn't null, then create a new one-element map to store
 			// the key/value pair.  If it is null, then we're still empty.
 			return value != null
@@ -21,7 +21,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
+		public <T> T get(AsyncLocal<T> key) {
 			return null;
 		}
 	}
@@ -29,16 +29,20 @@ enum AsyncLocalValueMap {
 	// Instance with one key/value pair.
 	private static final class OneElementAsyncLocalValueMap implements IAsyncLocalValueMap {
 
-		private final IAsyncLocal key1;
+		private final AsyncLocal<?> key1;
 		private final Object value1;
 
-		public OneElementAsyncLocalValueMap(IAsyncLocal key, Object value) {
+		public <T> OneElementAsyncLocalValueMap(AsyncLocal<T> key, T value) {
 			key1 = key;
 			value1 = value;
 		}
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+			// This cast is safe for our use in copying the map
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
+
 			if (value != null) {
 				// The value is non-null.  If the key matches one already contained in this map,
 				// then create a new one-element map with the updated value, otherwise create
@@ -54,9 +58,11 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
+		public <T> T get(AsyncLocal<T> key) {
 			if (key == key1) {
-				return value1;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value1;
+				return result;
 			} else {
 				return null;
 			}
@@ -66,12 +72,12 @@ enum AsyncLocalValueMap {
 	// Instance with two key/value pairs.
 	private static final class TwoElementAsyncLocalValueMap implements IAsyncLocalValueMap {
 
-		private final IAsyncLocal key1;
-		private final IAsyncLocal key2;
+		private final AsyncLocal<?> key1;
+		private final AsyncLocal<?> key2;
 		private final Object value1;
 		private final Object value2;
 
-		public TwoElementAsyncLocalValueMap(IAsyncLocal key1, Object value1, IAsyncLocal key2, Object value2) {
+		public <T, U> TwoElementAsyncLocalValueMap(AsyncLocal<T> key1, T value1, AsyncLocal<U> key2, U value2) {
 			this.key1 = key1;
 			this.value1 = value1;
 			this.key2 = key2;
@@ -79,7 +85,13 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+			// These casts are safe for our use in copying the map
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key2 = (AsyncLocal<Object>)this.key2;
+
 			if (value != null) {
 				// The value is non-null.  If the key matches one already contained in this map,
 				// then create a new two-element map with the updated value, otherwise create
@@ -97,11 +109,15 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
+		public <T> T get(AsyncLocal<T> key) {
 			if (key == key1) {
-				return value1;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value1;
+				return result;
 			} else if (key == key2) {
-				return value2;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value2;
+				return result;
 			} else {
 				return null;
 			}
@@ -111,14 +127,14 @@ enum AsyncLocalValueMap {
 	// Instance with three key/value pairs.
 	private static final class ThreeElementAsyncLocalValueMap implements IAsyncLocalValueMap {
 
-		private final IAsyncLocal key1;
-		private final IAsyncLocal key2;
-		private final IAsyncLocal key3;
+		private final AsyncLocal<?> key1;
+		private final AsyncLocal<?> key2;
+		private final AsyncLocal<?> key3;
 		private final Object value1;
 		private final Object value2;
 		private final Object value3;
 
-		public ThreeElementAsyncLocalValueMap(IAsyncLocal key1, Object value1, IAsyncLocal key2, Object value2, IAsyncLocal key3, Object value3) {
+		public <T, U, V> ThreeElementAsyncLocalValueMap(AsyncLocal<T> key1, T value1, AsyncLocal<U> key2, U value2, AsyncLocal<V> key3, V value3) {
 			this.key1 = key1;
 			this.value1 = value1;
 			this.key2 = key2;
@@ -128,7 +144,15 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+			// These casts are safe for our use in copying the map
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key2 = (AsyncLocal<Object>)this.key2;
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object> key3 = (AsyncLocal<Object>)this.key3;
+
 			if (value != null) {
 				// The value is non-null.  If the key matches one already contained in this map,
 				// then create a new three-element map with the updated value.
@@ -161,13 +185,19 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
+		public <T> T get(AsyncLocal<T> key) {
 			if (key == key1) {
-				return value1;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value1;
+				return result;
 			} else if (key == key2) {
-				return value2;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value2;
+				return result;
 			} else if (key == key3) {
-				return value3;
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				T result = (T)value3;
+				return result;
 			} else {
 				return null;
 			}
@@ -178,23 +208,27 @@ enum AsyncLocalValueMap {
 	private static final class MultiElementAsyncLocalValueMap implements IAsyncLocalValueMap {
 
 		static final int MAX_MULTI_ELEMENTS = 16;
-		private final IAsyncLocal[] keys;
+		private final AsyncLocal<?>[] keys;
 		private final Object[] values;
 
 		MultiElementAsyncLocalValueMap(int count) {
 			assert count <= MAX_MULTI_ELEMENTS;
-			keys = new IAsyncLocal[count];
-			values = new IAsyncLocal[count];
+			keys = new AsyncLocal<?>[count];
+			values = new Object[count];
 		}
 
-		void unsafeStore(int index, IAsyncLocal key, Object value) {
+		<T> void unsafeStore(int index, AsyncLocal<T> key, T value) {
 			assert index < keys.length;
 			keys[index] = key;
 			values[index] = value;
 		}
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+			// This cast is safe for our use in copying the map
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			AsyncLocal<Object>[] keys = (AsyncLocal<Object>[])this.keys;
+
 			// Find the key in this map.
 			for (int i = 0; i < keys.length; i++) {
 				if (key == keys[i]) {
@@ -261,10 +295,12 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
+		public <T> T get(AsyncLocal<T> key) {
 			for (int i = 0; i < keys.length; i++) {
 				if (keys[i] == key) {
-					return values[i];
+					@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+					T result = (T)values[i];
+					return result;
 				}
 			}
 
@@ -275,14 +311,14 @@ enum AsyncLocalValueMap {
 	// Instance with any number of key/value pairs.
 	private static final class ManyElementAsyncLocalValueMap implements IAsyncLocalValueMap {
 
-		private final Map<IAsyncLocal, Object> values;
+		private final Map<AsyncLocal<?>, Object> values;
 
 		public ManyElementAsyncLocalValueMap(int capacity) {
 			values = new HashMap<>(capacity);
 		}
 
 		@Override
-		public IAsyncLocalValueMap put(IAsyncLocal key, Object value) {
+		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			int count = values.size();
 			boolean containsKey = values.containsKey(key);
 
@@ -290,8 +326,11 @@ enum AsyncLocalValueMap {
 			// and then store the new key/value pair into it.  This is the most common case.
 			if (value != null) {
 				ManyElementAsyncLocalValueMap map = new ManyElementAsyncLocalValueMap(count + (containsKey ? 0 : 1));
-				for (Map.Entry<IAsyncLocal, Object> pair : values.entrySet()) {
-					map.unsafeStore(pair.getKey(), pair.getValue());
+				for (Map.Entry<AsyncLocal<?>, Object> pair : values.entrySet()) {
+					// This cast is safe four our use in copying the map
+					@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+					AsyncLocal<Object> k = (AsyncLocal<Object>)pair.getKey();
+					map.unsafeStore(k, pair.getValue());
 				}
 
 				map.unsafeStore(key, value);
@@ -309,9 +348,13 @@ enum AsyncLocalValueMap {
 				if (count == MultiElementAsyncLocalValueMap.MAX_MULTI_ELEMENTS + 1) {
 					MultiElementAsyncLocalValueMap multi = new MultiElementAsyncLocalValueMap(MultiElementAsyncLocalValueMap.MAX_MULTI_ELEMENTS);
 					int index = 0;
-					for (Map.Entry<IAsyncLocal, Object> pair : values.entrySet()) {
+					for (Map.Entry<AsyncLocal<?>, Object> pair : values.entrySet()) {
 						if (key != pair.getKey()) {
-							multi.unsafeStore(index++, pair.getKey(), pair.getValue());
+							// This cast is safe four our use in copying the map
+							@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+							AsyncLocal<Object> k = (AsyncLocal<Object>)pair.getKey();
+
+							multi.unsafeStore(index++, k, pair.getValue());
 						}
 					}
 
@@ -319,9 +362,13 @@ enum AsyncLocalValueMap {
 					return multi;
 				} else {
 					ManyElementAsyncLocalValueMap map = new ManyElementAsyncLocalValueMap(count - 1);
-					for (Map.Entry<IAsyncLocal, Object> pair : values.entrySet()) {
+					for (Map.Entry<AsyncLocal<?>, Object> pair : values.entrySet()) {
 						if (key != pair.getKey()) {
-							map.unsafeStore(pair.getKey(), pair.getValue());
+							// This cast is safe four our use in copying the map
+							@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+							AsyncLocal<Object> k = (AsyncLocal<Object>)pair.getKey();
+
+							map.unsafeStore(k, pair.getValue());
 						}
 					}
 
@@ -336,11 +383,13 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public Object get(IAsyncLocal key) {
-			return values.get(key);
+		public <T> T get(AsyncLocal<T> key) {
+			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+			T result = (T)values.get(key);
+			return result;
 		}
 
-		void unsafeStore(IAsyncLocal key, Object value) {
+		<T> void unsafeStore(AsyncLocal<T> key, T value) {
 			values.put(key, value);
 		}
 	}

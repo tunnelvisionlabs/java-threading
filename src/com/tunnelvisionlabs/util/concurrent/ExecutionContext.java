@@ -9,11 +9,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 class ExecutionContext {
-	private static final IAsyncLocal[] EMPTY_NOTIFICATIONS = { };
+	private static final AsyncLocal<?>[] EMPTY_NOTIFICATIONS = { };
 	static final ExecutionContext DEFAULT = new ExecutionContext();
 
 	private final IAsyncLocalValueMap localValues;
-	private final IAsyncLocal[] localChangeNotifications;
+	private final AsyncLocal<?>[] localChangeNotifications;
 	private final boolean isFlowSuppressed;
 
 	private ExecutionContext() {
@@ -22,7 +22,7 @@ class ExecutionContext {
 		isFlowSuppressed = false;
 	}
 
-	private ExecutionContext(IAsyncLocalValueMap localValues, IAsyncLocal[] localChangeNotifications, boolean isFlowSuppressed) {
+	private ExecutionContext(IAsyncLocalValueMap localValues, AsyncLocal<?>[] localChangeNotifications, boolean isFlowSuppressed) {
 		this.localValues = localValues;
 		this.localChangeNotifications = localChangeNotifications;
 		this.isFlowSuppressed = isFlowSuppressed;
@@ -135,18 +135,21 @@ class ExecutionContext {
 		assert current != null;
 		assert previous != current;
 
-		for (IAsyncLocal local : previous.localChangeNotifications) {
+		for (AsyncLocal<?> local : previous.localChangeNotifications) {
 			Object previousValue = previous.localValues.get(local);
 			Object currentValue = current.localValues.get(local);
 
 			if (previousValue != currentValue) {
-				local.onValueChanged(previousValue, currentValue, true);
+				// Safe for our use in this dispatch
+				@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+				AsyncLocal<Object> localAsObj = (AsyncLocal<Object>)local;
+				localAsObj.onValueChanged(previousValue, currentValue, true);
 			}
 		}
 
 		if (current.localChangeNotifications != previous.localChangeNotifications) {
 			try {
-				for (IAsyncLocal local : current.localChangeNotifications) {
+				for (AsyncLocal<?> local : current.localChangeNotifications) {
 					// If the local has a value in the previous context, we already fired the event for that local
 					// in the code above.
 					Object previousValue = previous.localValues.get(local);
@@ -154,7 +157,11 @@ class ExecutionContext {
 						Object currentValue = current.localValues.get(local);
 
 						if (previousValue != currentValue) {
-							local.onValueChanged(previousValue, currentValue, true);
+							// Safe for our use in this dispatch
+							@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+							AsyncLocal<Object> localAsObj = (AsyncLocal<Object>)local;
+
+							localAsObj.onValueChanged(previousValue, currentValue, true);
 						}
 					}
 				}
@@ -166,22 +173,24 @@ class ExecutionContext {
 		}
 	}
 
-	static Object getLocalValue(IAsyncLocal local) {
+	static <T> T getLocalValue(AsyncLocal<? extends T> local) {
 		ExecutionContext current = ThreadProperties.getExecutionContext(Thread.currentThread());
 		if (current == null) {
 			return null;
 		}
 
-		return current.localValues.get(local);
+		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+		T result = (T)current.localValues.get(local);
+		return result;
 	}
 
-	static void setLocalValue(IAsyncLocal local, Object newValue, boolean needChangeNotifications) {
+	static <T> void setLocalValue(AsyncLocal<T> local, T newValue, boolean needChangeNotifications) {
 		ExecutionContext current = ThreadProperties.getExecutionContext(Thread.currentThread());
 		if (current == null) {
 			current = DEFAULT;
 		}
 
-		Object previousValue = current.localValues.get(local);
+		T previousValue = current.localValues.get(local);
 		boolean hadPreviousValue = previousValue != null;
 
 		if (previousValue == newValue) {
@@ -193,7 +202,7 @@ class ExecutionContext {
 		//
 		// Either copy the change notification array, or create a new one, depending on whether we need to add a new item.
 		//
-		IAsyncLocal[] newChangeNotifications = current.localChangeNotifications;
+		AsyncLocal<?>[] newChangeNotifications = current.localChangeNotifications;
 		if (needChangeNotifications) {
 			if (hadPreviousValue) {
 				assert Arrays.asList(newChangeNotifications).indexOf(local) >= 0;

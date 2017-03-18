@@ -10,7 +10,7 @@ import java.util.function.Consumer;
  *
  * @param <T> The type of value to store.
  */
-public final class AsyncLocal<T> implements IAsyncLocal {
+public final class AsyncLocal<T> {
 	private final Consumer<? super AsyncLocalValueChangedEventArgs<T>> valueChangedHandler;
 
 	public AsyncLocal() {
@@ -22,22 +22,16 @@ public final class AsyncLocal<T> implements IAsyncLocal {
 	}
 
 	public final T getValue() {
-		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
-		T result = (T)ExecutionContext.getLocalValue(this);
-		return result;
+		return ExecutionContext.getLocalValue(this);
 	}
 
 	public final void setValue(T value) {
 		ExecutionContext.setLocalValue(this, value, valueChangedHandler != null);
 	}
 
-	@Override
-	public final void onValueChanged(Object previousValueObj, Object currentValueObj, boolean contextChanged) {
+	public final void onValueChanged(T previousValue, T currentValue, boolean contextChanged) {
 		assert valueChangedHandler != null;
-		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
-		T previousValue = (T)previousValueObj;
-		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
-		T currentValue = (T)currentValueObj;
+
 		valueChangedHandler.accept(new AsyncLocalValueChangedEventArgs<>(previousValue, currentValue, contextChanged));
 	}
 }

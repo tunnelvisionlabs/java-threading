@@ -2,6 +2,6 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 interface IAsyncLocalValueMap {
-	Object get(IAsyncLocal key);
-	IAsyncLocalValueMap put(IAsyncLocal key, Object value);
+	<T> T get(AsyncLocal<T> key);
+	<T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value);
 }

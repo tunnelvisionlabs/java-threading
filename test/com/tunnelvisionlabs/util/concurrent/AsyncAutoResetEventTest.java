@@ -137,49 +137,60 @@ public class AsyncAutoResetEventTest extends TestBase {
 		Assert.assertFalse(waitFuture.isCompletedExceptionally());
 	}
 
-//        [Fact]
-//        public void WaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal()
-//        {
-//            // We construct our own pre-canceled token so that we can do
-//            // a meaningful identity check later.
-//            var tokenSource = new CancellationTokenSource();
-//            tokenSource.Cancel();
-//            var token = tokenSource.Token;
-//
-//            // Verify that a pre-set signal is not reset by a canceled wait request.
-//            this.evt.Set();
-//            try
-//            {
-//                this.evt.WaitAsync(token).GetAwaiter().GetResult();
-//                Assert.True(false, "Task was expected to transition to a canceled state.");
-//            }
-//            catch (OperationCanceledException ex)
-//            {
-//                if (!TestUtilities.IsNet45Mode)
-//                {
-//                    Assert.Equal(token, ex.CancellationToken);
-//                }
-//            }
-//
-//            // Verify that the signal was not acquired.
-//            Task waitTask = this.evt.WaitAsync();
-//            Assert.Equal(TaskStatus.RanToCompletion, waitTask.Status);
-//        }
+	@Test
+	public void testWaitAsync_WithCancellationToken_DoesNotClaimSignal() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-        @Test
-        public void testWaitAsync_Canceled_DoesNotInlineContinuations()
-        {
-            CompletableFuture<Void> future = event.waitAsync();
-            verifyDoesNotInlineContinuations(future, () -> future.cancel(true));
-        }
+		CompletableFuture<Void> waitFuture = event.waitAsync(cancellationTokenSource.getToken());
+		Assert.assertFalse(waitFuture.isDone());
 
-        @Test
-        public void testWaitAsync_Canceled_DoesInlineContinuations()
-        {
-            event = new AsyncAutoResetEvent(/*allowInliningAwaiters:*/ true);
-            CompletableFuture<Void> future = event.waitAsync();
-            verifyCanInlineContinuations(future, () -> future.cancel(true));
-        }
+		// Cancel the request and ensure that it propagates to the task.
+		cancellationTokenSource.cancel();
+
+		try {
+			waitFuture.join();
+			Assert.fail("Future was expected to be cancelled.");
+		} catch (CancellationException ex) {
+		}
+
+		// Now set the event and verify that a future waiter gets the signal immediately.
+		event.set();
+		waitFuture = event.waitAsync();
+		Assert.assertTrue(waitFuture.isDone());
+		Assert.assertFalse(waitFuture.isCompletedExceptionally());
+	}
+
+	@Test
+	public void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
+
+		// Verify that a pre-set signal is not reset by a canceled wait request.
+		this.event.set();
+		try {
+			event.waitAsync(cancellationTokenSource.getToken()).join();
+			Assert.fail("Future was expected to transition to a canceled state.");
+		} catch (CancellationException ex) {
+		}
+
+		// Verify that the signal was not acquired.
+		CompletableFuture<Void> waitTask = this.event.waitAsync();
+		Assert.assertTrue(waitTask.isDone());
+		Assert.assertFalse(waitTask.isCompletedExceptionally());
+	}
+
+	@Test
+	public void testWaitAsync_Canceled_DoesNotInlineContinuations() {
+		CompletableFuture<Void> future = event.waitAsync();
+		verifyDoesNotInlineContinuations(future, () -> future.cancel(true));
+	}
+
+	@Test
+	public void testWaitAsync_Canceled_DoesInlineContinuations() {
+		event = new AsyncAutoResetEvent(/*allowInliningAwaiters:*/true);
+		CompletableFuture<Void> future = event.waitAsync();
+		verifyCanInlineContinuations(future, () -> future.cancel(true));
+	}
 
 //        /// <summary>
 //        /// Verifies that long-lived, uncanceled CancellationTokens do not result in leaking memory.

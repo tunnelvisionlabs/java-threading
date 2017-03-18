@@ -3,6 +3,8 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 enum Futures {
 	;
@@ -82,5 +84,89 @@ enum Futures {
 		});
 
 		return wrapper;
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> unwrap(@NotNull CompletableFuture<? extends CompletableFuture<T>> future) {
+		CompletableFuture<T> result = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (!future.cancel(mayInterruptIfRunning)) {
+					if (!future.isDone() || future.isCompletedExceptionally()) {
+						return false;
+					}
+
+					if (!future.join().cancel(mayInterruptIfRunning)) {
+						return false;
+					}
+				}
+
+				return super.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		future.whenComplete((outerResult, exception) -> {
+			if (exception != null) {
+				if (future.isCancelled()) {
+					result.cancel(false);
+				} else {
+					result.completeExceptionally(exception);
+				}
+			} else {
+				outerResult.whenComplete((innerResult, innerException) -> {
+					if (innerException != null) {
+						if (outerResult.isCancelled()) {
+							result.cancel(false);
+						} else {
+							result.completeExceptionally(innerException);
+						}
+					} else {
+						result.complete(innerResult);
+					}
+				});
+			}
+		});
+
+		return result;
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable, @NotNull Executor executor) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable), executor);
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
+		return unwrap(supply(asyncRunnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
+		return unwrap(supply(asyncRunnable, executor));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier, @NotNull Executor executor) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier), executor);
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
+		return unwrap(supply(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier, @NotNull Executor executor) {
+		return unwrap(supply(supplier, executor));
 	}
 }

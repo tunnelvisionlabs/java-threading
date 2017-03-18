@@ -146,20 +146,43 @@ public class AsyncQueueTest extends TestBase {
 		}
 	}
 
-//        [Fact]
-//        public async Task DequeueAsyncPrecancelled()
-//        {
-//            var cts = new CancellationTokenSource();
-//            cts.Cancel();
-//            var dequeueTask = this.queue.DequeueAsync(cts.Token);
-//            Assert.True(dequeueTask.GetAwaiter().IsCompleted);
-//            await Assert.ThrowsAsync<TaskCanceledException>(() => dequeueTask);
-//
-//            var enqueuedValue = new GenericParameterHelper(1);
-//            this.queue.Enqueue(enqueuedValue);
-//
-//            Assert.Equal(1, this.queue.Count);
-//        }
+	@Test
+	public void testPollAsyncCancelledTokenBeforeComplete() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationTokenSource.getToken());
+		Assert.assertFalse(pollFuture.isDone());
+
+		cancellationTokenSource.cancel();
+
+		try {
+			thrown.expect(CancellationException.class);
+			pollFuture.join();
+		} finally {
+			GenericParameterHelper addedValue = new GenericParameterHelper(1);
+			queue.add(addedValue);
+
+			Assert.assertEquals(1, this.queue.size());
+		}
+	}
+
+	@Test
+	public void testPollAsyncPrecancelled() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
+		CompletableFuture<GenericParameterHelper> dequeueTask = queue.pollAsync(cancellationTokenSource.getToken());
+		Assert.assertTrue(dequeueTask.isDone());
+		CompletableFuture<Void> asyncTest = Async.awaitAsync(
+			AsyncAssert.cancelsAsync(() -> dequeueTask),
+			() -> {
+				GenericParameterHelper enqueuedValue = new GenericParameterHelper(1);
+				this.queue.add(enqueuedValue);
+
+				Assert.assertEquals(1, this.queue.size());
+				return Futures.completedNull();
+			});
+
+		asyncTest.join();
+	}
 
 	@Test
 	public void testPollAsyncCancelledAfterComplete() {
@@ -212,6 +235,32 @@ public class AsyncQueueTest extends TestBase {
 		for (int i = 0; i < pollers.size(); i += 2) {
 			pollers.get(i).cancel(true);
 		}
+
+		for (int i = 0; i < pollers.size(); i++) {
+			Assert.assertEquals(i % 2 == 0, pollers.get(i).isCancelled());
+
+			if (!pollers.get(i).isCancelled()) {
+				this.queue.add(new GenericParameterHelper(i));
+			}
+		}
+
+		Assert.assertTrue(pollers.stream().allMatch(d -> d.isDone()));
+	}
+
+	@Test
+	public void testMultiplePollersCancelledToken() {
+		CancellationTokenSource[] cancellationTokenSources = new CancellationTokenSource[2];
+		for (int i = 0; i < cancellationTokenSources.length; i++) {
+			cancellationTokenSources[i] = new CancellationTokenSource();
+		}
+
+		List<CompletableFuture<GenericParameterHelper>> pollers = new ArrayList<>();
+		for (int i = 0; i < 5; i++) {
+			pollers.add(queue.pollAsync(cancellationTokenSources[i % 2].getToken()));
+		}
+
+		// cancel some of them
+		cancellationTokenSources[0].cancel();
 
 		for (int i = 0; i < pollers.size(); i++) {
 			Assert.assertEquals(i % 2 == 0, pollers.get(i).isCancelled());
@@ -359,6 +408,32 @@ public class AsyncQueueTest extends TestBase {
 		});
 
 		pollFuture.cancel(true);
+
+		handled.join();
+		Assert.assertEquals(1, queue.size());
+	}
+
+	@Test
+	public void testNoLockHeldForCancellationTokenContinuation() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationTokenSource.getToken());
+		CompletableFuture<Void> handled = pollFuture.handle((result, exception) -> {
+			try {
+				ForkJoinPool.commonPool().submit(ExecutionContext.wrap(() -> {
+					// Add presumably requires a private lock internally.
+					// Since we're calling it on a different thread than the
+					// blocking cancellation continuation, this should deadlock
+					// if and only if the queue is holding a lock while invoking
+					// our cancellation continuation (which they shouldn't be doing).
+					queue.add(new GenericParameterHelper(1));
+				})).get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				return null;
+			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
+				throw new CompletionException(ex);
+			}
+		});
+
+		cancellationTokenSource.cancel();
 
 		handled.join();
 		Assert.assertEquals(1, queue.size());

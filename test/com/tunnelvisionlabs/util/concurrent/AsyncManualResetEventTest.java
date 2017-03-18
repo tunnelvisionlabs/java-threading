@@ -89,16 +89,15 @@ public class AsyncManualResetEventTest extends TestBase {
 		future.join();
 	}
 
-//        [Fact]
-//        public void Awaitable()
-//        {
-//            var task = Task.Run(async delegate
-//            {
-//                await this.evt;
-//            });
-//            this.evt.Set();
-//            task.Wait();
-//        }
+	@Test
+	public void testAwaitable() {
+		CompletableFuture<Void> task = Futures.runAsync(() -> {
+			return Async.awaitAsync(this.event);
+		});
+
+		this.event.set();
+		task.join();
+	}
 
 	@Test
 	public void testPulseAllAsync() {
@@ -155,34 +154,38 @@ public class AsyncManualResetEventTest extends TestBase {
 		Assert.assertFalse(future2.isDone());
 	}
 
-//        [Fact]
-//        public async Task SetAsyncThenResetLeavesEventInResetState()
-//        {
-//            // We starve the threadpool so that if SetAsync()
-//            // does work asynchronously, we'll force it to happen
-//            // after the Reset() method is executed.
-//            using (var starvation = TestUtilities.StarveThreadpool())
-//            {
-//#pragma warning disable CS0618 // Type or member is obsolete
-//                // Set and immediately reset the event.
-//                var setTask = this.evt.SetAsync();
-//#pragma warning restore CS0618 // Type or member is obsolete
-//                Assert.True(this.evt.IsSet);
-//                this.evt.Reset();
-//                Assert.False(this.evt.IsSet);
-//
-//                // At this point, the event should be unset,
-//                // but allow the SetAsync call to finish its work.
-//                starvation.Dispose();
-//                await setTask;
-//
-//                // Verify that the event is still unset.
-//                // If this fails, then the async nature of SetAsync
-//                // allowed it to "jump" over the Reset and leave the event
-//                // in a set state (which would of course be very bad).
-//                Assert.False(this.evt.IsSet);
-//            }
-//        }
+	@Test
+	public void testSetAsyncThenResetLeavesEventInResetState() {
+		// We starve the fork join pool so that if setAsync()
+		// does work asynchronously, we'll force it to happen
+		// after the reset() method is executed.
+		CompletableFuture<Void> asyncTest = Async.usingAsync(
+			TestUtilities.starveForkJoinPool(),
+			starvation -> {
+				// Set and immediately reset the event.
+				@SuppressWarnings("deprecation")
+				CompletableFuture<Void> setTask = event.setAsync();
+				Assert.assertTrue(event.isSet());
+				event.reset();
+				Assert.assertFalse(event.isSet());
+
+				// At this point, the event should be unset,
+				// but allow the setAsync call to finish its work.
+				starvation.close();
+				return Async.awaitAsync(
+					setTask,
+					() -> {
+						// Verify that the event is still unset.
+						// If this fails, then the async nature of setAsync
+						// allowed it to "jump" over the reset and leave the event
+						// in a set state (which would of course be very bad).
+						Assert.assertFalse(event.isSet());
+						return Futures.completedNull();
+					});
+			});
+
+		asyncTest.join();
+	}
 
 	@Test
 	public void testSetThenPulseAllResetsEvent() {

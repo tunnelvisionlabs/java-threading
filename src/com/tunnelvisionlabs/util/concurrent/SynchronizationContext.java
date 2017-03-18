@@ -2,10 +2,13 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 class SynchronizationContext implements Executor {
 	private static final ThreadLocal<SynchronizationContext> CURRENT_CONTEXT = new ThreadLocal<>();
+
+	private boolean waitNotificationRequired;
 
 	@Nullable
 	public static SynchronizationContext getCurrent() {
@@ -22,7 +25,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	public final boolean isWaitNotificationRequired() {
-		throw new UnsupportedOperationException("Not implemented");
+		return waitNotificationRequired;
 	}
 
 	public void operationStarted() {
@@ -32,7 +35,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	public <T> void post(@NotNull Consumer<T> callback, T state) {
-		throw new UnsupportedOperationException("Not implemented");
+		ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> callback.accept(state)));
 	}
 
 	public <T> void send(@NotNull Consumer<T> callback, T state) {
@@ -40,7 +43,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	protected final void setWaitNotificationRequired() {
-		throw new UnsupportedOperationException("Not implemented");
+		waitNotificationRequired = true;
 	}
 
 	@Override

@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -11,19 +12,27 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.Timeout;
 
 /**
  * Copied from Microsoft/vs-threading@14f77875.
  */
 public abstract class TestBase {
+	private static final boolean DEBUG = false;
+
 	protected static final int ASYNC_DELAY = 500;
 	protected static final TimeUnit ASYNC_DELAY_UNIT = TimeUnit.MILLISECONDS;
 
 	protected static final int TEST_TIMEOUT = 1000;
-	protected static final TimeUnit TEST_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+	protected static final TimeUnit TEST_TIMEOUT_UNIT = DEBUG ? TimeUnit.MINUTES : TimeUnit.MILLISECONDS;
+
+	private CancellationTokenSource timeoutTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
+
+	@Rule
+	public final Timeout testTimeout = new Timeout(TEST_TIMEOUT * 5, TEST_TIMEOUT_UNIT);
 
 	private SynchronizationContext synchronizationContext;
 	private CallContext callContext;
@@ -41,37 +50,49 @@ public abstract class TestBase {
 		SynchronizationContext.setSynchronizationContext(synchronizationContext);
 	}
 
-//        /// <summary>
-//        /// The maximum length of time to wait for something that we expect will happen
-//        /// within the timeout.
-//        /// </summary>
-//        protected static readonly TimeSpan UnexpectedTimeout = Debugger.IsAttached ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(5);
-//
-//        /// <summary>
-//        /// The maximum length of time to wait for something that we do not expect will happen
-//        /// within the timeout.
-//        /// </summary>
-//        protected static readonly TimeSpan ExpectedTimeout = TimeSpan.FromSeconds(2);
-//
+	/**
+	 * The maximum length of time to wait for something that we expect will happen within the timeout.
+	 */
+	protected static final long UNEXPECTED_TIMEOUT = 5000;
+	protected static final TimeUnit UNEXPECTED_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+
+	/**
+	 * The maximum length of time to wait for something that we do not expect will happen within the timeout.
+	 */
+	protected static final long EXPECTED_TIMEOUT = 2;
+	protected static final TimeUnit EXPECTED_TIMEOUT_UNIT = TimeUnit.SECONDS;
+
 //        private const int GCAllocationAttempts = 10;
 //
 //        protected TestBase(ITestOutputHelper logger)
 //        {
 //            this.Logger = logger;
 //        }
-//
-//        /// <summary>
-//        /// Gets or sets the source of <see cref="TimeoutToken"/> that influences
-//        /// when tests consider themselves to be timed out.
-//        /// </summary>
-//        protected CancellationTokenSource TimeoutTokenSource { get; set; } = new CancellationTokenSource(TestTimeout);
-//
-//        /// <summary>
-//        /// Gets a token that is canceled when the test times out,
-//        /// per the policy set by <see cref="TimeoutTokenSource"/>.
-//        /// </summary>
-//        protected CancellationToken TimeoutToken => this.TimeoutTokenSource.Token;
-//
+
+	/**
+	 * Gets the source of {@link #getTimeoutFuture()} that influences when tests consider themselves to be timed out.
+	 */
+	@NotNull
+	protected final CancellationTokenSource getTimeoutTokenSource() {
+		return timeoutTokenSource;
+	}
+
+	/**
+	 * Sets the source of {@link #getTimeoutFuture()} that influences when tests consider themselves to be timed out.
+	 */
+	protected final void setTimeoutTokenSource(@NotNull CancellationTokenSource value) {
+		timeoutTokenSource = value;
+	}
+
+	/**
+	 * Gets a {@link CancellationToken} that is canceled when the test times out, per the policy set by
+	 * {@link #getTimeoutTokenSource()}.
+	 */
+	@NotNull
+	protected final CancellationToken getTimeoutToken() {
+		return getTimeoutTokenSource().getToken();
+	}
+
 //        /// <summary>
 //        /// Gets or sets the logger to use for writing text to be captured in the test results.
 //        /// </summary>

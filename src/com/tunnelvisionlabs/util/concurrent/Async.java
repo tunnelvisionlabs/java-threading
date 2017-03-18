@@ -107,12 +107,14 @@ public enum Async {
 
 	@NotNull
 	public static <T> CompletableFuture<T> runAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
+		StrongBox<CompletableFuture<T>> result = SharedPools.<CompletableFuture<T>>strongBox().allocate();
 		try {
-			StrongBox<CompletableFuture<T>> result = new StrongBox<>();
 			ExecutionContext.run(ExecutionContext.capture(), s -> result.value = s.get(), supplier);
 			return result.value;
 		} catch (Throwable ex) {
 			return Futures.fromException(ex);
+		} finally {
+			SharedPools.<CompletableFuture<T>>strongBox().free(result);
 		}
 	}
 

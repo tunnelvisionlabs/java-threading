@@ -152,32 +152,27 @@ enum TestUtilities {
 		return new YieldAndNotifyAwaitable(baseAwaiter, yieldingSignal, resumingSignal);
 	}
 
-//        /// <summary>
-//        /// Flood the threadpool with requests that will just block the threads
-//        /// until the returned value is disposed of.
-//        /// </summary>
-//        /// <returns>A value to dispose of to unblock the threadpool.</returns>
-//        /// <remarks>
-//        /// This can provide a unique technique for influencing execution order
-//        /// of synchronous code vs. async code.
-//        /// </remarks>
-//        internal static IDisposable StarveThreadpool()
-//        {
-//            var evt = new ManualResetEventSlim();
-//
-//            // Flood the threadpool with work items that will just block
-//            // any threads assigned to them.
-//            int workerThreads, completionPortThreads;
-//            ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
-//            for (int i = 0; i < workerThreads * 10; i++)
-//            {
-//                ThreadPool.QueueUserWorkItem(
-//                    s => ((ManualResetEventSlim)s).Wait(),
-//                    evt);
-//            }
-//
-//            return new ThreadpoolStarvation(evt);
-//        }
+	/**
+	 * Flood the {@link ForkJoinPool#commonPool()} with requests that will just block the threads until the returned
+	 * value is disposed of.
+	 *
+	 * <p>
+	 * This can provide a unique technique for influencing execution order of synchronous code vs. async code.</p>
+	 *
+	 * @return A value to close to unblock the fork join pool.
+	 */
+	static Disposable starveForkJoinPool() {
+		CompletableFuture<Void> evt = new CompletableFuture<>();
+
+		// Flood the fork join pool with work items that will just block
+		// any threads assigned to them.
+		int workerThreads = ForkJoinPool.getCommonPoolParallelism();
+		for (int i = 0; i < workerThreads * 10; i++) {
+			ForkJoinPool.commonPool().submit(() -> evt.join());
+		}
+
+		return new ForkJoinPoolStarvation(evt);
+	}
 
 	static final class YieldAndNotifyAwaitable implements Awaitable<Void> {
 
@@ -249,20 +244,19 @@ enum TestUtilities {
 //                }
 //            }
 //        }
-//
-//        private class ThreadpoolStarvation : IDisposable
-//        {
-//            private readonly ManualResetEventSlim releaser;
-//
-//            internal ThreadpoolStarvation(ManualResetEventSlim releaser)
-//            {
-//                Requires.NotNull(releaser, nameof(releaser));
-//                this.releaser = releaser;
-//            }
-//
-//            public void Dispose()
-//            {
-//                this.releaser.Set();
-//            }
-//        }
+
+	private static class ForkJoinPoolStarvation implements Disposable {
+
+		private final CompletableFuture<Void> releaser;
+
+		ForkJoinPoolStarvation(@NotNull CompletableFuture<Void> releaser) {
+			Requires.notNull(releaser, "releaser");
+			this.releaser = releaser;
+		}
+
+		@Override
+		public void close() {
+			this.releaser.complete(null);
+		}
+	}
 }

@@ -269,7 +269,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	public void testSwitchToMainThreadCancellable() throws Exception {
 		CompletableFuture<Void> task = Futures.runAsync(() -> {
 			CancellationTokenSource cts = new CancellationTokenSource(ASYNC_DELAY);
-			return AsyncAssert.cancelsIncorrectlyAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(cts.getToken())));
+			return AsyncAssert.assertCancelsIncorrectlyAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(cts.getToken())));
 		});
 
 		task.get(TEST_TIMEOUT.multipliedBy(3).toMillis(), TimeUnit.MILLISECONDS);
@@ -301,7 +301,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			ForkJoinPool.commonPool(),
 			() -> Async.awaitAsync(
-				AsyncAssert.throwsAsync(
+				AsyncAssert.assertThrowsAsync(
 					JoinableFutureContextException.class,
 					() -> Async.awaitAsync(jtc.getFactory().switchToMainThreadAsync()))));
 
@@ -3143,7 +3143,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			throw exception;
 		});
 		Assert.assertTrue(joinableTask.isDone());
-		CompletableFuture<Void> asyncTest = AsyncAssert.throwsAsync(sameInstance(exception), () -> joinableTask.getFuture());
+		CompletableFuture<Void> asyncTest = AsyncAssert.assertThrowsAsync(sameInstance(exception), () -> joinableTask.getFuture());
 
 		asyncTest.join();
 

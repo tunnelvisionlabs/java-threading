@@ -13,7 +13,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 enum AsyncAssert {
 	;
 
-	public static CompletableFuture<Void> cancelsAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
+	public static CompletableFuture<Void> assertCancelsAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
 		// Shouldn't throw (operation is expected to return a failed future)
 		CompletableFuture<?> future = supplier.get();
 		return future.handle((result, exception) -> {
@@ -24,15 +24,15 @@ enum AsyncAssert {
 		});
 	} 
 
-	public static CompletableFuture<Void> cancelsIncorrectlyAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
-		return throwsAsync(CancellationException.class, supplier);
+	public static CompletableFuture<Void> assertCancelsIncorrectlyAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
+		return AsyncAssert.assertThrowsAsync(CancellationException.class, supplier);
 	} 
 
-	public static CompletableFuture<Void> throwsAsync(@NotNull Class<? extends Throwable> exceptionClass, @NotNull Supplier<CompletableFuture<?>> supplier) {
-		return throwsAsync(instanceOf(exceptionClass), supplier);
+	public static CompletableFuture<Void> assertThrowsAsync(@NotNull Class<? extends Throwable> exceptionClass, @NotNull Supplier<CompletableFuture<?>> supplier) {
+		return assertThrowsAsync(instanceOf(exceptionClass), supplier);
 	} 
 
-	public static CompletableFuture<Void> throwsAsync(@NotNull Matcher<? super Throwable> matcher, @NotNull Supplier<CompletableFuture<?>> supplier) {
+	public static CompletableFuture<Void> assertThrowsAsync(@NotNull Matcher<? super Throwable> matcher, @NotNull Supplier<CompletableFuture<?>> supplier) {
 		// Shouldn't throw (operation is expected to return a failed future)
 		CompletableFuture<?> future = supplier.get();
 		return future.handle((result, exception) -> {

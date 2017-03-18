@@ -173,7 +173,7 @@ public class AsyncQueueTest extends TestBase {
 		CompletableFuture<GenericParameterHelper> dequeueTask = queue.pollAsync(cancellationTokenSource.getToken());
 		Assert.assertTrue(dequeueTask.isDone());
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> dequeueTask),
+			AsyncAssert.assertCancelsAsync(() -> dequeueTask),
 			() -> {
 				GenericParameterHelper enqueuedValue = new GenericParameterHelper(1);
 				this.queue.add(enqueuedValue);

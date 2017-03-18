@@ -309,10 +309,10 @@ public class AsyncLazyTest extends TestBase {
 			jtf));
 
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
+			AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
 			() -> Async.awaitAsync(
 				// Do it again, to verify that AsyncLazy recorded the failure and will replay it.
-				AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync())));
+				AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync())));
 
 		asyncTest.join();
 	}
@@ -344,10 +344,10 @@ public class AsyncLazyTest extends TestBase {
 		}, jtf);
 
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()),
+			AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()),
 			() -> {
 				// Do it again, to verify that AsyncLazy recorded the failure and will replay it.
-				return Async.awaitAsync(AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()));
+				return Async.awaitAsync(AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()));
 			});
 
 		asyncTest.join();
@@ -367,7 +367,7 @@ public class AsyncLazyTest extends TestBase {
 
 		// Verify that the future returned from the canceled request actually completes before the value factory does.
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> task1),
+			AsyncAssert.assertCancelsAsync(() -> task1),
 			() -> {
 				// Now verify that the value factory does actually complete anyway for other callers.
 				evt.set();
@@ -399,7 +399,7 @@ public class AsyncLazyTest extends TestBase {
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			// This is not the behavior we want. The cancellation is wrapped in a failed future rather than producing a
 			// cancelled future.
-			AsyncAssert.cancelsAsync(() -> task1),
+			AsyncAssert.assertCancelsAsync(() -> task1),
 			() -> {
 				// Now verify that the value factory does actually complete anyway for other callers.
 				evt.set();
@@ -421,7 +421,7 @@ public class AsyncLazyTest extends TestBase {
 
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> lazy.getValueAsync(cancellationTokenSource.getToken())),
+			AsyncAssert.assertCancelsAsync(() -> lazy.getValueAsync(cancellationTokenSource.getToken())),
 			() -> {
 				Assert.assertFalse("Value factory should not have been invoked for a pre-canceled token.", lazy.isValueCreated());
 				return Futures.completedNull();

@@ -37,20 +37,17 @@ public abstract class TestBase {
 	@Rule
 	public final Timeout testTimeout = new Timeout(TEST_TIMEOUT.multipliedBy(5).toMillis(), TimeUnit.MILLISECONDS);
 
-	private SynchronizationContext synchronizationContext;
-	private CallContext callContext;
+	private final ExecutionContextSwitcher executionContextSwitcher = new ExecutionContextSwitcher();
 
 	@Before
 	public final void initState() {
-		synchronizationContext = SynchronizationContext.getCurrent();
-		callContext = CallContext.getCurrent();
+		ExecutionContext.establishCopyOnWriteScope(Thread.currentThread(), executionContextSwitcher);
 		Assert.assertFalse(ExecutionContext.isFlowSuppressed());
 	}
 
 	@After
 	public final void cleanState() {
-		CallContext.setCallContext(callContext);
-		SynchronizationContext.setSynchronizationContext(synchronizationContext);
+		executionContextSwitcher.undo(Thread.currentThread());
 	}
 
 	/**

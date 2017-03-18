@@ -1,25 +1,32 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
-class AsyncFlowControl implements Disposable {
-	private final Thread thread;
-	private boolean closed;
+public final class AsyncFlowControl implements Disposable {
+	private Thread thread;
 
 	public AsyncFlowControl() {
-		this.thread = Thread.currentThread();
+	}
+
+	void initialize(Thread currentThread) {
+		assert currentThread == Thread.currentThread();
+		thread = currentThread;
 	}
 
 	@Override
 	public void close() {
+		if (thread == null) {
+			throw new IllegalStateException("Cannot reuse AsyncFlowControl");
+		}
+
 		if (thread != Thread.currentThread()) {
 			throw new UnsupportedOperationException("This object cannot be used on a different thread from where it was created.");
 		}
 
-		if (closed) {
+		if (!ExecutionContext.isFlowSuppressed()) {
 			throw new IllegalStateException("This object is already closed.");
 		}
 
-		closed = true;
+		thread = null;
 		ExecutionContext.restoreFlow();
 	}
 }

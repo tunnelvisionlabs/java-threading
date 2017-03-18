@@ -7,6 +7,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 /**
  * Copied from Microsoft/vs-threading@14f77875.
@@ -17,6 +19,9 @@ public abstract class TestBase {
 
 	protected static final int TEST_TIMEOUT = 1000;
 	protected static final TimeUnit TEST_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+
+	@Rule
+	public final ExpectedException thrown = ExpectedException.none();
 
 //        /// <summary>
 //        /// The maximum length of time to wait for something that we expect will happen

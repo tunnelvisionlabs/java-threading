@@ -69,23 +69,15 @@ public enum Async {
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull Executor executor) {
-		return awaitAsync(executor, AsyncFunctions.identity(), true);
+	public static CompletableFuture<Void> awaitAsync(@NotNull Executor executor) {
+		return awaitAsync(executor, () -> Futures.completedNull());
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull Executor executor, boolean continueOnCapturedContext) {
-		return awaitAsync(executor, AsyncFunctions.identity(), continueOnCapturedContext);
-	}
-
-	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Function<? super T, ? extends CompletableFuture<? extends U>> continuation) {
-		return awaitAsync(executor, continuation, true);
-	}
-
-	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Function<? super T, ? extends CompletableFuture<? extends U>> continuation, boolean continueOnCapturedContext) {
-		throw new UnsupportedOperationException("Not implemented");
+	public static <U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
+		return Futures.completedNull().thenComposeAsync(
+			ignored -> continuation.get(),
+			executor);
 	}
 
 	@NotNull
@@ -164,6 +156,16 @@ public enum Async {
 		} catch (Throwable ex) {
 			return Futures.completedFailed(ex);
 		}
+	}
+
+	@NotNull
+	public static Executor yieldAsync() {
+		SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
+		if (synchronizationContext != null) {
+			throw new UnsupportedOperationException("Not implemented");
+		}
+
+		return ForkJoinPool.commonPool();
 	}
 
 	@NotNull

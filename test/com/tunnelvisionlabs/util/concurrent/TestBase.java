@@ -6,7 +6,11 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 /**
  * Copied from Microsoft/vs-threading@14f77875.
@@ -17,6 +21,25 @@ public abstract class TestBase {
 
 	protected static final int TEST_TIMEOUT = 1000;
 	protected static final TimeUnit TEST_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+
+	@Rule
+	public final ExpectedException thrown = ExpectedException.none();
+
+	private SynchronizationContext synchronizationContext;
+	private CallContext callContext;
+
+	@Before
+	public final void initState() {
+		synchronizationContext = SynchronizationContext.getCurrent();
+		callContext = CallContext.getCurrent();
+		Assert.assertFalse(ExecutionContext.isFlowSuppressed());
+	}
+
+	@After
+	public final void cleanState() {
+		CallContext.setCallContext(callContext);
+		SynchronizationContext.setSynchronizationContext(synchronizationContext);
+	}
 
 //        /// <summary>
 //        /// The maximum length of time to wait for something that we expect will happen

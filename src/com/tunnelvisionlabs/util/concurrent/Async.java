@@ -10,6 +10,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public enum Async {
@@ -38,13 +39,11 @@ public enum Async {
 			return awaiter.thenCompose(continuation);
 		}
 
-		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
-		if (syncContext != null) {
-			throw new UnsupportedOperationException("Not implemented");
-		}
-
 		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
-		return awaiter.thenComposeAsync(result -> flowContinuation.apply(result));
+
+		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
+		Executor executor = syncContext != null ? syncContext : ForkJoinPool.commonPool();
+		return awaiter.thenComposeAsync(result -> flowContinuation.apply(result), executor);
 	}
 
 	@NotNull
@@ -68,30 +67,27 @@ public enum Async {
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull Executor executor) {
-		return awaitAsync(executor, AsyncFunctions.identity(), true);
+	public static CompletableFuture<Void> awaitAsync(@NotNull Executor executor) {
+		return awaitAsync(executor, () -> Futures.completedNull());
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull Executor executor, boolean continueOnCapturedContext) {
-		return awaitAsync(executor, AsyncFunctions.identity(), continueOnCapturedContext);
-	}
-
-	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Function<? super T, ? extends CompletableFuture<? extends U>> continuation) {
-		return awaitAsync(executor, continuation, true);
-	}
-
-	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Function<? super T, ? extends CompletableFuture<? extends U>> continuation, boolean continueOnCapturedContext) {
-		throw new UnsupportedOperationException("Not implemented");
+	public static <U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
+		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
+		return Futures.completedNull().thenComposeAsync(
+			ignored -> flowContinuation.get(),
+			executor);
 	}
 
 	@NotNull
 	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
 		CompletableFuture<Void> result = new CompletableFuture<>();
 		ScheduledFuture<?> scheduled = DELAY_SCHEDULER.schedule(
-			() -> ForkJoinPool.commonPool().execute(() -> result.complete(null)),
+			ExecutionContext.wrap(() -> {
+				ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> {
+					result.complete(null);
+				}));
+			}),
 			time,
 			unit);
 
@@ -119,24 +115,60 @@ public enum Async {
 	}
 
 	@NotNull
+	public static CompletableFuture<Void> forAsync(@NotNull Runnable initializer, @NotNull Supplier<? extends Boolean> condition, @NotNull Runnable increment, @NotNull Supplier<? extends CompletableFuture<?>> body) {
+		try {
+			initializer.run();
+			return whileAsync(
+				condition,
+				() -> body.get().thenRun(increment));
+		} catch (Throwable t) {
+			return Futures.completedFailed(t);
+		}
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<Void> forAsync(@NotNull Supplier<? extends T> initializer, @NotNull Predicate<? super T> condition, @NotNull Function<? super T, ? extends T> increment, @NotNull Function<? super T, ? extends CompletableFuture<?>> body) {
+		AtomicReference<T> value = new AtomicReference<>();
+		return forAsync(
+			() -> value.set(initializer.get()),
+			() -> condition.test(value.get()),
+			() -> value.set(increment.apply(value.get())),
+			() -> body.apply(value.get()));
+	}
+
+	@NotNull
 	public static CompletableFuture<Void> whileAsync(@NotNull Supplier<? extends Boolean> predicate, @NotNull Supplier<? extends CompletableFuture<?>> body) {
-		if (!predicate.get()) {
-			return Futures.completedNull();
+		try {
+			if (!predicate.get()) {
+				return Futures.completedNull();
+			}
+
+			final ConcurrentLinkedQueue<Supplier<CompletableFuture<?>>> futures = new ConcurrentLinkedQueue<>();
+			final AtomicReference<Supplier<CompletableFuture<?>>> evaluateBody = new AtomicReference<>();
+			evaluateBody.set(() -> {
+				CompletableFuture<?> bodyResult = body.get();
+				return bodyResult.thenRun(() -> {
+					if (predicate.get()) {
+						futures.add(evaluateBody.get());
+					}
+				});
+			});
+
+			futures.add(evaluateBody.get());
+			return whileImplAsync(futures);
+		} catch (Throwable ex) {
+			return Futures.completedFailed(ex);
+		}
+	}
+
+	@NotNull
+	public static Executor yieldAsync() {
+		SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
+		if (synchronizationContext != null) {
+			throw new UnsupportedOperationException("Not implemented");
 		}
 
-		final ConcurrentLinkedQueue<Supplier<CompletableFuture<?>>> futures = new ConcurrentLinkedQueue<>();
-		final AtomicReference<Supplier<CompletableFuture<?>>> evaluateBody = new AtomicReference<>();
-		evaluateBody.set(() -> {
-			CompletableFuture<?> bodyResult = body.get();
-			return bodyResult.thenRun(() -> {
-				if (predicate.get()) {
-					futures.add(evaluateBody.get());
-				}
-			});
-		});
-
-		futures.add(evaluateBody.get());
-		return whileImplAsync(futures);
+		return ForkJoinPool.commonPool();
 	}
 
 	@NotNull

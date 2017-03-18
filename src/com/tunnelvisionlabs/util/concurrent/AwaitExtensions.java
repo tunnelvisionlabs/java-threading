@@ -94,7 +94,7 @@ public enum AwaitExtensions {
 	/**
 	 * An awaiter returned from {@link #getAwaiter(Executor)}.
 	 */
-	public static final class ExecutorAwaiter implements Awaiter<Void> {
+	public static final class ExecutorAwaiter implements Awaiter<Void>, CriticalNotifyCompletion {
 
 		/**
 		 * The executor for continuations.
@@ -162,6 +162,11 @@ public enum AwaitExtensions {
 		 */
 		@Override
 		public void onCompleted(@NotNull Runnable continuation) {
+			executor.execute(ExecutionContext.wrap(continuation));
+		}
+
+		@Override
+		public void unsafeOnCompleted(@NotNull Runnable continuation) {
 			executor.execute(continuation);
 		}
 

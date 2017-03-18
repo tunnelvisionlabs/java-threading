@@ -44,7 +44,13 @@ public enum Async {
 
 		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
 
-		Executor executor = command -> awaiter.onCompleted(command);
+		Executor executor;
+		if (awaiter instanceof CriticalNotifyCompletion) {
+			executor = command -> ((CriticalNotifyCompletion)awaiter).unsafeOnCompleted(command);
+		} else {
+			executor = command -> awaiter.onCompleted(command);
+		}
+
 		return Futures.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);
 	}
 
@@ -286,7 +292,7 @@ public enum Async {
 		}
 	}
 
-	private static final class YieldAwaiter implements Awaiter<Void> {
+	private static final class YieldAwaiter implements Awaiter<Void>, CriticalNotifyCompletion {
 		public static final YieldAwaiter INSTANCE = new YieldAwaiter();
 
 		@Override
@@ -302,6 +308,15 @@ public enum Async {
 
 		@Override
 		public void onCompleted(@NotNull Runnable continuation) {
+			onCompletedImpl(continuation, true);
+		}
+
+		@Override
+		public void unsafeOnCompleted(@NotNull Runnable continuation) {
+			onCompletedImpl(continuation, false);
+		}
+
+		private void onCompletedImpl(@NotNull Runnable continuation, boolean useExecutionContext) {
 			Requires.notNull(continuation, "continuation");
 
 			Executor executor = ForkJoinPool.commonPool();
@@ -310,7 +325,8 @@ public enum Async {
 				executor = synchronizationContext;
 			}
 
-			executor.execute(ExecutionContext.wrap(continuation));
+			Runnable wrappedContinuation = useExecutionContext ? ExecutionContext.wrap(continuation) : continuation;
+			executor.execute(wrappedContinuation);
 		}
 	}
 }

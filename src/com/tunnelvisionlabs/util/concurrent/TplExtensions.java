@@ -572,7 +572,7 @@ public enum TplExtensions {
 	/**
 	 * An awaiter that wraps a future and never throws an exception when waited on.
 	 */
-	public static final class NoThrowFutureAwaiter implements Awaiter<Void> {
+	public static final class NoThrowFutureAwaiter implements Awaiter<Void>, CriticalNotifyCompletion {
 
 		/**
 		 * The future.
@@ -612,6 +612,16 @@ public enum TplExtensions {
 		@Override
 		public void onCompleted(Runnable continuation) {
 			new FutureAwaitable<>(task, captureContext).getAwaiter().onCompleted(continuation);
+		}
+
+		/**
+		 * Schedules a delegate for execution at the conclusion of a future's execution.
+		 *
+		 * @param continuation The action.
+		 */
+		@Override
+		public void unsafeOnCompleted(Runnable continuation) {
+			new FutureAwaitable<>(task, captureContext).getAwaiter().unsafeOnCompleted(continuation);
 		}
 
 		/**

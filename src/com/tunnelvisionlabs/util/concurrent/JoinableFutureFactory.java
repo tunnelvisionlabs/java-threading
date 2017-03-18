@@ -741,7 +741,7 @@ public class JoinableFutureFactory {
 		 * @param continuation The action to invoke when the operation completes.
 		 */
 		@Override
-		public void onCompleted(Runnable continuation) {
+		public void onCompleted(@NotNull Runnable continuation) {
 			assert this.jobFactory != null;
 
 			try {
@@ -749,7 +749,7 @@ public class JoinableFutureFactory {
 				// or the main thread will execute the continuation first. So we must wrap the continuation
 				// in a SingleExecuteProtector so that it can't be executed twice by accident.
 				// Success case of the main thread.
-				SingleExecuteProtector<?> wrapper = this.jobFactory.requestSwitchToMainThread(continuation);
+				SingleExecuteProtector<?> wrapper = this.jobFactory.requestSwitchToMainThread(ExecutionContext.wrap(continuation));
 
 				// Cancellation case of a threadpool thread.
 				if (this.cancellationRegistrationPtr != null) {

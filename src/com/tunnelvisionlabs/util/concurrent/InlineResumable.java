@@ -50,7 +50,7 @@ class InlineResumable implements Awaitable<Void>, Awaiter<Void> {
 		assert this.continuation == null : "Only one continuation is supported.";
 
 		this.capturedSynchronizationContext = SynchronizationContext.getCurrent();
-		this.continuation = continuation;
+		this.continuation = ExecutionContext.wrap(continuation);
 	}
 
 	/**

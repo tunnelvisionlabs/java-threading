@@ -24,7 +24,7 @@ public final class FutureAwaitable<T> implements Awaitable<T> {
 		return new FutureAwaiter();
 	}
 
-	public class FutureAwaiter implements Awaiter<T> {
+	public class FutureAwaiter implements Awaiter<T>, CriticalNotifyCompletion {
 		@Override
 		public boolean isDone() {
 			return future.isDone();
@@ -36,7 +36,16 @@ public final class FutureAwaitable<T> implements Awaitable<T> {
 		}
 
 		@Override
-		public void onCompleted(Runnable continuation) {
+		public void onCompleted(@NotNull Runnable continuation) {
+			onCompletedImpl(continuation, true);
+		}
+
+		@Override
+		public void unsafeOnCompleted(@NotNull Runnable continuation) {
+			onCompletedImpl(continuation, false);
+		}
+
+		private void onCompletedImpl(@NotNull Runnable continuation, boolean useExecutionContext) {
 			Executor executor;
 			if (continueOnCapturedContext) {
 				SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
@@ -49,8 +58,8 @@ public final class FutureAwaitable<T> implements Awaitable<T> {
 				executor = ForkJoinPool.commonPool();
 			}
 
-			Runnable wrappedContinuation = ExecutionContext.wrap(continuation);
-			future.whenCompleteAsync((result, exception) -> continuation.run(), executor);
+			Runnable wrappedContinuation = useExecutionContext ? ExecutionContext.wrap(continuation) : continuation;
+			future.whenCompleteAsync((result, exception) -> wrappedContinuation.run(), executor);
 		}
 	}
 }

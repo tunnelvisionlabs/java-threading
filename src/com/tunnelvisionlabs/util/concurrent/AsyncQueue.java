@@ -257,7 +257,7 @@ public class AsyncQueue<T> {
 	 * @return A future whose result is the head element.
 	 */
 	public final CompletableFuture<T> pollAsync() {
-		return pollAsync(null);
+		return pollAsync(CancellationToken.none());
 	}
 
 	/**
@@ -265,10 +265,11 @@ public class AsyncQueue<T> {
 	 *
 	 * @return A future whose result is the head element.
 	 */
-	public final CompletableFuture<T> pollAsync(@Nullable CompletableFuture<?> cancellationFuture) {
+	public final CompletableFuture<T> pollAsync(@NotNull CancellationToken cancellationToken) {
 		CompletableFuture<T> completableFuture = new CompletableFuture<>();
-		if (cancellationFuture != null) {
-			cancellationFuture.whenComplete((result, exception) -> completableFuture.cancel(true));
+		if (cancellationToken.canBeCancelled()) {
+			CancellationTokenRegistration registration = cancellationToken.register(() -> completableFuture.cancel(false));
+			completableFuture.whenComplete((result, exception) -> registration.close());
 		}
 
 		syncObject.lock();

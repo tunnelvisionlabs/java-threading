@@ -59,7 +59,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 			-> hangQueue.add(new HangDetails(hangDuration, iterations, id, null));
 
 		Async.runAsync(() -> {
-			CompletableFuture<Void> cancellationFuture = Async.delayAsync(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 			try {
 				StrongBox<Duration> lastDuration = new StrongBox<>(Duration.ZERO);
 				StrongBox<Integer> lastIteration = new StrongBox<>(0);
@@ -70,7 +70,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 					i -> i + 1,
 					i -> {
 						return Async.awaitAsync(
-							hangQueue.pollAsync(cancellationFuture),
+							hangQueue.pollAsync(cancellationTokenSource.getToken()),
 							tuple -> {
 								Duration duration = tuple.getHangDuration();
 								int iterations = tuple.getNotificationCount();
@@ -124,7 +124,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangQueue.add(hangDuration);
 
 		TplExtensions.forget(Async.supplyAsync(() -> {
-			CompletableFuture<Void> ct = Async.delayAsync(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+			CancellationTokenSource ct = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 			return Async.awaitAsync(
 				Futures.completedNull(),
 				() -> {
@@ -135,7 +135,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 							i -> i < 3,
 							i -> i + 1,
 							i -> Async.awaitAsync(
-								hangQueue.pollAsync(ct),
+								hangQueue.pollAsync(ct.getToken()),
 								duration -> {
 									Assert.assertTrue(lastDuration.get() == Duration.ZERO || lastDuration.get().compareTo(duration) < 0);
 									lastDuration.set(duration);

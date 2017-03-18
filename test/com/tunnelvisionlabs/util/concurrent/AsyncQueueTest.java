@@ -147,27 +147,12 @@ public class AsyncQueueTest extends TestBase {
 	}
 
 	@Test
-	public void testPollAsyncCancelledFutureBeforeComplete_Completed() {
-		testPollAsyncCancelledFutureBeforeComplete(future -> future.complete(null));
-	}
-
-	@Test
-	public void testPollAsyncCancelledFutureBeforeComplete_Cancelled() {
-		testPollAsyncCancelledFutureBeforeComplete(future -> future.cancel(true));
-	}
-
-	@Test
-	public void testPollAsyncCancelledFutureBeforeComplete_Failed() {
-		testPollAsyncCancelledFutureBeforeComplete(future -> future.completeExceptionally(new IllegalArgumentException()));
-	}
-
-	private void testPollAsyncCancelledFutureBeforeComplete(@NotNull Consumer<CompletableFuture<?>> cancellationAction) {
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
-		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationFuture);
+	public void testPollAsyncCancelledTokenBeforeComplete() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationTokenSource.getToken());
 		Assert.assertFalse(pollFuture.isDone());
 
-		cancellationAction.accept(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+		cancellationTokenSource.cancel();
 
 		try {
 			thrown.expect(CancellationException.class);
@@ -181,24 +166,10 @@ public class AsyncQueueTest extends TestBase {
 	}
 
 	@Test
-	public void testPollAsyncPrecancelled_Completed() {
-		testPollAsyncPrecancelled(Futures.completedNull());
-	}
-
-	@Test
-	public void testPollAsyncPrecancelled_Cancelled() {
-		testPollAsyncPrecancelled(Futures.completedCancelled());
-	}
-
-	@Test
-	public void testPollAsyncPrecancelled_Failed() {
-		testPollAsyncPrecancelled(Futures.completedFailed(new IllegalArgumentException()));
-	}
-
-	private void testPollAsyncPrecancelled(@NotNull CompletableFuture<?> cancellationFuture) {
-		Assert.assertNotNull(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
-		CompletableFuture<GenericParameterHelper> dequeueTask = queue.pollAsync(cancellationFuture);
+	public void testPollAsyncPrecancelled() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
+		CompletableFuture<GenericParameterHelper> dequeueTask = queue.pollAsync(cancellationTokenSource.getToken());
 		Assert.assertTrue(dequeueTask.isDone());
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			AsyncAssert.cancelsAsync(() -> dequeueTask),
@@ -277,34 +248,19 @@ public class AsyncQueueTest extends TestBase {
 	}
 
 	@Test
-	public void testMultiplePollersCancelledFuture_Completed() {
-		testMultiplePollersCancelledFuture(future -> future.complete(null));
-	}
-
-	@Test
-	public void testMultiplePollersCancelledFuture_Cancelled() {
-		testMultiplePollersCancelledFuture(future -> future.cancel(true));
-	}
-
-	@Test
-	public void testMultiplePollersCancelledFuture_Failed() {
-		testMultiplePollersCancelledFuture(future -> future.completeExceptionally(new IllegalArgumentException()));
-		
-	}
-
-	private void testMultiplePollersCancelledFuture(@NotNull Consumer<CompletableFuture<?>> cancellationAction) {
-		CompletableFuture<?>[] cancellationFutures = new CompletableFuture<?>[2];
-		for (int i = 0; i < cancellationFutures.length; i++) {
-			cancellationFutures[i] = new CompletableFuture<>();
+	public void testMultiplePollersCancelledToken() {
+		CancellationTokenSource[] cancellationTokenSources = new CancellationTokenSource[2];
+		for (int i = 0; i < cancellationTokenSources.length; i++) {
+			cancellationTokenSources[i] = new CancellationTokenSource();
 		}
 
 		List<CompletableFuture<GenericParameterHelper>> pollers = new ArrayList<>();
 		for (int i = 0; i < 5; i++) {
-			pollers.add(queue.pollAsync(cancellationFutures[i % 2]));
+			pollers.add(queue.pollAsync(cancellationTokenSources[i % 2].getToken()));
 		}
 
 		// cancel some of them
-		cancellationAction.accept(cancellationFutures[0]);
+		cancellationTokenSources[0].cancel();
 
 		for (int i = 0; i < pollers.size(); i++) {
 			Assert.assertEquals(i % 2 == 0, pollers.get(i).isCancelled());
@@ -458,23 +414,9 @@ public class AsyncQueueTest extends TestBase {
 	}
 
 	@Test
-	public void testNoLockHeldForCancellationFutureContinuation_Completed() {
-		testNoLockHeldForCancellationFutureContinuation(future -> future.complete(null));
-	}
-
-	@Test
-	public void testNoLockHeldForCancellationFutureContinuation_Cancelled() {
-		testNoLockHeldForCancellationFutureContinuation(future -> future.cancel(true));
-	}
-
-	@Test
-	public void testNoLockHeldForCancellationFutureContinuation_Failed() {
-		testNoLockHeldForCancellationFutureContinuation(future -> future.completeExceptionally(new IllegalArgumentException()));
-	}
-
-	private void testNoLockHeldForCancellationFutureContinuation(@NotNull Consumer<CompletableFuture<?>> cancellationAction) {
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
-		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationFuture);
+	public void testNoLockHeldForCancellationTokenContinuation() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		CompletableFuture<GenericParameterHelper> pollFuture = queue.pollAsync(cancellationTokenSource.getToken());
 		CompletableFuture<Void> handled = pollFuture.handle((result, exception) -> {
 			try {
 				ForkJoinPool.commonPool().submit(ExecutionContext.wrap(() -> {
@@ -491,8 +433,7 @@ public class AsyncQueueTest extends TestBase {
 			}
 		});
 
-		cancellationAction.accept(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+		cancellationTokenSource.cancel();
 
 		handled.join();
 		Assert.assertEquals(1, queue.size());

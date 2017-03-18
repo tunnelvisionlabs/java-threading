@@ -947,7 +947,7 @@ public class JoinableFutureFactory {
 		/**
 		 * Stores execution callbacks for {@link #addExecutingCallback}.
 		 */
-		private ListOfOftenOne<JoinableFuture.ExecutionQueue> executingCallbacks = new ListOfOftenOne<>();
+		private final ListOfOftenOne<JoinableFuture.ExecutionQueue> executingCallbacks = new ListOfOftenOne<>();
 
 		/**
 		 * Initializes a new instance of the {@link SingleExecuteProtector} class.
@@ -1024,13 +1024,12 @@ public class JoinableFutureFactory {
 //                }
             }
 
-            final void raiseTransitioningEvents()
-            {
-				// if this method is called twice, that's the sign of a problem.
-                assert !this.raiseTransitionComplete;
-                this.raiseTransitionComplete = true;
-                this.job.getFactory().onTransitioningToMainThread(job);
-            }
+		final void raiseTransitioningEvents() {
+			// if this method is called twice, that's the sign of a problem.
+			assert !this.raiseTransitionComplete;
+			this.raiseTransitionComplete = true;
+			this.job.getFactory().onTransitioningToMainThread(job);
+		}
 
 		/**
 		 * Constructs a new instance of the {@link SingleExecuteProtector} class.

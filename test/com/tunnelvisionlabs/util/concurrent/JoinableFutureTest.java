@@ -2584,119 +2584,112 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		Assert.assertEquals(0, Iterables.size(hiPriFactory.getJoinableFuturesPendingMainthread()));
 	}
 
-//        /// <summary>
-//        /// Verifies when JoinableTasks are nested that nesting (parent) factories
-//        /// do not assist in reaching the main thread once the nesting JoinableTask
-//        /// completes (assuming it completes after the child JoinableTask starts).
-//        /// </summary>
-//        /// <remarks>
-//        /// This is for efficiency as well as an accuracy assistance since the nested JTF
-//        /// may have a lower priority to get to the main thread (e.g. idle priority) than the
-//        /// parent JTF. If the parent JTF assists just because it happened to be active for a
-//        /// brief time when the child JoinableTask was created, it could forever defeat the
-//        /// intended lower priority of the child.
-//        ///
-//        /// This test is Ignored because fixing it would require a JoinableTask to have
-//        /// a reference to its antecedant, or the antecedant to maintain a collection of
-//        /// child tasks. The first possibility is unpaletable (because it would create a
-//        /// memory leak for those who chain tasks together). The second one we sort of already
-//        /// do through the JoinableTask.childOrJoinedJobs field, and we may wire it up through
-//        /// there in the future.
-//        /// </remarks>
-//        [StaFact(Skip = "Ignored")]
-//        public void NestedFactoriesDoNotAssistChildrenOfTaskThatCompletedAfterStart()
-//        {
-//            var loPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//            var hiPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//
-//            var outerFinished = new AsyncManualResetEvent(allowInliningAwaiters: true);
-//            JoinableTask innerTask;
-//            var outer = hiPriFactory.RunAsync(delegate
-//            {
-//                innerTask = loPriFactory.RunAsync(async delegate
-//                {
-//                    await outerFinished;
-//                });
-//                return TplExtensions.CompletedTask;
-//            });
-//            outerFinished.Set();
-//
-//            // Verify that the loPriFactory received the message and hiPriFactory did not.
-//            Assert.Equal(1, loPriFactory.JoinableTasksPendingMainthread.Count());
-//            Assert.Equal(0, hiPriFactory.JoinableTasksPendingMainthread.Count());
-//        }
-//
-//        /// <summary>
-//        /// Verifes that each instance of JTF is only notified once of
-//        /// a nested JoinableTask's attempt to get to the UI thread.
-//        /// </summary>
-//        [StaFact]
-//        public void NestedFactoriesDoNotDuplicateEffort()
-//        {
-//            var loPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//            var hiPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//
-//            // For this test, we intentionally use each factory twice in a row.
-//            // We mix up the order in another test.
-//            var outer = hiPriFactory.RunAsync(async delegate
-//            {
-//                await hiPriFactory.RunAsync(async delegate
-//                {
-//                    await loPriFactory.RunAsync(async delegate
-//                    {
-//                        await loPriFactory.RunAsync(async delegate
-//                        {
-//                            await Task.Yield();
-//                        });
-//                    });
-//                });
-//            });
-//
-//            // Verify that each factory received the message exactly once.
-//            Assert.Equal(1, loPriFactory.JoinableTasksPendingMainthread.Count());
-//            Assert.Equal(1, hiPriFactory.JoinableTasksPendingMainthread.Count());
-//
-//            // Simulate a modal dialog, with a message pump that is willing
-//            // to execute hiPriFactory messages but not loPriFactory messages.
-//            hiPriFactory.DoModalLoopTillEmpty();
-//            Assert.True(outer.IsCompleted);
-//        }
-//
-//        /// <summary>
-//        /// Verifes that each instance of JTF is only notified once of
-//        /// a nested JoinableTask's attempt to get to the UI thread.
-//        /// </summary>
-//        [StaFact]
-//        public void NestedFactoriesDoNotDuplicateEffortMixed()
-//        {
-//            var loPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//            var hiPriFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//
-//            // In this particular test, we intentionally mix up the JTFs in hi-lo-hi-lo order.
-//            var outer = hiPriFactory.RunAsync(async delegate
-//            {
-//                await loPriFactory.RunAsync(async delegate
-//                {
-//                    await hiPriFactory.RunAsync(async delegate
-//                    {
-//                        await loPriFactory.RunAsync(async delegate
-//                        {
-//                            await Task.Yield();
-//                        });
-//                    });
-//                });
-//            });
-//
-//            // Verify that each factory received the message exactly once.
-//            Assert.Equal(1, loPriFactory.JoinableTasksPendingMainthread.Count());
-//            Assert.Equal(1, hiPriFactory.JoinableTasksPendingMainthread.Count());
-//
-//            // Simulate a modal dialog, with a message pump that is willing
-//            // to execute hiPriFactory messages but not loPriFactory messages.
-//            hiPriFactory.DoModalLoopTillEmpty();
-//            Assert.True(outer.IsCompleted);
-//        }
-//
+	/**
+	 * Verifies when {@link JoinableFuture}s are nested that nesting (parent) factories do not assist in reaching the
+	 * main thread once the nesting {@link JoinableFuture} completes (assuming it completes after the child
+	 * {@link JoinableFuture} starts).
+	 *
+	 * <p>
+	 * This is for efficiency as well as an accuracy assistance since the nested JTF may have a lower priority to get to
+	 * the main thread (e.g. idle priority) than the parent JTF. If the parent JTF assists just because it happened to
+	 * be active for a brief time when the child {@link JoinableFuture} was created, it could forever defeat the
+	 * intended lower priority of the child.</p>
+	 *
+	 * <p>
+	 * This test is ignored because fixing it would require a {@link JoinableFuture} to have a reference to its
+	 * antecedent, or the antecedent to maintain a collection of child tasks. The first possibility is unpalatable
+	 * (because it would create a memory leak for those who chain tasks together). The second one we sort of already do
+	 * through the {@link JoinableFuture#childOrJoinedJobs} field, and we may wire it up through there in the
+	 * future.</p>
+	 */
+	@Test
+	@Ignore("Ignored")
+	public void testNestedFactoriesDoNotAssistChildrenOfFutureThatCompletedAfterStart() {
+		ModalPumpingJoinableFutureFactory loPriFactory = new ModalPumpingJoinableFutureFactory(context);
+		ModalPumpingJoinableFutureFactory hiPriFactory = new ModalPumpingJoinableFutureFactory(context);
+
+		AsyncManualResetEvent outerFinished = new AsyncManualResetEvent(false, /*allowInliningAwaiters:*/ true);
+		StrongBox<JoinableFuture<Void>> innerTask = new StrongBox<>();
+		JoinableFuture<Void> outer = hiPriFactory.runAsync(() -> {
+			innerTask.set(loPriFactory.runAsync(() -> {
+				return Async.awaitAsync(outerFinished);
+			}));
+			return Futures.completedNull();
+		});
+		outerFinished.set();
+
+		// Verify that the loPriFactory received the message and hiPriFactory did not.
+		Assert.assertEquals(1, Iterables.size(loPriFactory.getJoinableFuturesPendingMainthread()));
+		Assert.assertEquals(0, Iterables.size(hiPriFactory.getJoinableFuturesPendingMainthread()));
+	}
+
+	/**
+	 * Verifes that each instance of JTF is only notified once of a nested {@link JoinableFuture}'s attempt to get to
+	 * the UI thread.
+	 */
+	@Test
+	public void testNestedFactoriesDoNotDuplicateEffort() {
+		ModalPumpingJoinableFutureFactory loPriFactory = new ModalPumpingJoinableFutureFactory(context);
+		ModalPumpingJoinableFutureFactory hiPriFactory = new ModalPumpingJoinableFutureFactory(context);
+
+		// For this test, we intentionally use each factory twice in a row.
+		// We mix up the order in another test.
+		JoinableFuture<Void> outer = hiPriFactory.runAsync(() -> {
+			return Async.awaitAsync(
+				hiPriFactory.runAsync(() -> {
+					return Async.awaitAsync(
+						loPriFactory.runAsync(() -> {
+							return Async.awaitAsync(
+								loPriFactory.runAsync(() -> {
+									return Async.awaitAsync(Async.yieldAsync());
+								}));
+						}));
+				}));
+		});
+
+		// Verify that each factory received the message exactly once.
+		Assert.assertEquals(1, Iterables.size(loPriFactory.getJoinableFuturesPendingMainthread()));
+		Assert.assertEquals(1, Iterables.size(hiPriFactory.getJoinableFuturesPendingMainthread()));
+
+		// Simulate a modal dialog, with a message pump that is willing
+		// to execute hiPriFactory messages but not loPriFactory messages.
+		hiPriFactory.doModalLoopUntilEmpty();
+		Assert.assertTrue(outer.isDone());
+	}
+
+	/**
+	 * Verifies that each instance of JTF is only notified once of a nested {@link JoinableFuture}'s attempt to get to
+	 * the UI thread.
+	 */
+	@Test
+	public void testNestedFactoriesDoNotDuplicateEffortMixed() {
+		ModalPumpingJoinableFutureFactory loPriFactory = new ModalPumpingJoinableFutureFactory(this.context);
+		ModalPumpingJoinableFutureFactory hiPriFactory = new ModalPumpingJoinableFutureFactory(this.context);
+
+		// In this particular test, we intentionally mix up the JTFs in hi-lo-hi-lo order.
+		JoinableFuture<Void> outer = hiPriFactory.runAsync(() -> {
+			return Async.awaitAsync(
+				loPriFactory.runAsync(() -> {
+					return Async.awaitAsync(
+						hiPriFactory.runAsync(() -> {
+							return Async.awaitAsync(
+								loPriFactory.runAsync(() -> {
+									return Async.awaitAsync(Async.yieldAsync());
+								}));
+						}));
+				}));
+		});
+
+		// Verify that each factory received the message exactly once.
+		Assert.assertEquals(1, Iterables.size(loPriFactory.getJoinableFuturesPendingMainthread()));
+		Assert.assertEquals(1, Iterables.size(hiPriFactory.getJoinableFuturesPendingMainthread()));
+
+		// Simulate a modal dialog, with a message pump that is willing
+		// to execute hiPriFactory messages but not loPriFactory messages.
+		hiPriFactory.doModalLoopUntilEmpty();
+		Assert.assertTrue(outer.isDone());
+	}
+
 //        [SkippableFact]
 //        public void NestedFactoriesCanBeCollected()
 //        {
@@ -2777,202 +2770,212 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                }
 //            });
 //        }
-//
-//        /// <summary>
-//        /// Rapidly posts messages to several interlinked AsyncPumps
-//        /// to check for thread-safety and deadlocks.
-//        /// </summary>
-//        [StaFact]
-//        public void PostStress()
-//        {
-//            int outstandingMessages = 0;
-//            var cts = new CancellationTokenSource(1000);
-//            var collection2 = this.asyncPump.Context.CreateCollection();
-//            var pump2 = this.asyncPump.Context.CreateFactory(collection2);
-//            Task t1 = null, t2 = null;
-//
-//            ((DerivedJoinableTaskFactory)this.asyncPump).AssumeConcurrentUse = true;
-//            ((DerivedJoinableTaskFactory)pump2).AssumeConcurrentUse = true;
-//
-//            pump2.Run(delegate
-//            {
-//                t1 = Task.Run(delegate
-//                {
-//                    using (this.joinableCollection.Join())
-//                    {
-//                        while (!cts.IsCancellationRequested)
-//                        {
-//                            var awaiter = pump2.SwitchToMainThreadAsync().GetAwaiter();
-//                            Interlocked.Increment(ref outstandingMessages);
-//                            awaiter.OnCompleted(delegate
-//                            {
-//                                awaiter.GetResult();
-//                                if (Interlocked.Decrement(ref outstandingMessages) == 0)
-//                                {
-//                                    this.testFrame.Continue = false;
-//                                }
-//                            });
-//                        }
-//                    }
-//                });
-//                return TplExtensions.CompletedTask;
-//            });
-//
-//            this.asyncPump.Run(delegate
-//            {
-//                t2 = Task.Run(delegate
-//                {
-//                    using (collection2.Join())
-//                    {
-//                        while (!cts.IsCancellationRequested)
-//                        {
-//                            var awaiter = this.asyncPump.SwitchToMainThreadAsync().GetAwaiter();
-//                            Interlocked.Increment(ref outstandingMessages);
-//                            awaiter.OnCompleted(delegate
-//                            {
-//                                awaiter.GetResult();
-//                                if (Interlocked.Decrement(ref outstandingMessages) == 0)
-//                                {
-//                                    this.testFrame.Continue = false;
-//                                }
-//                            });
-//                        }
-//                    }
-//                });
-//                return TplExtensions.CompletedTask;
-//            });
-//
-//            this.PushFrame();
-//        }
-//
-//        /// <summary>
-//        /// Verifies that in the scenario when the initializing thread doesn't have a sync context at all (vcupgrade.exe)
-//        /// that reasonable behavior still occurs.
-//        /// </summary>
-//        [StaFact]
-//        public void NoMainThreadSyncContextAndKickedOffFromOriginalThread()
-//        {
-//            SynchronizationContext.SetSynchronizationContext(null);
-//            var context = new DerivedJoinableTaskContext();
-//            this.joinableCollection = context.CreateCollection();
-//            this.asyncPump = context.CreateFactory(this.joinableCollection);
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                await Task.Yield();
-//
-//                await this.asyncPump.SwitchToMainThreadAsync();
-//                await Task.Yield();
-//
-//                await TaskScheduler.Default;
-//                await Task.Yield();
-//
-//                await this.asyncPump.SwitchToMainThreadAsync();
-//                await Task.Yield();
-//            });
-//
-//            var joinable = this.asyncPump.RunAsync(async delegate
-//            {
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                await Task.Yield();
-//
-//                // verifies no yield
-//                Assert.True(this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().IsCompleted);
-//
-//                await this.asyncPump.SwitchToMainThreadAsync();
-//                await Task.Yield();
-//
-//                await TaskScheduler.Default;
-//                await Task.Yield();
-//
-//                await this.asyncPump.SwitchToMainThreadAsync();
-//                await Task.Yield();
-//            });
-//            joinable.Join();
-//        }
-//
-//        /// <summary>
-//        /// Verifies that in the scenario when the initializing thread doesn't have a sync context at all (vcupgrade.exe)
-//        /// that reasonable behavior still occurs.
-//        /// </summary>
-//        [StaFact]
-//        public void NoMainThreadSyncContextAndKickedOffFromOtherThread()
-//        {
-//            SynchronizationContext.SetSynchronizationContext(null);
-//            this.context = new DerivedJoinableTaskContext();
-//            this.joinableCollection = this.context.CreateCollection();
-//            this.asyncPump = this.context.CreateFactory(this.joinableCollection);
-//            Thread otherThread = null;
-//
-//            Task.Run(delegate
-//            {
-//                otherThread = Thread.CurrentThread;
-//                this.asyncPump.Run(async delegate
-//                {
-//                    Assert.Same(otherThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.Same(otherThread, Thread.CurrentThread);
-//
-//                    // verifies no yield
-//                    Assert.True(this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().IsCompleted);
-//
-//                    await this.asyncPump.SwitchToMainThreadAsync(); // we expect this to no-op
-//                    Assert.Same(otherThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.Same(otherThread, Thread.CurrentThread);
-//
-//                    await Task.Run(async delegate
-//                    {
-//                        Thread threadpoolThread = Thread.CurrentThread;
-//                        Assert.NotSame(otherThread, Thread.CurrentThread);
-//                        await Task.Yield();
-//                        Assert.NotSame(otherThread, Thread.CurrentThread);
-//
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        await Task.Yield();
-//                    });
-//                });
-//
-//                var joinable = this.asyncPump.RunAsync(async delegate
-//                {
-//                    Assert.Same(otherThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//
-//                    // verifies no yield
-//                    Assert.True(this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().IsCompleted);
-//
-//                    await this.asyncPump.SwitchToMainThreadAsync(); // we expect this to no-op
-//                    await Task.Yield();
-//
-//                    await Task.Run(async delegate
-//                    {
-//                        Thread threadpoolThread = Thread.CurrentThread;
-//                        await Task.Yield();
-//
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        await Task.Yield();
-//                    });
-//                });
-//                joinable.Join();
-//            }).Wait();
-//        }
-//
-//        [StaFact]
-//        public void MitigationAgainstBadSyncContextOnMainThread()
-//        {
-//            var ordinarySyncContext = new SynchronizationContext();
-//            SynchronizationContext.SetSynchronizationContext(ordinarySyncContext);
+
+	/**
+	 * Rapidly posts messages to several interlinked AsyncPumps to check for thread-safety and deadlocks.
+	 */
+	@Test
+	public void testPostStress() {
+		AtomicInteger outstandingMessages = new AtomicInteger(0);
+		CompletableFuture<Void> cancellationFuture = Async.delayAsync(1000, TimeUnit.MILLISECONDS);
+		JoinableFutureCollection collection2 = asyncPump.getContext().createCollection();
+		JoinableFutureFactory pump2 = asyncPump.getContext().createFactory(collection2);
+		StrongBox<CompletableFuture<Void>> t1 = new StrongBox<>(null);
+		StrongBox<CompletableFuture<Void>> t2 = new StrongBox<>(null);
+
+		((DerivedJoinableFutureFactory)this.asyncPump).AssumeConcurrentUse = true;
+		((DerivedJoinableFutureFactory)pump2).AssumeConcurrentUse = true;
+
+		pump2.run(() -> {
+			t1.set(Async.runAsync(() -> {
+				try (Disposable disposable = joinableCollection.join()) {
+					while (!cancellationFuture.isDone()) {
+						Awaiter<Void> awaiter = pump2.switchToMainThreadAsync().getAwaiter();
+						outstandingMessages.incrementAndGet();
+						awaiter.onCompleted(() -> {
+							awaiter.getResult();
+							if (outstandingMessages.decrementAndGet() == 0) {
+								testFrame.setContinue(false);
+							}
+						});
+					}
+				}
+
+				return Futures.completedNull();
+			}));
+			return Futures.completedNull();
+		});
+
+		asyncPump.run(() -> {
+			t2.set(Async.runAsync(() -> {
+				try (Disposable disposable = collection2.join()) {
+					while (!cancellationFuture.isDone()) {
+						Awaiter<Void> awaiter = asyncPump.switchToMainThreadAsync().getAwaiter();
+						outstandingMessages.incrementAndGet();
+						awaiter.onCompleted(() -> {
+							awaiter.getResult();
+							if (outstandingMessages.decrementAndGet() == 0) {
+								testFrame.setContinue(false);
+							}
+						});
+					}
+				}
+			}));
+			return Futures.completedNull();
+		});
+
+		pushFrame();
+	}
+
+	/**
+	 * Verifies that in the scenario when the initializing thread doesn't have a sync context at all (vcupgrade.exe)
+	 * that reasonable behavior still occurs.
+	 */
+	@Test
+	public void testNoMainThreadSyncContextAndKickedOffFromOriginalThread() {
+		SynchronizationContext.setSynchronizationContext(null);
+		DerivedJoinableFutureContext context = new DerivedJoinableFutureContext();
+		joinableCollection = context.createCollection();
+		asyncPump = context.createFactory(joinableCollection);
+
+		asyncPump.run(() -> {
+			Assert.assertSame(originalThread, Thread.currentThread());
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> Async.awaitAsync(
+						Async.yieldAsync(),
+						() -> Async.awaitAsync(
+							ForkJoinPool.commonPool(),
+							() -> Async.awaitAsync(
+								Async.yieldAsync(),
+								() -> Async.awaitAsync(
+									asyncPump.switchToMainThreadAsync(),
+									() -> Async.awaitAsync(
+										Async.yieldAsync())))))));
+		});
+
+		JoinableFuture<Void> joinable = asyncPump.runAsync(() -> {
+			Assert.assertSame(originalThread, Thread.currentThread());
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					// verifies no yield
+					Assert.assertTrue(asyncPump.switchToMainThreadAsync().getAwaiter().isDone());
+
+					return Async.awaitAsync(
+						asyncPump.switchToMainThreadAsync(),
+						() -> Async.awaitAsync(
+							Async.yieldAsync(),
+							() -> Async.awaitAsync(
+								ForkJoinPool.commonPool(),
+								() -> Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> Async.awaitAsync(
+										asyncPump.switchToMainThreadAsync(),
+										() -> Async.awaitAsync(
+											Async.yieldAsync()))))));
+				});
+		});
+
+		joinable.join();
+	}
+
+	/**
+	 * Verifies that in the scenario when the initializing thread doesn't have a sync context at all (vcupgrade.exe)
+	 * that reasonable behavior still occurs.
+	 */
+	@Test
+	public void testNoMainThreadSyncContextAndKickedOffFromOtherThread() {
+		SynchronizationContext.setSynchronizationContext(null);
+		context = new DerivedJoinableFutureContext();
+		joinableCollection = context.createCollection();
+		asyncPump = context.createFactory(joinableCollection);
+		StrongBox<Thread> otherThread = new StrongBox<>();
+
+		Async.runAsync(() -> {
+			otherThread.set(Thread.currentThread());
+			asyncPump.run(() -> {
+				Assert.assertSame(otherThread.get(), Thread.currentThread());
+				return Async.awaitAsync(
+					Async.yieldAsync(),
+					() -> {
+						Assert.assertSame(otherThread, Thread.currentThread());
+
+						// verifies no yield
+						Assert.assertTrue(asyncPump.switchToMainThreadAsync().getAwaiter().isDone());
+
+						return Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(), // we expect this to no-op
+							() -> {
+								Assert.assertSame(otherThread, Thread.currentThread());
+								return Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> {
+										Assert.assertSame(otherThread, Thread.currentThread());
+
+										return Async.awaitAsync(Async.runAsync(() -> {
+											Thread threadpoolThread = Thread.currentThread();
+											Assert.assertNotSame(otherThread, Thread.currentThread());
+											return Async.awaitAsync(
+												Async.yieldAsync(),
+												() -> {
+													Assert.assertNotSame(otherThread, Thread.currentThread());
+
+													return Async.awaitAsync(
+														asyncPump.switchToMainThreadAsync(),
+														() -> Async.awaitAsync(Async.yieldAsync()));
+												});
+										}));
+									});
+							});
+					});
+			});
+
+			JoinableFuture<Void> joinable = asyncPump.runAsync(() -> {
+				Assert.assertSame(otherThread, Thread.currentThread());
+				return Async.awaitAsync(
+					Async.yieldAsync(),
+					() -> {
+						// verifies no yield
+						Assert.assertTrue(asyncPump.switchToMainThreadAsync().getAwaiter().isDone());
+
+						return Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(), // we expect this to no-op
+							() -> Async.awaitAsync(
+								Async.yieldAsync(),
+								() -> Async.awaitAsync(
+									Async.runAsync(() -> {
+										Thread threadpoolThread = Thread.currentThread();
+										return Async.awaitAsync(
+											Async.yieldAsync(),
+											() -> Async.awaitAsync(
+												asyncPump.switchToMainThreadAsync(),
+												() -> Async.awaitAsync(
+													Async.yieldAsync())));
+									}))));
+					});
+			});
+			joinable.join();
+		}).join();
+	}
+
+	@Test
+	public void testMitigationAgainstBadSyncContextOnMainThread() {
+		SynchronizationContext ordinarySyncContext = new SynchronizationContext();
+		SynchronizationContext.setSynchronizationContext(ordinarySyncContext);
 //            var assertDialogListener = Trace.Listeners.OfType<DefaultTraceListener>().FirstOrDefault();
 //            assertDialogListener.AssertUiEnabled = false;
-//            this.asyncPump.Run(async delegate
-//            {
-//                await Task.Yield();
-//                await this.asyncPump.SwitchToMainThreadAsync();
-//            });
+		asyncPump.runAsync(() -> {
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync()));
+		});
 //            assertDialogListener.AssertUiEnabled = true;
-//        }
-//
+	}
+
 //        [StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
 //        public void SwitchToMainThreadMemoryLeak()
 //        {
@@ -3107,35 +3110,31 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                });
 //            }, maxBytesAllocated: 1800);
 //        }
-//
-//        /// <summary>
-//        /// Verifies that when two AsyncPumps are stacked on the main thread by (unrelated) COM reentrancy
-//        /// that the bottom one doesn't "steal" the work before the inner one can when the outer one
-//        /// isn't on the top of the stack and therefore can't execute it anyway, thereby precluding the
-//        /// inner one from executing it either and leading to deadlock.
-//        /// </summary>
-//        [StaFact]
-//        public void NestedRunSynchronouslyOuterDoesNotStealWorkFromNested()
-//        {
-//            var collection = this.context.CreateCollection();
-//            var asyncPump = new COMReentrantJoinableTaskFactory(collection);
-//            var nestedWorkBegun = new AsyncManualResetEvent();
-//            asyncPump.ReenterWaitWith(() =>
-//            {
-//                asyncPump.Run(async delegate
-//                {
-//                    await Task.Yield();
-//                });
-//
-//                nestedWorkBegun.Set();
-//            });
-//
-//            asyncPump.Run(async delegate
-//            {
-//                await nestedWorkBegun;
-//            });
-//        }
-//
+
+	/**
+	 * Verifies that when two AsyncPumps are stacked on the main thread by (unrelated) COM reentrancy that the bottom
+	 * one doesn't "steal" the work before the inner one can when the outer one isn't on the top of the stack and
+	 * therefore can't execute it anyway, thereby precluding the inner one from executing it either and leading to
+	 * deadlock.
+	 */
+	@Test
+	public void testNestedRunSynchronouslyOuterDoesNotStealWorkFromNested() {
+		JoinableFutureCollection collection = context.createCollection();
+		COMReentrantJoinableFutureFactory asyncPump = new COMReentrantJoinableFutureFactory(collection);
+		AsyncManualResetEvent nestedWorkBegun = new AsyncManualResetEvent();
+		asyncPump.reenterWaitWith(() -> {
+			asyncPump.run(() -> {
+				return Async.awaitAsync(Async.yieldAsync());
+			});
+
+			nestedWorkBegun.set();
+		});
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(nestedWorkBegun);
+		});
+	}
+
 //        [StaFact]
 //        public void RunAsyncExceptionsCapturedInResult()
 //        {
@@ -3322,46 +3321,54 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //            weakResult.TryGetTarget(out target);
 //            Assert.Null(target); // The task's result should be collected unless the JoinableTask is leaked
 //        }
-//
-//        /// <summary>
-//        /// Executes background work where the JoinableTask's SynchronizationContext
-//        /// adds work to the threadpoolQueue but doesn't give it a chance to run while
-//        /// the parent JoinableTask lasts.
-//        /// </summary>
-//        /// <remarks>
-//        /// Repro for bug 245563: https://devdiv.visualstudio.com/web/wi.aspx?pcguid=011b8bdf-6d56-4f87-be0d-0092136884d9&id=245563
-//        /// </remarks>
-//        [StaFact]
-//        public void UnawaitedBackgroundWorkShouldComplete()
-//        {
-//            bool unawaitedWorkCompleted = false;
-//            Func<Task> otherAsyncMethod = async delegate
-//            {
-//                await Task.Yield(); // this posts to the JoinableTask.threadPoolQueue
-//                await Task.Yield(); // this should schedule directly to the .NET ThreadPool.
-//                unawaitedWorkCompleted = true;
-//            };
-//            var jtStarted = new AsyncManualResetEvent();
-//            Task unawaitedWork = null;
-//            var bkgrndThread = Task.Run(delegate
-//            {
-//                this.asyncPump.Run(delegate
-//                {
-//                    jtStarted.Set();
-//                    unawaitedWork = otherAsyncMethod();
-//                    return TplExtensions.CompletedTask;
-//                });
-//            });
-//            this.context.Factory.Run(async delegate
-//            {
-//                await jtStarted;
-//                var joinTask = this.joinableCollection.JoinTillEmptyAsync();
-//                await joinTask.WithTimeout(UnexpectedTimeout);
-//                Assert.True(joinTask.IsCompleted);
-//                await unawaitedWork;
-//            });
-//            Assert.True(unawaitedWorkCompleted);
-//        }
+
+	/**
+	 * Executes background work where the {@link JoinableFuture}'s {@link SynchronizationContext} adds work to the
+	 * threadpoolQueue but doesn't give it a chance to run while the parent {@link JoinableFuture} lasts.
+	 *
+	 * <p>
+	 * Repro for bug 245563:
+	 * https://devdiv.visualstudio.com/web/wi.aspx?pcguid=011b8bdf-6d56-4f87-be0d-0092136884d9&id=245563</p>
+	 */
+	@Test
+	public void testUnawaitedBackgroundWorkShouldComplete() {
+		AtomicBoolean unawaitedWorkCompleted = new AtomicBoolean(false);
+		Supplier<CompletableFuture<Void>> otherAsyncMethod = () -> {
+			return Async.awaitAsync(
+				// this posts to the JoinableTask.threadPoolQueue
+				Async.yieldAsync(),
+				() -> Async.awaitAsync(
+					// this should schedule directly to the .NET ThreadPool.
+					Async.yieldAsync(),
+					() -> {
+						unawaitedWorkCompleted.set(true);
+						return Futures.completedNull();
+					}));
+		};
+		AsyncManualResetEvent jtStarted = new AsyncManualResetEvent();
+		StrongBox<CompletableFuture<Void>> unawaitedWork = new StrongBox<>(null);
+		CompletableFuture<Void> bkgrndThread = Async.runAsync(() -> {
+			asyncPump.run(() -> {
+				jtStarted.set();
+				unawaitedWork.set(otherAsyncMethod.get());
+				return Futures.completedNull();
+			});
+		});
+		context.getFactory().run(() -> {
+			return Async.awaitAsync(
+				jtStarted,
+				() -> {
+					CompletableFuture<Void> joinTask = joinableCollection.joinUntilEmptyAsync();
+					return Async.awaitAsync(
+						TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT),
+						() -> {
+							Assert.assertTrue(joinTask.isDone());
+							return Async.awaitAsync(unawaitedWork.get());
+						});
+				});
+		});
+		Assert.assertTrue(unawaitedWorkCompleted.get());
+	}
 
 	@Test
 	@Ignore("Failing for Java only")
@@ -3568,42 +3575,39 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		System.out.println(report.getContent());
 	}
 
-//        /// <summary>
-//        /// Simulates COM message pump reentrancy causing some unrelated work to "pump in" on top of a synchronously blocking wait.
-//        /// </summary>
-//        private class COMReentrantJoinableTaskFactory : JoinableTaskFactory
-//        {
-//            private Action action;
-//
-//            internal COMReentrantJoinableTaskFactory(JoinableTaskContext context)
-//                : base(context)
-//            {
-//            }
-//
-//            internal COMReentrantJoinableTaskFactory(JoinableTaskCollection collection)
-//                : base(collection)
-//            {
-//            }
-//
-//            internal void ReenterWaitWith(Action action)
-//            {
-//                this.action = action;
-//            }
-//
-//            protected override void WaitSynchronously(Task task)
-//            {
-//                if (this.action != null)
-//                {
-//                    var action = this.action;
-//                    this.action = null;
-//                    action();
-//                }
-//
-//                base.WaitSynchronously(task);
-//            }
-//        }
+	/**
+	 * Simulates COM message pump reentrancy causing some unrelated work to "pump in" on top of a synchronously blocking
+	 * wait.
+	 */
+	private static class COMReentrantJoinableFutureFactory extends JoinableFutureFactory {
 
-	private class WaitCountingJoinableFutureFactory extends JoinableFutureFactory {
+		private Runnable runnable;
+
+		COMReentrantJoinableFutureFactory(JoinableFutureContext context) {
+			super(context);
+		}
+
+		COMReentrantJoinableFutureFactory(JoinableFutureCollection collection) {
+			super(collection);
+		}
+
+		final void reenterWaitWith(Runnable runnable) {
+			this.runnable = runnable;
+		}
+
+		@Override
+		protected void waitSynchronously(CompletableFuture<?> future) {
+			if (this.runnable != null) {
+				Runnable action = this.runnable;
+				this.runnable = null;
+				action.run();
+			}
+
+			super.waitSynchronously(future);
+		}
+	}
+
+	private static class WaitCountingJoinableFutureFactory extends JoinableFutureFactory {
 
 		private final AtomicInteger waitCount = new AtomicInteger();
 

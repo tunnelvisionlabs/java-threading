@@ -6,9 +6,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -18,7 +19,12 @@ import java.util.function.Supplier;
 public enum Async {
 	;
 
-	private static final ScheduledThreadPoolExecutor DELAY_SCHEDULER = new ScheduledThreadPoolExecutor(1);
+	private static final ScheduledExecutorService DELAY_SCHEDULER = Executors.newSingleThreadScheduledExecutor(
+		(Runnable r) -> {
+			Thread thread = Executors.defaultThreadFactory().newThread(r);
+			thread.setName(thread.getName() + "delayAsync scheduler");
+			return thread;
+		});
 
 	@NotNull
 	public static <T> CompletableFuture<T> awaitAsync(@NotNull Awaitable<? extends T> awaitable) {
@@ -48,42 +54,46 @@ public enum Async {
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> awaiter) {
-		return awaitAsync(awaiter, AsyncFunctions.identity(), true);
+	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> future) {
+		return awaitAsync(future, AsyncFunctions.identity(), true);
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> awaiter, boolean continueOnCapturedContext) {
-		return awaitAsync(awaiter, AsyncFunctions.identity(), continueOnCapturedContext);
+	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> future, boolean continueOnCapturedContext) {
+		return awaitAsync(future, AsyncFunctions.identity(), continueOnCapturedContext);
 	}
 
 	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> awaiter, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation) {
-		return awaitAsync(awaiter, continuation, true);
+	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> future, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation) {
+		return awaitAsync(future, continuation, true);
 	}
 
 	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> awaiter, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
-		if (awaiter.isDone()) {
-			return awaiter.thenCompose(continuation);
+	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> future, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
+		if (future.isDone()) {
+			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
+			// properly handled.
+			return future.thenCompose(continuation);
 		}
 
-		Awaitable<? extends T> awaitable = new FutureAwaitable<>(awaiter, continueOnCapturedContext);
+		Awaitable<? extends T> awaitable = new FutureAwaitable<>(future, continueOnCapturedContext);
 		return awaitAsync(awaitable, continuation);
 	}
 
 	@NotNull
-	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> awaiter, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
-		return awaitAsync(awaiter, continuation, true);
+	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> future, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
+		return awaitAsync(future, continuation, true);
 	}
 
 	@NotNull
-	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> awaiter, @NotNull Supplier<? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
-		if (awaiter.isDone()) {
-			return awaiter.thenCompose(result -> continuation.get());
+	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> future, @NotNull Supplier<? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
+		if (future.isDone()) {
+			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
+			// properly handled.
+			return future.thenCompose(result -> continuation.get());
 		}
 
-		return awaitAsync(new FutureAwaitable<>(awaiter, continueOnCapturedContext), continuation);
+		return awaitAsync(new FutureAwaitable<>(future, continueOnCapturedContext), continuation);
 	}
 
 	@NotNull
@@ -345,11 +355,13 @@ public enum Async {
 
 		@Override
 		public Awaiter<Void> getAwaiter() {
-			return new YieldAwaiter();
+			return YieldAwaiter.INSTANCE;
 		}
 	}
 
 	private static final class YieldAwaiter implements Awaiter<Void> {
+		public static final YieldAwaiter INSTANCE = new YieldAwaiter();
+
 		@Override
 		public boolean isDone() {
 			// yielding is always required for YieldAwaiter, hence false

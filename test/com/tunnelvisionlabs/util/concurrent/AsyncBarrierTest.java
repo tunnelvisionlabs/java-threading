@@ -59,7 +59,7 @@ public class AsyncBarrierTest extends TestBase {
 			() -> 1,
 			i -> i <= steps,
 			i -> i + 1,
-			i -> Async
+			i -> Async.unwrap(Async
 				.whileAsync(
 					// Wait until all actors report having completed this step.
 					() -> !all(currentStepForActors, step -> Objects.equals(step, i)),
@@ -67,9 +67,9 @@ public class AsyncBarrierTest extends TestBase {
 						// Wait for someone to signal a change has been made to the array.
 						return Async.awaitAsync(actorReady.waitAsync());
 					})
-				.thenCompose(
+				.thenApply(
 					// Give the last signal to proceed to the next step.
-					ignored -> Async.awaitAsync(barrier.signalAndWait())));
+					ignored -> Async.awaitAsync(barrier.signalAndWait()))));
 	}
 
 	private static boolean all(int[] array, Predicate<Integer> predicate) {

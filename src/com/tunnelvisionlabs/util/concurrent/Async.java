@@ -22,6 +22,17 @@ import java.util.function.Supplier;
 public enum Async {
 	;
 
+	static final boolean REQUIRE_UNWRAP_FOR_COMPLETED_ANTECEDENT;
+
+	static {
+		// The behavior of CompletableFuture.thenCompose when the antecedent is already completed is not consistent
+		// across Java 8 releases. We are only allowed to avoid a call to Futures.unwrap in this case if the current
+		// runtime properly propagates cancellation of the continuation.
+		CompletableFuture<Void> composed = Futures.completedNull().thenCompose(s -> Futures.completedCancelled());
+		boolean behavedCorrectly = composed.isDone() && composed.isCancelled();
+		REQUIRE_UNWRAP_FOR_COMPLETED_ANTECEDENT = !behavedCorrectly;
+	}
+
 	private static final ScheduledExecutorService DELAY_SCHEDULER = Executors.newSingleThreadScheduledExecutor(
 		(Runnable r) -> {
 			Thread thread = Executors.defaultThreadFactory().newThread(r);
@@ -68,7 +79,7 @@ public enum Async {
 
 	@NotNull
 	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> future, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation) {
-		if (future.isDone()) {
+		if (!REQUIRE_UNWRAP_FOR_COMPLETED_ANTECEDENT && future.isDone()) {
 			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
 			// properly handled.
 			return future.thenCompose(continuation);
@@ -80,7 +91,7 @@ public enum Async {
 
 	@NotNull
 	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> future, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
-		if (future.isDone()) {
+		if (!REQUIRE_UNWRAP_FOR_COMPLETED_ANTECEDENT && future.isDone()) {
 			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
 			// properly handled.
 			return future.thenCompose(result -> continuation.get());

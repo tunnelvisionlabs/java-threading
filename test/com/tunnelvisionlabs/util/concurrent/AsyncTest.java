@@ -12,6 +12,9 @@ import static org.hamcrest.CoreMatchers.isA;
 
 public class AsyncTest extends TestBase {
 
+	/**
+	 * This test is one part of verifying https://github.com/tunnelvisionlabs/java-threading/issues/11.
+	 */
 	@Test
 	public void testAwaitAsyncCompletedThenCancelledFunction() {
 		CompletableFuture<Void> cancellationFuture = new CompletableFuture<>();
@@ -25,6 +28,9 @@ public class AsyncTest extends TestBase {
 		asyncTest.join();
 	}
 
+	/**
+	 * This test is one part of verifying https://github.com/tunnelvisionlabs/java-threading/issues/11.
+	 */
 	@Test
 	public void testAwaitAsyncCompletedThenCancelledSupplier() {
 		CompletableFuture<Void> cancellationFuture = new CompletableFuture<>();
@@ -48,6 +54,9 @@ public class AsyncTest extends TestBase {
 		Assert.assertEquals("Continuations are a stack, not a queue.", 1, value.get());
 	}
 
+	/**
+	 * This test is one part of verifying https://github.com/tunnelvisionlabs/java-threading/issues/11.
+	 */
 	@Test
 	public void testCompletedThenComposeCancelled() {
 		CompletableFuture<Void> future = new CompletableFuture<>();
@@ -56,12 +65,24 @@ public class AsyncTest extends TestBase {
 
 		Assert.assertTrue(composed.isDone());
 		Assert.assertTrue(composed.isCompletedExceptionally());
-		Assert.assertTrue(composed.isCancelled());
 
-		thrown.expect(CancellationException.class);
-		composed.join();
+		if (Async.REQUIRE_UNWRAP_FOR_COMPLETED_ANTECEDENT) {
+			Assert.assertFalse("The current runtime does not preserve cancellation when the antecedent is pre-completed", composed.isCancelled());
+
+			thrown.expect(CompletionException.class);
+			thrown.expectCause(isA(CancellationException.class));
+			composed.join();
+		} else {
+			Assert.assertTrue(composed.isCancelled());
+
+			thrown.expect(CancellationException.class);
+			composed.join();
+		}
 	}
 
+	/**
+	 * This test is one part of verifying https://github.com/tunnelvisionlabs/java-threading/issues/11.
+	 */
 	@Test
 	public void testNotCompletedThenComposeCancelled() {
 		CompletableFuture<Void> future = new CompletableFuture<>();
@@ -70,7 +91,7 @@ public class AsyncTest extends TestBase {
 
 		Assert.assertTrue(composed.isDone());
 		Assert.assertTrue(composed.isCompletedExceptionally());
-		Assert.assertFalse("Cancellation is only preserved when the antecedent is pre-completed", composed.isCancelled());
+		Assert.assertFalse("Cancellation is not preserved when the antecedent is not completed when thenCompose is called", composed.isCancelled());
 
 		thrown.expect(CompletionException.class);
 		thrown.expectCause(isA(CancellationException.class));

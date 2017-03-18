@@ -118,7 +118,6 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 
 	@Test
 	@Category(FailsInCloudTest.class)
-	@Ignore("Unstable test")
 	public void testOnFalseHangReportDetected_OnlyOnce() {
 		DerivedFactory factory = (DerivedFactory)derivedNode.getFactory();
 		factory.setHangDetectionTimeout(Duration.ofMillis(1));

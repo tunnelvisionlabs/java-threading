@@ -51,7 +51,6 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Failing only in Java")
 	public void testReportHangOnRun() {
 		getFactory().setHangDetectionTimeout(Duration.ofMillis(10));
 		CompletableFuture<Void> releaseTaskSource = new CompletableFuture<>();
@@ -118,7 +117,6 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Failing only in Java")
 	public void testReportHangOnRunAsyncThenJoin() {
 		getFactory().setHangDetectionTimeout(Duration.ofMillis(10));
 		CompletableFuture<Void> releaseTaskSource = new CompletableFuture<>();
@@ -418,7 +416,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 //        }
 
 	@Test
-	@Ignore
+	@Ignore("https://github.com/Microsoft/vs-threading/issues/82")
 	public void testGetHangReportWithActualHang() {
 		CompletableFuture<?> endTestCancellationFuture = new CompletableFuture<>();
 		getContext().onReportHang = (hangDuration, iterations, id) -> {
@@ -501,7 +499,6 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Failing only in Java")
 	public void testIsMainThreadBlockedTrueWhenAsyncBecomesBlockingWithNestedFuture() {
 		JoinableFuture<Void> joinable = getFactory().runAsync(() -> {
 			Assert.assertFalse(getContext().isMainThreadBlocked());
@@ -546,7 +543,6 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Failing only in Java")
 	public void testIsMainThreadBlockedTrueWhenOriginallySync() {
 		getFactory().run(() -> {
 			Assert.assertTrue(getContext().isMainThreadBlocked());

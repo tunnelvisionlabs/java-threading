@@ -8,12 +8,12 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -119,7 +119,6 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Fails in Java tests")
 	public void testSwitchToMainThreadAsyncWithinCompleteFutureGetsNewFuture() {
 		// For this test, the JoinableTaskFactory we use shouldn't have its own collection.
 		// This is important for hitting the code path that was buggy before this test was written.
@@ -382,7 +381,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	public void testSwitchToSTASucceedsForDependentWork() {
 		CompletableFuture<Void> uiThreadNowBusy = new CompletableFuture<>();
 		CompletableFuture<Void> backgroundContenderCompletedRelevantUIWork = new CompletableFuture<>();
-		CompletableFuture<Void> backgroundInvitationReverted = new CompletableFuture<>();
+		AsyncManualResetEvent backgroundInvitationReverted = new AsyncManualResetEvent();
 		AtomicBoolean syncUIOperationCompleted = new AtomicBoolean(false);
 
 		CompletableFuture<Void> backgroundContender = Async.runAsync(() -> Async.awaitAsync(
@@ -444,7 +443,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						() -> Async.awaitAsync(
 							asyncPump.switchToMainThreadAsync(),
 							() -> {
-//									var nowait = backgroundInvitationReverted.SetAsync();
+								backgroundInvitationReverted.set();
 								Assert.assertSame(originalThread, Thread.currentThread());
 								syncUIOperationCompleted.set(true);
 
@@ -501,7 +500,6 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	@Test
 	@Category(FailsInCloudTest.class) // see https://github.com/Microsoft/vs-threading/issues/44
-	@Ignore
 	public void testTransitionToMainThreadRaisedWhenSwitchingToMainThread() {
 		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)asyncPump;
 
@@ -518,6 +516,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						Async.runAsync(() -> {
 							Assert.assertEquals("No transition expected when moving off the main thread.", 0, factory.getTransitioningToMainThreadHitCount());
 							Assert.assertEquals("No transition expected when moving off the main thread.", 0, factory.getTransitionedToMainThreadHitCount());
+							return Async.delayAsync(5, TimeUnit.MILLISECONDS);
 						}),
 						() -> {
 							Assert.assertEquals("Reacquisition of main thread should have raised transition events.", 1, factory.getTransitioningToMainThreadHitCount());

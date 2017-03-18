@@ -36,7 +36,7 @@ public enum Async {
 		Awaiter<? extends T> awaiter = awaitable.getAwaiter();
 		if (awaiter.isDone()) {
 			try {
-				continuation.apply(awaiter.getResult());
+				return continuation.apply(awaiter.getResult());
 			} catch (Throwable ex) {
 				return Futures.fromException(ex);
 			}

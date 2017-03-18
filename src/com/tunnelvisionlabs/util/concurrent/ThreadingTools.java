@@ -13,6 +13,8 @@ import java.util.concurrent.CompletableFuture;
 public enum ThreadingTools {
 	;
 
+	private static final Disposable EMPTY_DISPOSABLE = () -> { };
+
 //        /// <summary>
 //        /// Optimistically performs some value transformation based on some field and tries to apply it back to the field,
 //        /// retrying as many times as necessary until no other thread is manipulating the same field.
@@ -48,6 +50,18 @@ public enum ThreadingTools {
 //
 //            return true;
 //        }
+
+	public static Disposable interruptOnCancel(@NotNull CancellationToken cancellationToken) {
+		return interruptOnCancel(Thread.currentThread(), cancellationToken);
+	}
+
+	public static Disposable interruptOnCancel(@NotNull Thread thread, @NotNull CancellationToken cancellationToken) {
+		if (!cancellationToken.canBeCancelled()) {
+			return EMPTY_DISPOSABLE;
+		}
+
+		return cancellationToken.register(thread::interrupt);
+	}
 
 	/**
 	 * Wraps a future with one that will complete as canceled based on a cancellation token, allowing someone to await

@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -66,7 +67,7 @@ public class AsyncCountdownEventTest extends TestBase {
 	public void testSignalAndWaitSynchronousBlockDoesNotHang() throws Exception {
 		SynchronizationContext.setSynchronizationContext(SingleThreadedSynchronizationContext.create());
 		AsyncCountdownEvent evt = new AsyncCountdownEvent(1);
-		evt.signalAndWaitAsync().get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		evt.signalAndWaitAsync().get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	/**

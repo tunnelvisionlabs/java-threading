@@ -4,6 +4,7 @@ package com.tunnelvisionlabs.util.concurrent;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -42,7 +43,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 						// throwing in this callback results in JTF calling Environment.FailFast
 						// which crashes the test runner. We'll assert on this local boolean
 						// after we exit this critical section.
-						otherThread.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+						otherThread.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 					} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 						noDeadlockDetected.set(false);
 					}
@@ -85,7 +86,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 						// throwing in this callback results in JTF calling Environment.FailFast
 						// which crashes the test runner. We'll assert on this local boolean
 						// after we exit this critical section.
-						otherThread.get(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+						otherThread.get(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 					} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 						noDeadlockDetected.set(false);
 					}

@@ -86,14 +86,14 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	public void testOnHangDetected_Registration() {
 		DerivedFactory factory = (DerivedFactory)this.derivedNode.getFactory();
 		factory.setHangDetectionTimeout(Duration.ofMillis(1));
-		factory.run(() -> Async.awaitAsync(Async.delayAsync(2, TimeUnit.MILLISECONDS)));
+		factory.run(() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(2))));
 
 		Assert.assertFalse("we didn't register, so we shouldn't get notifications", derivedNode.getHangDetected().isSet());
 		Assert.assertFalse(derivedNode.getFalseHangReportDetected().isSet());
 
 		try (Disposable disposable = derivedNode.registerOnHangDetected()) {
 			factory.run(() -> {
-				CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY);
 				return Async.awaitAsync(
 					Async.whenAny(timeout, derivedNode.getHangDetected().waitAsync()),
 					result -> {
@@ -111,7 +111,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 			derivedNode.getFalseHangReportDetected().reset();
 		}
 
-		factory.run(() -> Async.awaitAsync(Async.delayAsync(2, TimeUnit.MILLISECONDS)));
+		factory.run(() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(2))));
 		Assert.assertFalse("registration should have been canceled.", derivedNode.getHangDetected().isSet());
 		Assert.assertFalse(derivedNode.getFalseHangReportDetected().isSet());
 	}
@@ -139,7 +139,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 				() -> Async.awaitAsync(derivedNode.getHangDetected().waitAsync()))));
 
 		factory.run(() -> {
-			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY);
 			return Async.awaitAsync(
 				Async.whenAny(timeout, dectionTask.getFuture()),
 				result -> {
@@ -166,7 +166,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 		derivedNode.registerOnHangDetected();
 
 		factory.run(() -> {
-			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY);
 			return Async.awaitAsync(
 				Async.whenAny(timeout, this.derivedNode.getHangDetected().waitAsync()),
 				result -> {
@@ -204,7 +204,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 		derivedNode.registerOnHangDetected();
 
 		JoinableFuture<Void> jt = factory.runAsync(() -> {
-			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+			CompletableFuture<Void> timeout = Async.delayAsync(ASYNC_DELAY);
 			return Async.awaitAsync(
 				Async.whenAny(timeout, derivedNode.getHangDetected().waitAsync()),
 				result -> {

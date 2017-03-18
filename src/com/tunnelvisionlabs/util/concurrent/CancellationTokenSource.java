@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class CancellationTokenSource implements Disposable {
@@ -97,7 +96,7 @@ public class CancellationTokenSource implements Disposable {
 		}
 	}
 
-	public final void cancelAfter(Duration duration) {
+	public final void cancelAfter(@NotNull Duration duration) {
 		synchronized (registrations) {
 			if (isClosed()) {
 				throw new IllegalStateException("The source is disposed");
@@ -111,7 +110,7 @@ public class CancellationTokenSource implements Disposable {
 				cancelAfterRegistration.close();
 			}
 
-			CompletableFuture<Void> delayedCancel = Async.delayAsync(duration.toMillis(), TimeUnit.MILLISECONDS)
+			CompletableFuture<Void> delayedCancel = Async.delayAsync(duration)
 				.thenRun(() -> Futures.runAsync(() -> cancel(false)));
 			cancelAfterRegistration = register(future -> future.cancel(false), delayedCancel, false);
 		}

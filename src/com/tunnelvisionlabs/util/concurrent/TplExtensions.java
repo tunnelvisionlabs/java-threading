@@ -1,8 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Extensions to the Task Parallel Library.
@@ -59,14 +59,14 @@ public enum TplExtensions {
 	 * @param <T> The type of value returned by the original future.
 	 * @param future The future to wait for.
 	 * @param timeout The maximum time to wait.
-	 * @param unit The units for {@code timeout}.
 	 * @return A future that completes with the result of the specified {@code future} or fails with a {@link CancellationException} if {@code timeout} elapses first.
 	 */
-	public static <T> CompletableFuture<T> withTimeout(@NotNull CompletableFuture<T> future, long timeout, @NotNull TimeUnit unit) {
+	public static <T> CompletableFuture<T> withTimeout(@NotNull CompletableFuture<T> future, @NotNull Duration timeout) {
 		return Async.runAsync(() -> {
 			Requires.notNull(future, "future");
+			Requires.notNull(timeout, "timeout");
 
-			CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout, unit);
+			CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout);
 			return Async.awaitAsync(
 				Async.configureAwait(Async.whenAny(future, timeoutTask), false),
 				completedFuture -> {

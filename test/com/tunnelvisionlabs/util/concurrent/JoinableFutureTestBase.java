@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -54,7 +55,7 @@ public abstract class JoinableFutureTestBase extends TestBase {
 
 	@After
 	public final void teardown() {
-		Assert.assertTrue(ForkJoinPool.commonPool().awaitQuiescence(TEST_TIMEOUT, TEST_TIMEOUT_UNIT));
+		Assert.assertTrue(ForkJoinPool.commonPool().awaitQuiescence(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
 	}
 
 	@NotNull

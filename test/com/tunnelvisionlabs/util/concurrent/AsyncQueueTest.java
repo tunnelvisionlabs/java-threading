@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -400,7 +401,7 @@ public class AsyncQueueTest extends TestBase {
 					// if and only if the queue is holding a lock while invoking
 					// our cancellation continuation (which they shouldn't be doing).
 					queue.add(new GenericParameterHelper(1));
-				})).get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				})).get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 				return null;
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);
@@ -426,7 +427,7 @@ public class AsyncQueueTest extends TestBase {
 					// if and only if the queue is holding a lock while invoking
 					// our cancellation continuation (which they shouldn't be doing).
 					queue.add(new GenericParameterHelper(1));
-				})).get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				})).get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 				return null;
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);

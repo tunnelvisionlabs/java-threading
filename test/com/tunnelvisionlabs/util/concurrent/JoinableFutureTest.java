@@ -107,7 +107,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			mainThreadRequestPended.complete(null);
 		});
 
-		mainThreadRequestPended.get(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+		mainThreadRequestPended.get(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
 		// Verify here that pendingTasks includes one task.
 		Assert.assertEquals(1, getPendingFuturesCount());
@@ -194,7 +194,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			mainThreadRequestPended.complete(null);
 		});
 
-		mainThreadRequestPended.get(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+		mainThreadRequestPended.get(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
 		// Verify here that pendingTasks includes one task.
 		Assert.assertEquals(1, ((DerivedJoinableFutureFactory)asyncPump).getTransitioningTasksCount());
@@ -268,16 +268,16 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Test
 	public void testSwitchToMainThreadCancellable() throws Exception {
 		CompletableFuture<Void> task = Futures.runAsync(() -> {
-			CancellationTokenSource cts = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY)));
+			CancellationTokenSource cts = new CancellationTokenSource(ASYNC_DELAY);
 			return AsyncAssert.cancelsIncorrectlyAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(cts.getToken())));
 		});
 
-		task.get(TEST_TIMEOUT * 3, TEST_TIMEOUT_UNIT);
+		task.get(TEST_TIMEOUT.multipliedBy(3).toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test
 	public void testSwitchToMainThreadCancellableWithinRun() {
-		CancellationTokenSource endTestTokenSource = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY)));
+		CancellationTokenSource endTestTokenSource = new CancellationTokenSource(ASYNC_DELAY);
 
 		// If we find a way to fix unwrap's handling of cancellation, this will change.
 		thrown.expect(CompletionException.class);
@@ -334,7 +334,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					Assert.assertNotSame(originalThread, Thread.currentThread());
 					return Async.awaitAsync(
 						// allow ample time for the background contender to re-enter the STA thread if it's possible (we don't want it to be).
-						Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+						Async.delayAsync(ASYNC_DELAY),
 						() -> Async.awaitAsync(
 							asyncPump.switchToMainThreadAsync(),
 							() -> {
@@ -348,7 +348,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		// Pump messages until everything's done.
 		pushFrame();
 
-		backgroundContender.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		backgroundContender.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test
@@ -522,7 +522,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						Futures.runAsync(() -> {
 							Assert.assertEquals("No transition expected when moving off the main thread.", 0, factory.getTransitioningToMainThreadHitCount());
 							Assert.assertEquals("No transition expected when moving off the main thread.", 0, factory.getTransitionedToMainThreadHitCount());
-							return Async.delayAsync(5, TimeUnit.MILLISECONDS);
+							return Async.delayAsync(Duration.ofMillis(5));
 						}),
 						() -> {
 							Assert.assertEquals("Reacquisition of main thread should have raised transition events.", 1, factory.getTransitioningToMainThreadHitCount());
@@ -706,7 +706,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			// unrelated work (work not spun off from this block) must still be
 			// Joined in order to execute here.
 			return Async.awaitAsync(
-				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY.dividedBy(2))),
 				completed -> {
 					Assert.assertNotSame("The unrelated main thread work completed before the Main thread was joined.", task, completed);
 					return Async.usingAsync(
@@ -734,7 +734,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		asyncPump.run(() -> {
 			return Async.awaitAsync(
-				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY.dividedBy(2))),
 				completed -> {
 					Assert.assertNotSame("The unrelated main thread work completed before the Main thread was joined.", task, completed);
 					return Async.usingAsync(
@@ -977,7 +977,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						collection.add(task1.value);
 
 						return Async.awaitAsync(
-							Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+							Async.delayAsync(ASYNC_DELAY),
 							() -> {
 								collection.join();
 								return Async.awaitAsync(testEnded);
@@ -1077,7 +1077,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							return Async.awaitAsync(
 								mainThreadDependentSecondWorkQueued,
 								() -> Async.awaitAsync(
-									Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+									Async.delayAsync(ASYNC_DELAY),
 									() -> Async.awaitAsync(
 										Async.yieldAsync(),
 										() -> {
@@ -1163,11 +1163,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							int waitCountBeforeSecondWork = waitCountingJTF.getWaitCount();
 							dependentSecondWorkAllowed.set();
 							return Async.awaitAsync(
-								Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+								Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 								() -> Async.awaitAsync(
 									mainThreadDependentSecondWorkQueued,
 									() -> Async.awaitAsync(
-										Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+										Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 										() -> Async.awaitAsync(
 											Async.yieldAsync(),
 											() -> {
@@ -1311,11 +1311,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 												dependentThirdWorkAllowed.set();
 
 												return Async.awaitAsync(
-													Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+													Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 													() -> Async.awaitAsync(
 														mainThreadDependentThirdWorkQueued,
 														() -> Async.awaitAsync(
-															Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+															Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 															() -> Async.awaitAsync(
 																Async.yieldAsync(),
 																() -> {
@@ -1463,11 +1463,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 										dependentSecondWorkAllowed.set();
 
 										return Async.awaitAsync(
-											Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+											Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 											() -> Async.awaitAsync(
 												mainThreadDependentSecondWorkQueued,
 												() -> Async.awaitAsync(
-													Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+													Async.delayAsync(ASYNC_DELAY.dividedBy(2)),
 													() -> Async.awaitAsync(
 														Async.yieldAsync(),
 														() -> {
@@ -1564,7 +1564,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 											// STEP 7
 											CompletableFuture<Void> executingWaitTask = postJoinRevertedWorkExecuting.waitAsync();
 											return Async.awaitAsync(
-												Async.whenAny(executingWaitTask, Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT)),
+												Async.whenAny(executingWaitTask, Async.delayAsync(ASYNC_DELAY)),
 												completed -> {
 													Assert.assertNotSame("Main thread work from unrelated task should not have executed.", executingWaitTask, completed);
 
@@ -1769,7 +1769,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		asyncPump.run(() -> {
 			mainThreadNowBlocking.set();
 			return Async.awaitAsync(
-				Async.whenAny(task.value, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				Async.whenAny(task.value, Async.delayAsync(ASYNC_DELAY.dividedBy(2))),
 				completed -> {
 					Assert.assertNotSame(task, completed);
 					return Async.usingAsync(
@@ -2014,11 +2014,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				Async.yieldAsync(),
 				() -> Async.awaitAsync(
 					asyncPump.switchToMainThreadAsync(),
-					() -> Async.awaitAsync(Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT))));
+					() -> Async.awaitAsync(Async.delayAsync(ASYNC_DELAY))));
 		});
 
 		Assert.assertFalse(joinable.getFuture().isDone());
-		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY / 4)));
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(ASYNC_DELAY.dividedBy(4));
 
 		// This isn't the cancellation behavior we want...
 		thrown.expect(CompletionException.class);
@@ -2035,7 +2035,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					someFireAndForgetMethod();
 					return Async.awaitAsync(
 						Async.yieldAsync(),
-						() -> Async.awaitAsync(Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT)));
+						() -> Async.awaitAsync(Async.delayAsync(ASYNC_DELAY)));
 				});
 		});
 	}
@@ -2509,7 +2509,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				state -> delegateExecuted.set(),
 				null);
 			return Async.awaitAsync(delegateExecuted);
-		}).get(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+		}).get(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test
@@ -2776,7 +2776,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Test
 	public void testPostStress() {
 		AtomicInteger outstandingMessages = new AtomicInteger(0);
-		CompletableFuture<Void> cancellationFuture = Async.delayAsync(1000, TimeUnit.MILLISECONDS);
+		CompletableFuture<Void> cancellationFuture = Async.delayAsync(Duration.ofMillis(1000));
 		JoinableFutureCollection collection2 = asyncPump.getContext().createCollection();
 		JoinableFutureFactory pump2 = asyncPump.getContext().createFactory(collection2);
 		StrongBox<CompletableFuture<Void>> t1 = new StrongBox<>(null);
@@ -3355,7 +3355,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				() -> {
 					CompletableFuture<Void> joinTask = joinableCollection.joinUntilEmptyAsync();
 					return Async.awaitAsync(
-						TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT),
+						TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT),
 						() -> {
 							Assert.assertTrue(joinTask.isDone());
 							return Async.awaitAsync(unawaitedWork.value);
@@ -3393,7 +3393,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		});
 
 		bkgrndThread.join();
-		unawaitedWorkCompleted.get(EXPECTED_TIMEOUT, EXPECTED_TIMEOUT_UNIT);
+		unawaitedWorkCompleted.get(EXPECTED_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test
@@ -3414,7 +3414,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		context.getFactory().run(() -> {
 			CompletableFuture<Void> joinTask = this.joinableCollection.joinUntilEmptyAsync();
 			return Async.awaitAsync(
-				TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT),
+				TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT),
 				() -> {
 					Assert.assertTrue(joinTask.isDone());
 					return Futures.completedNull();
@@ -3502,7 +3502,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				// main thread is only synchronously blocking.
 				CompletableFuture<Void> waitTask = unrelatedMainThreadWorkInvoked.waitAsync();
 				return Async.awaitAsync(
-					Async.whenAny(waitTask, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+					Async.whenAny(waitTask, Async.delayAsync(ASYNC_DELAY.dividedBy(2))),
 					firstToComplete -> {
 						Assert.assertNotSame("Background work completed work on the UI thread before it was invited to do so.", waitTask, firstToComplete);
 						return Async.usingAsync(

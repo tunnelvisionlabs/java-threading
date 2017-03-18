@@ -23,19 +23,17 @@ import org.junit.rules.Timeout;
 public abstract class TestBase {
 	private static final boolean DEBUG = false;
 
-	protected static final int ASYNC_DELAY = 500;
-	protected static final TimeUnit ASYNC_DELAY_UNIT = TimeUnit.MILLISECONDS;
+	protected static final Duration ASYNC_DELAY = Duration.ofMillis(500);
 
-	protected static final int TEST_TIMEOUT = 1000;
-	protected static final TimeUnit TEST_TIMEOUT_UNIT = DEBUG ? TimeUnit.MINUTES : TimeUnit.MILLISECONDS;
+	protected static final Duration TEST_TIMEOUT = DEBUG ? Duration.ofMinutes(1000) : Duration.ofMillis(1000);
 
-	private CancellationTokenSource timeoutTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
+	private CancellationTokenSource timeoutTokenSource = new CancellationTokenSource(TEST_TIMEOUT);
 
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
 
 	@Rule
-	public final Timeout testTimeout = new Timeout(TEST_TIMEOUT * 5, TEST_TIMEOUT_UNIT);
+	public final Timeout testTimeout = new Timeout(TEST_TIMEOUT.multipliedBy(5).toMillis(), TimeUnit.MILLISECONDS);
 
 	private SynchronizationContext synchronizationContext;
 	private CallContext callContext;
@@ -56,14 +54,12 @@ public abstract class TestBase {
 	/**
 	 * The maximum length of time to wait for something that we expect will happen within the timeout.
 	 */
-	protected static final long UNEXPECTED_TIMEOUT = 5000;
-	protected static final TimeUnit UNEXPECTED_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+	protected static final Duration UNEXPECTED_TIMEOUT = Duration.ofMillis(5000);
 
 	/**
 	 * The maximum length of time to wait for something that we do not expect will happen within the timeout.
 	 */
-	protected static final long EXPECTED_TIMEOUT = 2;
-	protected static final TimeUnit EXPECTED_TIMEOUT_UNIT = TimeUnit.SECONDS;
+	protected static final Duration EXPECTED_TIMEOUT = Duration.ofSeconds(2);
 
 	private static final int GC_ALLOCATION_ATTEMPTS = 10;
 
@@ -115,7 +111,7 @@ public abstract class TestBase {
 		CompletableFuture<Void> completingActionFinished = new CompletableFuture<>();
 		CompletableFuture<Void> continuation = antecedent.handle((result, exception) -> {
 			try {
-				return completingActionFinished.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				return completingActionFinished.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);
 			}

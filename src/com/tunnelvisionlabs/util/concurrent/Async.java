@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -115,17 +116,17 @@ public enum Async {
 	}
 
 	@NotNull
-	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
-		return delayAsync(time, unit, CancellationToken.none());
+	public static CompletableFuture<Void> delayAsync(@NotNull Duration duration) {
+		return delayAsync(duration, CancellationToken.none());
 	}
 
 	@NotNull
-	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit, @NotNull CancellationToken cancellationToken) {
+	public static CompletableFuture<Void> delayAsync(@NotNull Duration duration, @NotNull CancellationToken cancellationToken) {
 		if (cancellationToken.isCancellationRequested()) {
 			return Futures.completedCancelled();
 		}
 
-		if (time == 0) {
+		if (duration.isZero()) {
 			return Futures.completedNull();
 		}
 
@@ -136,8 +137,8 @@ public enum Async {
 					result.complete(null);
 				}));
 			}),
-			time,
-			unit);
+			duration.toMillis(),
+			TimeUnit.MILLISECONDS);
 
 		// Unschedule if cancelled
 		result.whenComplete((ignored, exception) -> {

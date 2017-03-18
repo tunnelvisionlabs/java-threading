@@ -22,7 +22,7 @@ public enum Async {
 	private static final ScheduledExecutorService DELAY_SCHEDULER = Executors.newSingleThreadScheduledExecutor(
 		(Runnable r) -> {
 			Thread thread = Executors.defaultThreadFactory().newThread(r);
-			thread.setName(thread.getName() + "delayAsync scheduler");
+			thread.setName(thread.getName() + " delayAsync scheduler");
 			return thread;
 		});
 

@@ -584,8 +584,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	@Override
-	public final FutureAwaiter<T> getAwaiter() {
-		return new FutureAwaiter<>(joinAsync(), true);
+	public final FutureAwaitable<T>.FutureAwaiter getAwaiter() {
+		return new FutureAwaitable<>(joinAsync(), true).getAwaiter();
 	}
 
 	final void setWrappedFuture(@NotNull CompletableFuture<? extends T> wrappedFuture) {

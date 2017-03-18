@@ -164,8 +164,8 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 //        [EditorBrowsable(EditorBrowsableState.Never)]
 	@NotNull
 	@Override
-	public final FutureAwaiter<Void> getAwaiter() {
-		return new FutureAwaiter<>(waitAsync(), true);
+	public final FutureAwaitable<Void>.FutureAwaiter getAwaiter() {
+		return new FutureAwaitable<>(waitAsync(), true).getAwaiter();
 	}
 
 	/**

@@ -2,6 +2,8 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 
 public final class FutureAwaitable<T> implements Awaitable<T> {
 	private final CompletableFuture<T> future;
@@ -18,7 +20,37 @@ public final class FutureAwaitable<T> implements Awaitable<T> {
 
 	@NotNull
 	@Override
-	public Awaiter<T> getAwaiter() {
-		return new FutureAwaiter<>(future, continueOnCapturedContext);
+	public FutureAwaiter getAwaiter() {
+		return new FutureAwaiter();
+	}
+
+	public class FutureAwaiter implements Awaiter<T> {
+		@Override
+		public boolean isDone() {
+			return future.isDone();
+		}
+
+		@Override
+		public T getResult() {
+			return future.join();
+		}
+
+		@Override
+		public void onCompleted(Runnable continuation) {
+			Executor executor;
+			if (continueOnCapturedContext) {
+				SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
+				if (synchronizationContext != null && synchronizationContext.getClass() != SynchronizationContext.class) {
+					executor = synchronizationContext;
+				} else {
+					executor = ForkJoinPool.commonPool();
+				}
+			} else {
+				executor = ForkJoinPool.commonPool();
+			}
+
+			Runnable wrappedContinuation = ExecutionContext.wrap(continuation);
+			future.whenCompleteAsync((result, exception) -> continuation.run(), executor);
+		}
 	}
 }

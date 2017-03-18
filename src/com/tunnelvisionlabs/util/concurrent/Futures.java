@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
@@ -51,6 +52,10 @@ enum Futures {
 	@NotNull
 	public static <T> CompletableFuture<T> completedFailed(@NotNull Throwable ex) {
 		CompletableFuture<T> result = new CompletableFuture<>();
+		if (!(ex instanceof CompletionException)) {
+			ex = new CompletionException(ex);
+		}
+
 		result.completeExceptionally(ex);
 		return result;
 	}

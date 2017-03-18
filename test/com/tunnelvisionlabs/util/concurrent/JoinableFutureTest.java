@@ -23,6 +23,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.CoreMatchers.sameInstance;
 
 /**
  * Copied from Microsoft/vs-threading@14f77875.
@@ -3136,28 +3137,22 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		});
 	}
 
-//        [StaFact]
-//        public void RunAsyncExceptionsCapturedInResult()
-//        {
-//            var exception = new InvalidOperationException();
-//            var joinableTask = this.asyncPump.RunAsync(delegate
-//            {
-//                throw exception;
-//            });
-//            Assert.True(joinableTask.IsCompleted);
-//            Assert.Same(exception, joinableTask.Task.Exception.InnerException);
-//            var awaiter = joinableTask.GetAwaiter();
-//            try
-//            {
-//                awaiter.GetResult();
-//                Assert.True(false, "Expected exception not rethrown.");
-//            }
-//            catch (InvalidOperationException ex)
-//            {
-//                Assert.Same(ex, exception);
-//            }
-//        }
-//
+	@Test
+	public void testRunAsyncExceptionsCapturedInResult() {
+		IllegalStateException exception = new IllegalStateException();
+		JoinableFuture<Void> joinableTask = asyncPump.runAsync(() -> {
+			throw exception;
+		});
+		Assert.assertTrue(joinableTask.isDone());
+		CompletableFuture<Void> asyncTest = AsyncAssert.throwsAsync(sameInstance(exception), () -> joinableTask.getFuture());
+
+		asyncTest.join();
+
+		thrown.expect(CompletionException.class);
+		thrown.expectCause(sameInstance(exception));
+		joinableTask.getAwaiter().getResult();
+	}
+
 //        [StaFact]
 //        public void RunAsyncOfTExceptionsCapturedInResult()
 //        {
@@ -3227,101 +3222,101 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //            // it should have only slept once. Any more than that constitutes unnecessary overhead.
 //            Assert.Equal(1, waitCountingJTF.WaitCount);
 //        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadShouldNotLeakJoinableTaskWhenGetResultRunsFirst()
-//        {
-//            var cts = new CancellationTokenSource();
-//            var factory = (DerivedJoinableTaskFactory)this.asyncPump;
-//            var transitionedToMainThread = new ManualResetEventSlim(false);
-//            factory.PostToUnderlyingSynchronizationContextCallback = () =>
-//            {
-//                // Pause the background thread after posted the continuation to JoinableTask.
-//                transitionedToMainThread.Wait();
-//            };
-//
-//            object result = new object();
-//            WeakReference<object> weakResult = new WeakReference<object>(result);
-//
-//            this.asyncPump.Run(async () =>
-//            {
-//                // Needs to switch to background thread at first in order to test the code that requests switch to main thread.
-//                await TaskScheduler.Default;
-//
-//                // This nested run starts on background thread and then requests to switch to main thread.
-//                // The remaining parts in the async delegate would be executed on main thread. This nested run
-//                // will complete only when both the background thread works (aka. MainThreadAWaiter.OnCompleted())
-//                // and the main thread works are done, and then we could start verification.
-//                this.asyncPump.Run(async () =>
-//            {
-//                await this.asyncPump.SwitchToMainThreadAsync(cts.Token);
-//
-//                // Resume the background thread after transitioned to main thread.
-//                // This is to ensure the timing that GetResult() must be called before OnCompleted() registers the cancellation.
-//                transitionedToMainThread.Set();
-//                return result;
-//            });
-//            });
-//
-//            // Needs to give the dispatcher a chance to run the posted action in order to release
-//            // the last reference to the JoinableTask.
-//            this.PushFrameTillQueueIsEmpty();
-//
-//            result = null;
-//            GC.Collect();
-//
-//            object target;
-//            weakResult.TryGetTarget(out target);
-//            Assert.Null(target); //, "The task's result should be collected unless the JoinableTask is leaked");
-//        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadShouldNotLeakJoinableTaskWhenGetResultRunsLater()
-//        {
-//            var cts = new CancellationTokenSource();
-//            var factory = (DerivedJoinableTaskFactory)this.asyncPump;
-//            var waitForOnCompletedIsFinished = new ManualResetEventSlim(false);
-//            factory.TransitionedToMainThreadCallback = (jt) =>
-//            {
-//                // Pause the main thread before execute the continuation.
-//                waitForOnCompletedIsFinished.Wait();
-//            };
-//
-//            object result = new object();
-//            WeakReference<object> weakResult = new WeakReference<object>(result);
-//
-//            this.asyncPump.Run(async () =>
-//            {
-//                // Needs to switch to background thread at first in order to test the code that requests switch to main thread.
-//                await TaskScheduler.Default;
-//
-//                // This nested async run starts on background thread and then requests to switch to main thread.
-//                // It will complete only when the background thread works (aka. MainThreadAWaiter.OnCompleted()) are done,
-//                // and then we will signal a test event to resume the main thread execution, to let the remaining parts
-//                // in the async delegate go through.
-//                var joinable = this.asyncPump.RunAsync(async () =>
-//            {
-//                await this.asyncPump.SwitchToMainThreadAsync(cts.Token);
-//                return result;
-//            });
-//
-//                // Resume the main thread after OnCompleted() finishes.
-//                // This is to ensure the timing that GetResult() must be called after OnCompleted() is fully done.
-//                waitForOnCompletedIsFinished.Set();
-//                await joinable;
-//            });
-//
-//            // Needs to give the dispatcher a chance to run the posted action in order to release
-//            // the last reference to the JoinableTask.
-//            this.PushFrameTillQueueIsEmpty();
-//
-//            result = null;
-//            GC.Collect();
-//
-//            object target;
-//            weakResult.TryGetTarget(out target);
-//            Assert.Null(target); // The task's result should be collected unless the JoinableTask is leaked
-//        }
+
+	@Test
+	@Ignore("Fails in Java")
+	public void testSwitchToMainThreadShouldNotLeakJoinableFutureWhenGetResultRunsFirst() {
+		CancellationTokenSource cts = new CancellationTokenSource();
+		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)this.asyncPump;
+		CompletableFuture<Void> transitionedToMainThread = new CompletableFuture<>();
+		factory.PostToUnderlyingSynchronizationContextCallback = () -> {
+			// Pause the background thread after posted the continuation to JoinableFuture.
+			transitionedToMainThread.join();
+		};
+
+		StrongBox<Object> result = new StrongBox<>(new Object());
+		WeakReference<Object> weakResult = new WeakReference<>(result.get());
+
+		asyncPump.run(() -> {
+			// Needs to switch to background thread at first in order to test the code that requests switch to main thread.
+			return Async.awaitAsync(
+				ForkJoinPool.commonPool(),
+				() -> {
+					// This nested run starts on background thread and then requests to switch to main thread.
+					// The remaining parts in the async delegate would be executed on main thread. This nested run
+					// will complete only when both the background thread works (aka. MainThreadAWaiter.OnCompleted())
+					// and the main thread works are done, and then we could start verification.
+					asyncPump.run(() -> {
+						return Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(cts.getToken()),
+							() -> {
+								// Resume the background thread after transitioned to main thread.
+								// This is to ensure the timing that GetResult() must be called before OnCompleted() registers the cancellation.
+								transitionedToMainThread.complete(null);
+								return CompletableFuture.completedFuture(result.get());
+							});
+					});
+
+					return Futures.completedNull();
+				});
+		});
+
+		// Needs to give the dispatcher a chance to run the posted action in order to release
+		// the last reference to the JoinableTask.
+		pushFrameUntilQueueIsEmpty();
+
+		result.set(null);
+		Runtime.getRuntime().gc();
+
+		Object target = weakResult.get();
+		Assert.assertNull("The task's result should be collected unless the JoinableFuture is leaked", target);
+	}
+
+	@Test
+	public void testSwitchToMainThreadShouldNotLeakJoinableFutureWhenGetResultRunsLater() {
+		CancellationTokenSource cts = new CancellationTokenSource();
+		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)this.asyncPump;
+		CompletableFuture<Void> waitForOnCompletedIsFinished = new CompletableFuture<>();
+		factory.TransitionedToMainThreadCallback = (jt) -> {
+			// Pause the main thread before execute the continuation.
+			waitForOnCompletedIsFinished.join();
+		};
+
+		StrongBox<Object> result = new StrongBox<>(new Object());
+		WeakReference<Object> weakResult = new WeakReference<>(result.get());
+
+		asyncPump.run(() -> {
+			// Needs to switch to background thread at first in order to test the code that requests switch to main thread.
+			return Async.awaitAsync(
+				ForkJoinPool.commonPool(),
+				() -> {
+					// This nested async run starts on background thread and then requests to switch to main thread.
+					// It will complete only when the background thread works (aka. MainThreadAWaiter.OnCompleted()) are done,
+					// and then we will signal a test event to resume the main thread execution, to let the remaining parts
+					// in the async delegate go through.
+					JoinableFuture<Object> joinable = asyncPump.runAsync(() -> {
+						return Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(cts.getToken()),
+							() -> CompletableFuture.completedFuture(result.get()));
+					});
+
+					// Resume the main thread after OnCompleted() finishes.
+					// This is to ensure the timing that GetResult() must be called after OnCompleted() is fully done.
+					waitForOnCompletedIsFinished.complete(null);
+					return Async.awaitAsync(joinable);
+				});
+		});
+
+		// Needs to give the dispatcher a chance to run the posted action in order to release
+		// the last reference to the JoinableTask.
+		pushFrameUntilQueueIsEmpty();
+
+		result.set(null);
+		Runtime.getRuntime().gc();
+
+		Object target = weakResult.get();
+		Assert.assertNull("The task's result should be collected unless the JoinableTask is leaked", target);
+	}
 
 	/**
 	 * Executes background work where the {@link JoinableFuture}'s {@link SynchronizationContext} adds work to the

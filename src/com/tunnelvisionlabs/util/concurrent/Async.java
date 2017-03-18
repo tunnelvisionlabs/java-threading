@@ -10,6 +10,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public enum Async {
@@ -119,24 +120,50 @@ public enum Async {
 	}
 
 	@NotNull
-	public static CompletableFuture<Void> whileAsync(@NotNull Supplier<? extends Boolean> predicate, @NotNull Supplier<? extends CompletableFuture<?>> body) {
-		if (!predicate.get()) {
-			return Futures.completedNull();
+	public static CompletableFuture<Void> forAsync(@NotNull Runnable initializer, @NotNull Supplier<? extends Boolean> condition, @NotNull Runnable increment, @NotNull Supplier<? extends CompletableFuture<?>> body) {
+		try {
+			initializer.run();
+			return whileAsync(
+				condition,
+				() -> body.get().thenRun(increment));
+		} catch (Throwable t) {
+			return Futures.completedFailed(t);
 		}
+	}
 
-		final ConcurrentLinkedQueue<Supplier<CompletableFuture<?>>> futures = new ConcurrentLinkedQueue<>();
-		final AtomicReference<Supplier<CompletableFuture<?>>> evaluateBody = new AtomicReference<>();
-		evaluateBody.set(() -> {
-			CompletableFuture<?> bodyResult = body.get();
-			return bodyResult.thenRun(() -> {
-				if (predicate.get()) {
-					futures.add(evaluateBody.get());
-				}
+	@NotNull
+	public static <T> CompletableFuture<Void> forAsync(@NotNull Supplier<? extends T> initializer, @NotNull Predicate<? super T> condition, @NotNull Function<? super T, ? extends T> increment, @NotNull Function<? super T, ? extends CompletableFuture<?>> body) {
+		AtomicReference<T> value = new AtomicReference<>();
+		return forAsync(
+			() -> value.set(initializer.get()),
+			() -> condition.test(value.get()),
+			() -> value.set(increment.apply(value.get())),
+			() -> body.apply(value.get()));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> whileAsync(@NotNull Supplier<? extends Boolean> predicate, @NotNull Supplier<? extends CompletableFuture<?>> body) {
+		try {
+			if (!predicate.get()) {
+				return Futures.completedNull();
+			}
+
+			final ConcurrentLinkedQueue<Supplier<CompletableFuture<?>>> futures = new ConcurrentLinkedQueue<>();
+			final AtomicReference<Supplier<CompletableFuture<?>>> evaluateBody = new AtomicReference<>();
+			evaluateBody.set(() -> {
+				CompletableFuture<?> bodyResult = body.get();
+				return bodyResult.thenRun(() -> {
+					if (predicate.get()) {
+						futures.add(evaluateBody.get());
+					}
+				});
 			});
-		});
 
-		futures.add(evaluateBody.get());
-		return whileImplAsync(futures);
+			futures.add(evaluateBody.get());
+			return whileImplAsync(futures);
+		} catch (Throwable ex) {
+			return Futures.completedFailed(ex);
+		}
 	}
 
 	@NotNull

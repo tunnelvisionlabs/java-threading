@@ -9,7 +9,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -21,21 +20,15 @@ public class AsyncAutoResetEventTest extends TestBase {
 
 	@Test
 	public void testSingleThreadedPulse() {
-		AtomicInteger i = new AtomicInteger(0);
-		CompletableFuture<Void> future = Async.whileAsync(
-			() -> i.get() < 5,
-			() -> {
-				try {
-					CompletableFuture<Void> t = event.waitAsync();
-					Assert.assertFalse(t.isDone());
-					event.set();
-					return Async.finallyAsync(
-						Async.awaitAsync(t),
-						() -> i.incrementAndGet());
-				} catch (Throwable ex) {
-					i.incrementAndGet();
-					throw ex;
-				}
+		CompletableFuture<Void> future = Async.forAsync(
+			() -> 0,
+			i -> i < 5,
+			i -> i + 1,
+			i -> {
+				CompletableFuture<Void> t = event.waitAsync();
+				Assert.assertFalse(t.isDone());
+				event.set();
+				return Async.awaitAsync(t);
 			});
 
 		future.join();
@@ -68,14 +61,13 @@ public class AsyncAutoResetEventTest extends TestBase {
 			waiters.add(event.waitAsync());
 		}
 
-		AtomicInteger i = new AtomicInteger(0);
-		CompletableFuture<Void> future = Async.whileAsync(
-			() -> i.get() < waiters.size(),
-			() -> {
+		CompletableFuture<Void> future = Async.forAsync(
+			() -> 0,
+			i -> i < waiters.size(),
+			i -> i + 1,
+			i -> {
 				event.set();
-				return Async.finallyAsync(
-					Async.awaitAsync(waiters.get(i.get())),
-					() -> i.incrementAndGet());
+				return Async.awaitAsync(waiters.get(i));
 			});
 
 		future.join();

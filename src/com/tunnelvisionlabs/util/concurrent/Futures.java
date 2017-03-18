@@ -25,6 +25,13 @@ enum Futures {
 	}
 
 	@NotNull
+	public static <T> CompletableFuture<T> completedFailed(@NotNull Throwable ex) {
+		CompletableFuture<T> result = new CompletableFuture<>();
+		result.completeExceptionally(ex);
+		return result;
+	}
+
+	@NotNull
 	public static <T> CompletableFuture<T> completedNull() {
 		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
 		CompletableFuture<T> result = (CompletableFuture<T>)COMPLETED_NULL;

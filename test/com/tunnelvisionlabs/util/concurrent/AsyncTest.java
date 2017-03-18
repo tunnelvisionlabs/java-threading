@@ -76,4 +76,71 @@ public class AsyncTest extends TestBase {
 		thrown.expectCause(isA(CancellationException.class));
 		composed.join();
 	}
+
+	@Test
+	public void testSynchronousExecutionContextFlowsBeforeAwaiterGetResult() {
+		CompletableFuture<Void> asyncTest = Async.runAsync(() -> {
+			AsyncLocal<Integer> value = new AsyncLocal<>();
+			Awaiter<Void> awaiter = new Awaiter<Void>() {
+				@Override
+				public boolean isDone() {
+					return true;
+				}
+
+				@Override
+				public void onCompleted(Runnable continuation) {
+					Assert.fail("Should not be reachable.");
+				}
+
+				@Override
+				public Void getResult() {
+					value.setValue(1);
+					return null;
+				}
+			};
+			Awaitable<Void> awaitable = () -> awaiter;
+			return Async.awaitAsync(
+				awaitable,
+				() -> {
+					Assert.assertEquals((Integer)1, value.getValue());
+					return Futures.completedNull();
+				});
+		});
+
+		asyncTest.join();
+	}
+
+	@Test
+	public void testAsynchronousExecutionContextFlowsBeforeAwaiterGetResult() {
+		CompletableFuture<Void> asyncTest = Async.runAsync(() -> {
+			AsyncLocal<Integer> value = new AsyncLocal<>();
+			Awaiter<Void> awaiter = new Awaiter<Void>() {
+				@Override
+				public boolean isDone() {
+					// Force a yield
+					return false;
+				}
+
+				@Override
+				public void onCompleted(Runnable continuation) {
+					Futures.runAsync(continuation);
+				}
+
+				@Override
+				public Void getResult() {
+					value.setValue(1);
+					return null;
+				}
+			};
+			Awaitable<Void> awaitable = () -> awaiter;
+			return Async.awaitAsync(
+				awaitable,
+				() -> {
+					Assert.assertEquals((Integer)1, value.getValue());
+					return Futures.completedNull();
+				});
+		});
+
+		asyncTest.join();
+	}
 }

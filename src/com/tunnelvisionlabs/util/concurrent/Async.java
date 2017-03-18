@@ -45,8 +45,6 @@ public enum Async {
 			}
 		}
 
-		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
-
 		Executor executor;
 		if (awaiter instanceof CriticalNotifyCompletion) {
 			executor = ((CriticalNotifyCompletion)awaiter)::unsafeOnCompleted;
@@ -54,7 +52,8 @@ public enum Async {
 			executor = awaiter::onCompleted;
 		}
 
-		return Futures.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);
+		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(() -> continuation.apply(awaiter.getResult()));
+		return Futures.supplyAsync(() -> flowContinuation.get(), executor);
 	}
 
 	@NotNull

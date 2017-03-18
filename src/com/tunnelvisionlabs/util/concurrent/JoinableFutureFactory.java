@@ -179,12 +179,12 @@ public class JoinableFutureFactory {
 		// can help this switch to complete.
 		StrongBox<JoinableFuture<?>> ambientJob = new StrongBox<>(getContext().getAmbientFuture());
 		StrongBox<SingleExecuteProtector<?>> wrapper = new StrongBox<>(null);
-		if (ambientJob.get() == null || (this.jobCollection != null && !this.jobCollection.contains(ambientJob.get()))) {
+		if (ambientJob.value == null || (this.jobCollection != null && !this.jobCollection.contains(ambientJob.value))) {
 			JoinableFuture<?> transientFuture = runAsync(
 				() -> {
-					ambientJob.set(getContext().getAmbientFuture());
-					wrapper.set(SingleExecuteProtector.create(ambientJob.get(), callback));
-					ambientJob.get().post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.get(), true);
+					ambientJob.value = getContext().getAmbientFuture();
+					wrapper.value = SingleExecuteProtector.create(ambientJob.value, callback);
+					ambientJob.value.post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.value, true);
 					return Futures.completedNull();
 				},
 				/*synchronouslyBlocking:*/ false,
@@ -196,12 +196,12 @@ public class JoinableFutureFactory {
 				transientFuture.getFuture().join();
 			}
 		} else {
-			wrapper.set(SingleExecuteProtector.create(ambientJob.get(), callback));
-			ambientJob.get().post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.get(), true);
+			wrapper.value = SingleExecuteProtector.create(ambientJob.value, callback);
+			ambientJob.value.post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.value, true);
 		}
 
-		assert wrapper.get() != null;
-		return wrapper.get();
+		assert wrapper.value != null;
+		return wrapper.value;
 	}
 
 	/**
@@ -769,8 +769,8 @@ public class JoinableFutureFactory {
 					// and should not register the cancellation here. Without protecting that, "this.cancellationRegistrationPtr" will be leaked.
 					boolean disposeThisRegistration = false;
 					synchronized (this.cancellationRegistrationPtr) {
-						if (this.cancellationRegistrationPtr.get() == null) {
-							this.cancellationRegistrationPtr.set(registration);
+						if (this.cancellationRegistrationPtr.value == null) {
+							this.cancellationRegistrationPtr.value = registration;
 						} else {
 							disposeThisRegistration = true;
 						}
@@ -803,8 +803,8 @@ public class JoinableFutureFactory {
 			if (this.cancellationRegistrationPtr != null) {
 				CancellationTokenRegistration registration = null;
 				synchronized (this.cancellationRegistrationPtr) {
-					if (this.cancellationRegistrationPtr.get() != null) {
-						registration = this.cancellationRegistrationPtr.get();
+					if (this.cancellationRegistrationPtr.value != null) {
+						registration = this.cancellationRegistrationPtr.value;
 					}
 
 					// The reason we set this is to effectively null the struct that
@@ -818,7 +818,7 @@ public class JoinableFutureFactory {
 					// stores a Nullable<CancellationTokenRegistration> effectively gives it a HasValue status,
 					// which will let OnCompleted know it lost the interest on the cancellation. That is an
 					// important hint for OnCompleted() in order NOT to leak the cancellation registration.
-					this.cancellationRegistrationPtr.set(null);
+					this.cancellationRegistrationPtr.value = null;
 				}
 
 				// Intentionally deferring disposal till we exit the lock to avoid executing outside code within the lock.

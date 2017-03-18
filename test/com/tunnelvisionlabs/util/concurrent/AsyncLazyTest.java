@@ -332,21 +332,21 @@ public class AsyncLazyTest extends TestBase {
 		JoinableFutureFactory jtf = specifyJff ? new JoinableFutureContext().getFactory() : null;
 		StrongBox<AsyncLazy<Object>> lazy = new StrongBox<>();
 		AtomicBoolean executed = new AtomicBoolean(false);
-		lazy.set(new AsyncLazy<>(() -> {
+		lazy.value = new AsyncLazy<>(() -> {
 			Assert.assertFalse(executed.get());
 			executed.set(true);
 			return Async.awaitAsync(
 				Async.yieldAsync(),
 				() -> Async.awaitAsync(
-					lazy.get().getValueAsync(),
+					lazy.value.getValueAsync(),
 					() -> CompletableFuture.completedFuture(new Object())));
-		}, jtf));
+		}, jtf);
 
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
+			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()),
 			() -> {
 				// Do it again, to verify that AsyncLazy recorded the failure and will replay it.
-				return Async.awaitAsync(AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()));
+				return Async.awaitAsync(AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()));
 			});
 
 		asyncTest.join();

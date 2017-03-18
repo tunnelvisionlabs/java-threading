@@ -75,13 +75,13 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 								Duration duration = tuple.getHangDuration();
 								int iterations = tuple.getNotificationCount();
 								UUID id = tuple.getHangId();
-								Assert.assertTrue(lastDuration.get() == Duration.ZERO || lastDuration.get().compareTo(duration) < 0);
-								Assert.assertEquals(lastIteration.get() + 1, iterations);
+								Assert.assertTrue(lastDuration.value == Duration.ZERO || lastDuration.value.compareTo(duration) < 0);
+								Assert.assertEquals(lastIteration.value + 1, iterations);
 								Assert.assertNotEquals(new UUID(0, 0), id);
-								Assert.assertTrue(lastId.get().equals(new UUID(0, 0)) || lastId.get().equals(id));
-								lastDuration.set(duration);
-								lastIteration.set(iterations);
-								lastId.set(id);
+								Assert.assertTrue(lastId.value.equals(new UUID(0, 0)) || lastId.value.equals(id));
+								lastDuration.value = duration;
+								lastIteration.value = iterations;
+								lastId.value = id;
 								return Futures.completedNull();
 							});
 					})
@@ -137,8 +137,8 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 							i -> Async.awaitAsync(
 								hangQueue.pollAsync(ct.getToken()),
 								duration -> {
-									Assert.assertTrue(lastDuration.get() == Duration.ZERO || lastDuration.get().compareTo(duration) < 0);
-									lastDuration.set(duration);
+									Assert.assertTrue(lastDuration.value == Duration.ZERO || lastDuration.value.compareTo(duration) < 0);
+									lastDuration.value = duration;
 									return Futures.completedNull();
 								})),
 						() -> {
@@ -597,7 +597,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent nowBlocking = new AsyncManualResetEvent();
 		StrongBox<JoinableFuture<Void>> joinableTask = new StrongBox<>();
 		Futures.runAsync(() -> {
-			joinableTask.set(getFactory().runAsync(() -> {
+			joinableTask.value = getFactory().runAsync(() -> {
 				Assert.assertFalse(getContext().isMainThreadBlocked());
 				nonBlockingStateObserved.set();
 				return Async.awaitAsync(
@@ -608,13 +608,13 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 							Assert.assertTrue(getContext().isMainThreadBlocked());
 							return Futures.completedNull();
 						}));
-			}));
+			});
 		}).join();
 
 		getFactory().run(() -> Async.awaitAsync(
 			nonBlockingStateObserved,
 			() -> {
-				TplExtensions.forget(joinableTask.get().joinAsync());
+				TplExtensions.forget(joinableTask.value.joinAsync());
 				nowBlocking.set();
 				return Futures.completedNull();
 			}));

@@ -745,12 +745,12 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						StrongBox<SingleExecuteProtector<?>> work = new StrongBox<>();
 						StrongBox<CompletableFuture<?>> tryAgainAfter = new StrongBox<>();
 						if (tryPollSelfOrDependencies(onMainThread, visited, work, tryAgainAfter)) {
-							work.get().tryExecute();
-						} else if (tryAgainAfter.get() != null) {
+							work.value.tryExecute();
+						} else if (tryAgainAfter.value != null) {
 //                                ThreadingEventSource.Instance.WaitSynchronouslyStart();
-							this.owner.waitSynchronously(tryAgainAfter.get());
+							this.owner.waitSynchronously(tryAgainAfter.value);
 //                                ThreadingEventSource.Instance.WaitSynchronouslyStop();
-							assert tryAgainAfter.get().isDone();
+							assert tryAgainAfter.value.isDone();
 						}
 					}
 				} finally {
@@ -856,8 +856,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			syncObject.lock();
 			try {
 				if (isDone()) {
-					work.set(null);
-					tryAgainAfter.set(null);
+					work.value = null;
+					tryAgainAfter.value = null;
 					return false;
 				}
 
@@ -869,13 +869,13 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						if (pendingSource != null && pendingSource.isDependingSynchronousFuture(this)) {
 							ExecutionQueue queue = onMainThread ? pendingSource.mainThreadQueue : pendingSource.threadPoolQueue;
 							if (queue != null && !queue.isCompleted()) {
-								work.set(queue.poll());
-								if (work.get() != null) {
+								work.value = queue.poll();
+								if (work.value != null) {
 									if (queue.isEmpty()) {
 										this.pendingEventSource = null;
 									}
 
-									tryAgainAfter.set(null);
+									tryAgainAfter.value = null;
 									return true;
 								}
 							}
@@ -884,22 +884,22 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						this.pendingEventSource = null;
 					}
 
-					if (visited.get() == null) {
-						visited.set(new HashSet<>());
+					if (visited.value == null) {
+						visited.value = new HashSet<>();
 					} else {
-						visited.get().clear();
+						visited.value.clear();
 					}
 
-					if (tryPollSelfOrDependencies(onMainThread, visited.get(), work)) {
-						tryAgainAfter.set(null);
+					if (tryPollSelfOrDependencies(onMainThread, visited.value, work)) {
+						tryAgainAfter.value = null;
 						return true;
 					}
 				}
 
 				this.pendingEventCount.set(0);
 
-				work.set(null);
-				tryAgainAfter.set(getQueueNeedProcessEvent());
+				work.value = null;
+				tryAgainAfter.value = getQueueNeedProcessEvent();
 				return false;
 			} finally {
 				syncObject.unlock();
@@ -912,14 +912,14 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
 
 		// We only need find the first work item.
-		work.set(null);
+		work.value = null;
 		if (visited.add(this)) {
 			ExecutionQueue queue = onMainThread ? this.mainThreadQueue : this.threadPoolQueue;
 			if (queue != null && !queue.isCompleted()) {
-				work.set(queue.poll());
+				work.value = queue.poll();
 			}
 
-			if (work.get() == null) {
+			if (work.value == null) {
 				if (childOrJoinedJobs != null && !isDone()) {
 					for (JoinableFuture<?> item : this.childOrJoinedJobs.keySet()) {
 						if (item.tryPollSelfOrDependencies(onMainThread, visited, work)) {
@@ -930,7 +930,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			}
 		}
 
-		return work.get() != null;
+		return work.value != null;
 	}
 
 	/**
@@ -1279,18 +1279,18 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			task.removeDependingSynchronousFuture(syncTask, reachableTasks, remainTasks);
 		}
 
-		if (!force && remainTasks.get() != null && !remainTasks.get().isEmpty()) {
+		if (!force && remainTasks.value != null && !remainTasks.value.isEmpty()) {
 			// a set of tasks may form a dependent loop, so it will make the reference count system
 			// not to work correctly when we try to remove the synchronous task.
 			// To get rid of those loops, if a task still tracks the synchronous task after reducing
 			// the reference count, we will calculate the entire reachable tree from the root.  That will
 			// tell us the exactly tasks which need track the synchronous task, and we will clean up the rest.
 			reachableTasks = new HashSet<>();
-			syncTask.computeSelfAndDescendentOrJoinedJobsAndRemainFutures(reachableTasks, remainTasks.get());
+			syncTask.computeSelfAndDescendentOrJoinedJobsAndRemainFutures(reachableTasks, remainTasks.value);
 
 			// force to remove all invalid items
 			final StrongBox<Set<JoinableFuture<?>>> remainPlaceHold = new StrongBox<>();
-			for (JoinableFuture<?> remainTask : remainTasks.get()) {
+			for (JoinableFuture<?> remainTask : remainTasks.value) {
 				remainTask.removeDependingSynchronousFuture(syncTask, reachableTasks, remainPlaceHold);
 			}
 		}
@@ -1361,15 +1361,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 				if (reachableTasks == null) {
 					if (removed) {
-						if (remainingDependentTasks.get() != null) {
-							remainingDependentTasks.get().remove(this);
+						if (remainingDependentTasks.value != null) {
+							remainingDependentTasks.value.remove(this);
 						}
 					} else {
-						if (remainingDependentTasks.get() == null) {
-							remainingDependentTasks.set(new HashSet<>());
+						if (remainingDependentTasks.value == null) {
+							remainingDependentTasks.value = new HashSet<>();
 						}
 
-						remainingDependentTasks.get().add(this);
+						remainingDependentTasks.value.add(this);
 					}
 				}
 

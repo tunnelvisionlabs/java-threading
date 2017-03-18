@@ -122,7 +122,7 @@ public abstract class JoinableFutureTestBase extends TestBase {
 				Async.finallyAsync(
 					Async.awaitAsync(testMethod.get())
 					.exceptionally(ex -> {
-						failure.set(ex);
+						failure.value = ex;
 						return null;
 					}),
 					() -> testFrame.setContinue(false));
@@ -130,9 +130,9 @@ public abstract class JoinableFutureTestBase extends TestBase {
 			null);
 
 		SingleThreadedSynchronizationContext.pushFrame(this.dispatcherContext, this.testFrame);
-		if (failure.get() != null) {
+		if (failure.value != null) {
 			// Rethrow original exception without rewriting the callstack.
-			throw new CompletionException(failure.get());
+			throw new CompletionException(failure.value);
 		}
 	}
 

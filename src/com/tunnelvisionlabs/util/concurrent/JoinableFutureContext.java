@@ -606,27 +606,27 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 				List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
 				Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
 				for (Element child : pendingTasksElements.values()) {
-					nodes.get().appendChild(child);
+					nodes.value.appendChild(child);
 				}
 
 				for (Element child : pendingTaskCollections.values()) {
-					nodes.get().appendChild(child);
+					nodes.value.appendChild(child);
 				}
 
 				for (Map.Entry<Element, Element> pair : taskLabels) {
-					nodes.get().appendChild(pair.getKey());
+					nodes.value.appendChild(pair.getKey());
 				}
 
 				for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
-					links.get().appendChild(element);
+					links.value.appendChild(element);
 				}
 
 				for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
-					links.get().appendChild(element);
+					links.value.appendChild(element);
 				}
 
 				for (Map.Entry<Element, Element> pair : taskLabels) {
-					links.get().appendChild(pair.getValue());
+					links.value.appendChild(pair.getValue());
 				}
 
 				TransformerFactory transformerFactory = TransformerFactory.newInstance();

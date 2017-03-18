@@ -99,7 +99,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				try {
 					Assert.assertSame(originalThread, Thread.currentThread());
 				} catch (Throwable ex) {
-					delegateFailure.set(ex);
+					delegateFailure.value = ex;
 				} finally {
 					testFrame.setContinue(false);
 				}
@@ -119,8 +119,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		Assert.assertEquals(0, getPendingFuturesCount());
 		Assert.assertEquals(0, Iterables.size(joinableCollection));
 
-		if (delegateFailure.get() != null) {
-			throw new CompletionException(delegateFailure.get());
+		if (delegateFailure.value != null) {
+			throw new CompletionException(delegateFailure.value);
 		}
 	}
 
@@ -134,7 +134,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent outerTaskCompleted = new AsyncManualResetEvent();
 		StrongBox<CompletableFuture<?>> innerTask = new StrongBox<>();
 		asyncPump.runAsync(() -> {
-			innerTask.set(Futures.runAsync(() -> {
+			innerTask.value = Futures.runAsync(() -> {
 				return Async.awaitAsync(
 					outerTaskCompleted,
 					() -> {
@@ -145,19 +145,19 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						// the task has already completed.
 						return Async.awaitAsync(asyncPump.switchToMainThreadAsync());
 					});
-			}));
+			});
 
 			return Futures.completedNull();
 		});
 		outerTaskCompleted.set();
 
-		innerTask.get().whenComplete((result, exception) -> testFrame.setContinue(false));
+		innerTask.value.whenComplete((result, exception) -> testFrame.setContinue(false));
 
 		// Now let the request proceed through.
 		pushFrame();
 
 		// rethrow exceptions
-		innerTask.get().join();
+		innerTask.value.join();
 	}
 
 	@Test
@@ -174,7 +174,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						try {
 							Assert.assertSame(originalThread, Thread.currentThread());
 						} catch (Throwable ex) {
-							delegateFailure.set(ex);
+							delegateFailure.value = ex;
 						} finally {
 							testFrame.setContinue(false);
 						}
@@ -184,7 +184,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						try {
 							Assert.assertSame(originalThread, Thread.currentThread());
 						} catch (Throwable ex) {
-							delegateFailure.set(ex);
+							delegateFailure.value = ex;
 						} finally {
 							testFrame.setContinue(false);
 						}
@@ -212,8 +212,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		Assert.assertEquals(0, ((DerivedJoinableFutureFactory)asyncPump).getTransitioningTasksCount());
 
-		if (delegateFailure.get() != null) {
-			throw new CompletionException(delegateFailure.get());
+		if (delegateFailure.value != null) {
+			throw new CompletionException(delegateFailure.value);
 		}
 	}
 
@@ -247,7 +247,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					Assert.assertSame(originalThread, Thread.currentThread());
 					Assert.assertSame(asyncLocalValue, asyncLocal.getValue());
 				} catch (Throwable ex) {
-					delegateFailure.set(ex);
+					delegateFailure.value = ex;
 				} finally {
 					testFrame.setContinue(false);
 				}
@@ -260,8 +260,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		// Now let the request proceed through.
 		pushFrame();
 
-		if (delegateFailure.get() != null) {
-			throw new CompletionException(delegateFailure.get());
+		if (delegateFailure.value != null) {
+			throw new CompletionException(delegateFailure.value);
 		}
 	}
 
@@ -807,7 +807,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	public void testRunSwitchesToMainThreadAndPostsTwiceDoesNotImpactJoinableFutureCompletion() {
 		((DerivedJoinableFutureFactory)this.asyncPump).AssumeConcurrentUse = true;
 		StrongBox<CompletableFuture<Void>> task = new StrongBox<>();
-		task.set(Futures.runAsync(() -> {
+		task.value = Futures.runAsync(() -> {
 			try {
 				asyncPump.run(() -> {
 					return Async.awaitAsync(
@@ -822,7 +822,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							// the JoinableTask is done, which would deadlock if the
 							// JoinableTask were inappropriately blocking on the completion
 							// of the posted message.
-							current.post(s -> task.get().join(), null);
+							current.post(s -> task.value.join(), null);
 
 							// Post one more time, since an implementation detail may unblock
 							// the JoinableTask for the very last posted message for reasons that
@@ -835,12 +835,12 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			} finally {
 				testFrame.setContinue(false);
 			}
-		}));
+		});
 
 		// Now let the request proceed through.
 		pushFrame();
 		// rethrow exceptions.
-		task.get().join();
+		task.value.join();
 	}
 
 	@Test
@@ -882,18 +882,18 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent dependentWork2Finished = new AsyncManualResetEvent();
 
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), dependentWork1Queued, null),
 					() -> {
 						dependentWork1Finished.set();
 						return Futures.completedNull();
 					});
-			}));
+			});
 
-			task2.set(asyncPump.runAsync(() -> {
+			task2.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task1.get());
+				collection.add(task1.value);
 				collection.join();
 
 				return Async.awaitAsync(
@@ -902,7 +902,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						dependentWork2Finished.set();
 						return Async.awaitAsync(testEnded);
 					});
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -917,7 +917,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						dependentWork2Queued,
 						() -> {
 							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-							collection.add(task2.get());
+							collection.add(task2.value);
 							collection.join();
 
 							return Async.awaitAsync(
@@ -936,9 +936,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				joinableCollection.join(),
 				() -> {
 					return Async.awaitAsync(
-						task1.get(),
+						task1.value,
 						() -> Async.awaitAsync(
-							task2.get(),
+							task2.value,
 							() -> Async.awaitAsync(separatedTask)));
 				});
 		});
@@ -958,7 +958,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
 			JoinableFutureCollection taskCollection = new JoinableFutureCollection(context);
 			JoinableFutureFactory factory = new JoinableFutureFactory(taskCollection);
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					dependentWorkAllowed,
 					() -> Async.awaitAsync(
@@ -967,14 +967,14 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							dependentWorkFinished.set();
 							return Futures.completedNull();
 						}));
-			}));
+			});
 
-			task2.set(asyncPump.runAsync(() -> {
+			task2.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					indirectDependencyAllowed,
 					() -> {
 						JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-						collection.add(task1.get());
+						collection.add(task1.value);
 
 						return Async.awaitAsync(
 							Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
@@ -983,7 +983,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								return Async.awaitAsync(testEnded);
 							});
 					});
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -998,7 +998,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						dependentWorkQueued,
 						() -> {
 							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-							collection.add(task2.get());
+							collection.add(task2.value);
 
 							collection.join();
 							indirectDependencyAllowed.set();
@@ -1018,9 +1018,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				joinableCollection.join(),
 				() -> {
 					return Async.awaitAsync(
-						task1.get(),
+						task1.value,
 						() -> Async.awaitAsync(
-							task2.get(),
+							task2.value,
 							() -> Async.awaitAsync(separatedTask)));
 				});
 		});
@@ -1036,7 +1036,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
 
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					asyncPump.switchToMainThreadAsync(),
 					() -> Async.awaitAsync(
@@ -1047,7 +1047,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								dependentSecondWorkAllowed,
 								() -> Async.awaitAsync(TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), mainThreadDependentSecondWorkQueued, null)));
 						}));
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -1058,9 +1058,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				taskStarted,
 				() -> {
 					JoinableFutureCollection collection1 = new JoinableFutureCollection(joinableCollection.getContext());
-					collection1.add(task1.get());
+					collection1.add(task1.value);
 					JoinableFutureCollection collection2 = new JoinableFutureCollection(joinableCollection.getContext());
-					collection2.add(task1.get());
+					collection2.add(task1.value);
 
 					return Async.awaitAsync(
 						Async.usingAsync(
@@ -1081,7 +1081,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 									() -> Async.awaitAsync(
 										Async.yieldAsync(),
 										() -> {
-											Assert.assertFalse(task1.get().isDone());
+											Assert.assertFalse(task1.value.isDone());
 											testEnded.set();
 											return Futures.completedNull();
 										})));
@@ -1093,7 +1093,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			return Async.usingAsync(
 				joinableCollection.join(),
 				() -> Async.awaitAsync(
-					task1.get(),
+					task1.value,
 					() -> Async.awaitAsync(separatedTask)));
 		});
 	}
@@ -1110,7 +1110,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
 
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					asyncPump.switchToMainThreadAsync(),
 					() -> {
@@ -1124,23 +1124,23 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 										TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), mainThreadDependentSecondWorkQueued, null)));
 							});
 					});
-			}));
+			});
 
-			task2.set(asyncPump.runAsync(() -> {
+			task2.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task1.get());
+				collection.add(task1.value);
 				return Async.usingAsync(
 					collection.join(),
 					() -> Async.awaitAsync(testEnded));
-			}));
+			});
 
-			task3.set(asyncPump.runAsync(() -> {
+			task3.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task1.get());
+				collection.add(task1.value);
 				return Async.usingAsync(
 					collection.join(),
 					() -> Async.awaitAsync(testEnded));
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -1152,8 +1152,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				taskStarted,
 				() -> {
 					JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-					collection.add(task2.get());
-					collection.add(task3.get());
+					collection.add(task2.value);
+					collection.add(task3.value);
 
 					return Async.awaitAsync(
 						Async.usingAsync(
@@ -1173,7 +1173,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 											() -> {
 												// we expect 3 switching from two delay one yield call.  We don't want one triggered by Task1.
 												Assert.assertTrue(waitCountingJTF.getWaitCount() - waitCountBeforeSecondWork <= 3);
-												Assert.assertFalse(task1.get().isDone());
+												Assert.assertFalse(task1.value.isDone());
 
 												testEnded.set();
 												return Futures.completedNull();
@@ -1186,11 +1186,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			return Async.usingAsync(
 				joinableCollection.join(),
 				() -> Async.awaitAsync(
-					task1.get(),
+					task1.value,
 					() -> Async.awaitAsync(
-						task2.get(),
+						task2.value,
 						() -> Async.awaitAsync(
-							task3.get(),
+							task3.value,
 							() -> Async.awaitAsync(separatedTask)))));
 		});
 	}
@@ -1215,14 +1215,14 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
 
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					taskStarted,
 					() -> Async.awaitAsync(
 						testStarted,
 						() -> {
 							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-							collection.add(task2.get());
+							collection.add(task2.value);
 							return Async.usingAsync(
 								collection.join(),
 								() -> {
@@ -1252,16 +1252,16 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 											}));
 								});
 						}));
-			}));
+			});
 
-			task2.set(asyncPump.runAsync(() -> {
+			task2.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					taskStarted,
 					() -> Async.awaitAsync(
 						testStarted,
 						() -> {
 							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-							collection.add(task1.get());
+							collection.add(task1.value);
 							return Async.usingAsync(
 								collection.join(),
 								() -> {
@@ -1269,7 +1269,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 									return Async.awaitAsync(testEnded);
 								});
 						}));
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -1287,9 +1287,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							task2Prepared,
 							() -> {
 								JoinableFutureCollection collection1 = new JoinableFutureCollection(joinableCollection.getContext());
-								collection1.add(task1.get());
+								collection1.add(task1.value);
 								JoinableFutureCollection collection2 = new JoinableFutureCollection(joinableCollection.getContext());
-								collection2.add(task2.get());
+								collection2.add(task2.value);
 								return Async.awaitAsync(
 									mainThreadDependentFirstWorkQueued,
 									() -> {
@@ -1321,7 +1321,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 																() -> {
 																	// we expect 3 switching from two delay one yield call.  We don't want one triggered by Task1.
 																	Assert.assertTrue(waitCountingJTF.getWaitCount() - waitCountBeforeSecondWork <= 3);
-																	Assert.assertFalse(task1.get().isDone());
+																	Assert.assertFalse(task1.value.isDone());
 
 																	testEnded.set();
 																	return Futures.completedNull();
@@ -1337,9 +1337,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				joinableCollection.join(),
 				() -> {
 					return Async.awaitAsync(
-						task1.get(),
+						task1.value,
 						() -> Async.awaitAsync(
-							task2.get(),
+							task2.value,
 							() -> Async.awaitAsync(
 								separatedTask)));
 				});
@@ -1363,12 +1363,12 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
 
 		CompletableFuture<Void> separatedTask = Futures.runAsync(() -> {
-			task1.set(asyncPump.runAsync(() -> {
+			task1.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					taskStarted,
 					() -> {
 						JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-						collection.add(task1.get());
+						collection.add(task1.value);
 						return Async.usingAsync(
 							collection.join(),
 							() -> {
@@ -1385,26 +1385,26 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 										}));
 							});
 					});
-			}));
+			});
 
-			task2.set(asyncPump.runAsync(() -> {
+			task2.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task1.get());
+				collection.add(task1.value);
 				return Async.usingAsync(
 					collection.join(),
 					() -> {
 						task2Prepared.set();
 						return Async.awaitAsync(testEnded);
 					});
-			}));
+			});
 
-			task3.set(asyncPump.runAsync(() -> {
+			task3.value = asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					taskStarted,
 					() -> {
 						JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-						collection.add(task2.get());
-						collection.add(task4.get());
+						collection.add(task2.value);
+						collection.add(task4.value);
 						return Async.usingAsync(
 							collection.join(),
 							() -> {
@@ -1412,29 +1412,29 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								return Async.awaitAsync(testEnded);
 							});
 					});
-			}));
+			});
 
-			task4.set(asyncPump.runAsync(() -> {
+			task4.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task2.get());
-				collection.add(task3.get());
+				collection.add(task2.value);
+				collection.add(task3.value);
 				return Async.usingAsync(
 					collection.join(),
 					() -> {
 						task4Prepared.set();
 						return Async.awaitAsync(testEnded);
 					});
-			}));
+			});
 
-			task5.set(asyncPump.runAsync(() -> {
+			task5.value = asyncPump.runAsync(() -> {
 				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-				collection.add(task3.get());
+				collection.add(task3.value);
 				return Async.usingAsync(
 					collection.join(),
 					() -> {
 						return Async.awaitAsync(testEnded);
 					});
-			}));
+			});
 
 			taskStarted.set();
 			return Async.awaitAsync(testEnded);
@@ -1452,7 +1452,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							task4Prepared,
 							() -> {
 								JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
-								collection.add(task5.get());
+								collection.add(task5.value);
 
 								return Async.awaitAsync(
 									Async.usingAsync(
@@ -1473,7 +1473,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 														() -> {
 															// we expect 3 switching from two delay one yield call.  We don't want one triggered by Task1.
 															Assert.assertTrue(waitCountingJTF.getWaitCount() - waitCountBeforeSecondWork <= 3);
-															Assert.assertFalse(task1.get().isDone());
+															Assert.assertFalse(task1.value.isDone());
 
 															testEnded.set();
 															return Futures.completedNull();
@@ -1487,15 +1487,15 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				joinableCollection.join(),
 				() -> {
 					return Async.awaitAsync(
-						task1.get(),
+						task1.value,
 						() -> Async.awaitAsync(
-							task2.get(),
+							task2.value,
 							() -> Async.awaitAsync(
-								task3.get(),
+								task3.value,
 								() -> Async.awaitAsync(
-									task4.get(),
+									task4.value,
 									() -> Async.awaitAsync(
-										task5.get(),
+										task5.value,
 										() -> Async.awaitAsync(
 											separatedTask))))));
 				});
@@ -1672,13 +1672,13 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		final int nestLevels = 3;
 		StrongBox<MockAsyncService> outerService = new StrongBox<>();
 		for (int level = 0; level < nestLevels; level++) {
-			outerService.set(new MockAsyncService(asyncPump.getContext(), outerService.get()));
+			outerService.value = new MockAsyncService(asyncPump.getContext(), outerService.value);
 		}
 
-		CompletableFuture<Void> operationTask = outerService.get().operationAsync();
+		CompletableFuture<Void> operationTask = outerService.value.operationAsync();
 
 		asyncPump.run(() -> {
-			return Async.awaitAsync(outerService.get().stopAsync(operationTask));
+			return Async.awaitAsync(outerService.value.stopAsync(operationTask));
 		});
 
 		Assert.assertTrue(operationTask.isDone());
@@ -1702,13 +1702,13 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				// We need simulate a scenario that the task is completed without any yielding,
 				// but the queue of the Joinable task is not empty at that point,
 				// so the synchronous JoinableTask doesn't need any blocking time, but it is completed later.
-				innerTask.set(Futures.runAsync(() -> {
+				innerTask.value = Futures.runAsync(() -> {
 					return Async.awaitAsync(
 						TestUtilities.yieldAndNotify(
 							asyncPump.switchToMainThreadAsync().getAwaiter(),
 							innerTaskWaitingSwitching,
 							null));
-				}));
+				});
 
 				innerTaskWaitingSwitching.waitAsync().join();
 				return Futures.completedNull();
@@ -1718,7 +1718,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				Async.yieldAsync(),
 				() -> {
 					// Now, get rid of the innerTask
-					return Async.awaitAsync(innerTask.get());
+					return Async.awaitAsync(innerTask.value);
 				});
 		});
 	}
@@ -1733,11 +1733,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		asyncPump.run(() -> {
 			StrongBox<CompletableFuture<Void>> innerTask = new StrongBox<>();
 			asyncPump.run(() -> {
-				innerTask.set(Futures.runAsync(() -> {
+				innerTask.value = Futures.runAsync(() -> {
 					return Async.awaitAsync(
 						innerTaskWaiting.waitAsync(),
 						() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync()));
-				}));
+				});
 
 				return Futures.completedNull();
 			});
@@ -1747,7 +1747,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				Async.yieldAsync(),
 				() -> {
 					// Now, get rid of the innerTask
-					return Async.awaitAsync(innerTask.get());
+					return Async.awaitAsync(innerTask.value);
 				});
 		});
 	}
@@ -1757,11 +1757,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent mainThreadNowBlocking = new AsyncManualResetEvent();
 		StrongBox<CompletableFuture<Void>> task = new StrongBox<>();
 		asyncPump.run(() -> {
-			task.set(Futures.runAsync(() -> {
+			task.value = Futures.runAsync(() -> {
 				return Async.awaitAsync(
 					mainThreadNowBlocking.waitAsync(),
 					() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync()));
-			}));
+			});
 
 			return Futures.completedNull();
 		});
@@ -1769,12 +1769,12 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		asyncPump.run(() -> {
 			mainThreadNowBlocking.set();
 			return Async.awaitAsync(
-				Async.whenAny(task.get(), Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				Async.whenAny(task.value, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
 				completed -> {
 					Assert.assertNotSame(task, completed);
 					return Async.usingAsync(
 						joinableCollection.join(),
-						() -> Async.awaitAsync(task.get()));
+						() -> Async.awaitAsync(task.value));
 				});
 		});
 	}
@@ -2047,10 +2047,10 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		StrongBox<SynchronizationContext> syncContext = new StrongBox<>(null);
 		StrongBox<CompletableFuture<Void>> sendFromWithinRunSync = new StrongBox<>(null);
 		asyncPump.run(() -> {
-			syncContext.set(SynchronizationContext.getCurrent());
+			syncContext.value = SynchronizationContext.getCurrent();
 
 			AtomicBoolean executed1 = new AtomicBoolean(false);
-			syncContext.get().send(
+			syncContext.value.send(
 				s -> {
 					Assert.assertSame(originalThread, Thread.currentThread());
 					Assert.assertSame(state, s);
@@ -2063,9 +2063,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			// so the Send isn't expected to get in right away.  So spin off a task to keep the Send
 			// in a wait state until it's finally able to get through.
 			// This tests that Send can work even if not immediately.
-			sendFromWithinRunSync.set(Futures.runAsync(() -> {
+			sendFromWithinRunSync.value = Futures.runAsync(() -> {
 				AtomicBoolean executed2 = new AtomicBoolean(false);
-				syncContext.get().send(
+				syncContext.value.send(
 					s -> {
 					try {
 						Assert.assertSame(this.originalThread, Thread.currentThread());
@@ -2078,14 +2078,14 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				},
 					state);
 				Assert.assertTrue(executed2.get());
-			}));
+			});
 
 			return Futures.completedNull();
 		});
 
 		// From the Main thread.
 		AtomicBoolean executed3 = new AtomicBoolean(false);
-		syncContext.get().send(
+		syncContext.value.send(
 			s -> {
 				Assert.assertSame(originalThread, Thread.currentThread());
 				Assert.assertSame(state, s);
@@ -2098,7 +2098,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CompletableFuture<Void> task = Futures.runAsync(() -> {
 			try {
 				AtomicBoolean executed4 = new AtomicBoolean(false);
-				syncContext.get().send(
+				syncContext.value.send(
 					s -> {
 						Assert.assertSame(originalThread, Thread.currentThread());
 						Assert.assertSame(state, s);
@@ -2118,7 +2118,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		// throw exceptions for any failures.
 		task.join();
-		sendFromWithinRunSync.get().join();
+		sendFromWithinRunSync.value.join();
 	}
 
 	@Test
@@ -2131,10 +2131,10 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				Async.awaitAsync(
 					asyncPump.switchToMainThreadAsync(),
 					() -> {
-						syncContext.set(SynchronizationContext.getCurrent());
+						syncContext.value = SynchronizationContext.getCurrent();
 
 						AtomicBoolean executed1 = new AtomicBoolean(false);
-						syncContext.get().send(
+						syncContext.value.send(
 							s -> {
 								Assert.assertSame(originalThread, Thread.currentThread());
 								Assert.assertSame(state, s);
@@ -2147,7 +2147,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 							ForkJoinPool.commonPool(),
 							() -> {
 								AtomicBoolean executed2 = new AtomicBoolean(false);
-								syncContext.get().send(
+								syncContext.value.send(
 									s -> {
 										Assert.assertSame(originalThread, Thread.currentThread());
 										Assert.assertSame(state, s);
@@ -2195,7 +2195,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								try {
 									Assert.assertSame(originalThread, Thread.currentThread());
 								} catch (Throwable e) {
-									ex.set(e);
+									ex.value = e;
 								} finally {
 									testFrame.setContinue(false);
 								}
@@ -2210,7 +2210,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					// This will hang unless the message gets processed.
 					pushFrame();
 
-					if (ex.get() != null) {
+					if (ex.value != null) {
 						Assert.fail("Posted message threw an exception: " + ex);
 					}
 
@@ -2227,7 +2227,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		JoinableFutureFactory otherPump = this.context.createFactory(otherCollection);
 		otherPump.run(() -> {
 			asyncPump.run(() -> {
-				backgroundTask.set(Futures.runAsync(() -> {
+				backgroundTask.value = Futures.runAsync(() -> {
 					return Async.usingAsync(
 						joinableCollection.join(),
 						() -> {
@@ -2240,7 +2240,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 										return Futures.completedNull();
 									}));
 						});
-				}));
+				});
 
 				return Futures.completedNull();
 			});
@@ -2277,7 +2277,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		StrongBox<CompletableFuture<Void>> backgroundTask = new StrongBox<>();
 		CompletableFuture<Void> uiBoundWork;
 		asyncPump.run(() -> {
-			backgroundTask.set(Futures.runAsync(() -> {
+			backgroundTask.value = Futures.runAsync(() -> {
 				return Async.awaitAsync(
 					runSynchronouslyExited,
 					() -> {
@@ -2292,7 +2292,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 						return Futures.completedNull();
 					});
-			}));
+			});
 
 			return Futures.completedNull();
 		});
@@ -2310,7 +2310,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		unblockMainThread.join();
 		pushFrame();
 		// rethrow any exceptions
-		backgroundTask.get().join();
+		backgroundTask.value.join();
 	}
 
 	@Test
@@ -2502,10 +2502,10 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			AsyncManualResetEvent delegateExecuted = new AsyncManualResetEvent();
 			StrongBox<SynchronizationContext> syncContext = new StrongBox<>();
 			asyncPump.run(() -> {
-				syncContext.set(SynchronizationContext.getCurrent());
+				syncContext.value = SynchronizationContext.getCurrent();
 				return Futures.completedNull();
 			});
-			syncContext.get().post(
+			syncContext.value.post(
 				state -> delegateExecuted.set(),
 				null);
 			return Async.awaitAsync(delegateExecuted);
@@ -2567,10 +2567,10 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				return Async.awaitAsync(
 					outerFinished,
 					() -> {
-						innerTask.set(loPriFactory.runAsync(() -> {
+						innerTask.value = loPriFactory.runAsync(() -> {
 							return Async.awaitAsync(
 								TestUtilities.yieldAndNotify(loPriFactory.switchToMainThreadAsync().getAwaiter(), loPriSwitchPosted, null));
-						}));
+						});
 						return Futures.completedNull();
 					});
 			});
@@ -2612,9 +2612,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent outerFinished = new AsyncManualResetEvent(false, /*allowInliningAwaiters:*/ true);
 		StrongBox<JoinableFuture<Void>> innerTask = new StrongBox<>();
 		JoinableFuture<Void> outer = hiPriFactory.runAsync(() -> {
-			innerTask.set(loPriFactory.runAsync(() -> {
+			innerTask.value = loPriFactory.runAsync(() -> {
 				return Async.awaitAsync(outerFinished);
-			}));
+			});
 			return Futures.completedNull();
 		});
 		outerFinished.set();
@@ -2698,11 +2698,11 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		StrongBox<JoinableFuture<Void>> inner = new StrongBox<>();
 		JoinableFuture<Void> outer = outerFactory.runAsync(() -> {
-			inner.set(innerFactory.runAsync(() -> {
+			inner.value = innerFactory.runAsync(() -> {
 				return Async.awaitAsync(Async.yieldAsync());
-			}));
+			});
 
-			return Async.awaitAsync(inner.get());
+			return Async.awaitAsync(inner.value);
 		});
 
 		outerFactory.doModalLoopUntilEmpty();
@@ -2786,7 +2786,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		((DerivedJoinableFutureFactory)pump2).AssumeConcurrentUse = true;
 
 		pump2.run(() -> {
-			t1.set(Futures.runAsync(() -> {
+			t1.value = Futures.runAsync(() -> {
 				try (Disposable disposable = joinableCollection.join()) {
 					while (!cancellationFuture.isDone()) {
 						Awaiter<Void> awaiter = pump2.switchToMainThreadAsync().getAwaiter();
@@ -2801,12 +2801,12 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				}
 
 				return Futures.completedNull();
-			}));
+			});
 			return Futures.completedNull();
 		});
 
 		asyncPump.run(() -> {
-			t2.set(Futures.runAsync(() -> {
+			t2.value = Futures.runAsync(() -> {
 				try (Disposable disposable = collection2.join()) {
 					while (!cancellationFuture.isDone()) {
 						Awaiter<Void> awaiter = asyncPump.switchToMainThreadAsync().getAwaiter();
@@ -2819,13 +2819,13 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						});
 					}
 				}
-			}));
+			});
 			return Futures.completedNull();
 		});
 
 		pushFrame();
-		t1.get().join();
-		t2.get().join();
+		t1.value.join();
+		t2.value.join();
 	}
 
 	/**
@@ -2896,13 +2896,13 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		StrongBox<Thread> otherThread = new StrongBox<>();
 
 		Futures.runAsync(() -> {
-			otherThread.set(Thread.currentThread());
+			otherThread.value = Thread.currentThread();
 			asyncPump.run(() -> {
-				Assert.assertSame(otherThread.get(), Thread.currentThread());
+				Assert.assertSame(otherThread.value, Thread.currentThread());
 				return Async.awaitAsync(
 					Async.yieldAsync(),
 					() -> {
-						Assert.assertSame(otherThread.get(), Thread.currentThread());
+						Assert.assertSame(otherThread.value, Thread.currentThread());
 
 						// verifies no yield
 						Assert.assertTrue(asyncPump.switchToMainThreadAsync().getAwaiter().isDone());
@@ -2910,19 +2910,19 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						return Async.awaitAsync(
 							asyncPump.switchToMainThreadAsync(), // we expect this to no-op
 							() -> {
-								Assert.assertSame(otherThread.get(), Thread.currentThread());
+								Assert.assertSame(otherThread.value, Thread.currentThread());
 								return Async.awaitAsync(
 									Async.yieldAsync(),
 									() -> {
-										Assert.assertSame(otherThread.get(), Thread.currentThread());
+										Assert.assertSame(otherThread.value, Thread.currentThread());
 
 										return Async.awaitAsync(Futures.runAsync(() -> {
 											Thread threadpoolThread = Thread.currentThread();
-											Assert.assertNotSame(otherThread.get(), Thread.currentThread());
+											Assert.assertNotSame(otherThread.value, Thread.currentThread());
 											return Async.awaitAsync(
 												Async.yieldAsync(),
 												() -> {
-													Assert.assertNotSame(otherThread.get(), Thread.currentThread());
+													Assert.assertNotSame(otherThread.value, Thread.currentThread());
 
 													return Async.awaitAsync(
 														asyncPump.switchToMainThreadAsync(),
@@ -2935,7 +2935,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			});
 
 			JoinableFuture<Void> joinable = asyncPump.runAsync(() -> {
-				Assert.assertSame(otherThread.get(), Thread.currentThread());
+				Assert.assertSame(otherThread.value, Thread.currentThread());
 				return Async.awaitAsync(
 					Async.yieldAsync(),
 					() -> {
@@ -3032,7 +3032,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		StrongBox<SynchronizationContext> syncContext = new StrongBox<>();
 		WeakReference<JoinableFuture<Void>> job = new WeakReference<>(asyncPump.runAsync(() -> {
 			// simulate someone who has captured the sync context.
-			syncContext.set(SynchronizationContext.getCurrent());
+			syncContext.value = SynchronizationContext.getCurrent();
 			return Futures.completedNull();
 		}));
 
@@ -3234,7 +3234,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		};
 
 		StrongBox<Object> result = new StrongBox<>(new Object());
-		WeakReference<Object> weakResult = new WeakReference<>(result.get());
+		WeakReference<Object> weakResult = new WeakReference<>(result.value);
 
 		asyncPump.run(() -> {
 			// Needs to switch to background thread at first in order to test the code that requests switch to main thread.
@@ -3252,7 +3252,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								// Resume the background thread after transitioned to main thread.
 								// This is to ensure the timing that GetResult() must be called before OnCompleted() registers the cancellation.
 								transitionedToMainThread.complete(null);
-								return CompletableFuture.completedFuture(result.get());
+								return CompletableFuture.completedFuture(result.value);
 							});
 					});
 
@@ -3264,7 +3264,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		// the last reference to the JoinableTask.
 		pushFrameUntilQueueIsEmpty();
 
-		result.set(null);
+		result.value = null;
 		Runtime.getRuntime().gc();
 
 		Object target = weakResult.get();
@@ -3282,7 +3282,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		};
 
 		StrongBox<Object> result = new StrongBox<>(new Object());
-		WeakReference<Object> weakResult = new WeakReference<>(result.get());
+		WeakReference<Object> weakResult = new WeakReference<>(result.value);
 
 		asyncPump.run(() -> {
 			// Needs to switch to background thread at first in order to test the code that requests switch to main thread.
@@ -3296,7 +3296,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					JoinableFuture<Object> joinable = asyncPump.runAsync(() -> {
 						return Async.awaitAsync(
 							asyncPump.switchToMainThreadAsync(cts.getToken()),
-							() -> CompletableFuture.completedFuture(result.get()));
+							() -> CompletableFuture.completedFuture(result.value));
 					});
 
 					// Resume the main thread after OnCompleted() finishes.
@@ -3310,7 +3310,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		// the last reference to the JoinableTask.
 		pushFrameUntilQueueIsEmpty();
 
-		result.set(null);
+		result.value = null;
 		Runtime.getRuntime().gc();
 
 		Object target = weakResult.get();
@@ -3345,7 +3345,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CompletableFuture<Void> bkgrndThread = Futures.runAsync(() -> {
 			asyncPump.run(() -> {
 				jtStarted.set();
-				unawaitedWork.set(otherAsyncMethod.get());
+				unawaitedWork.value = otherAsyncMethod.get();
 				return Futures.completedNull();
 			});
 		});
@@ -3358,7 +3358,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 						TplExtensions.withTimeout(joinTask, UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT),
 						() -> {
 							Assert.assertTrue(joinTask.isDone());
-							return Async.awaitAsync(unawaitedWork.get());
+							return Async.awaitAsync(unawaitedWork.value);
 						});
 				});
 		});
@@ -3370,7 +3370,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CompletableFuture<Void> unawaitedWorkCompleted = new CompletableFuture<>();
 		Supplier<CompletableFuture<Void>> otherAsyncMethod = ExecutionContext.wrap(() -> {
 			StrongBox<CompletableFuture<Void>> result = new StrongBox<>();
-			Consumer<Void> implementation = ignored -> result.set(Async.awaitAsync(
+			Consumer<Void> implementation = ignored -> result.value = Async.awaitAsync(
 				// this posts to the JoinableTask.threadPoolQueue
 				Async.yieldAsync(),
 				() -> Async.awaitAsync(
@@ -3379,10 +3379,10 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					() -> {
 						unawaitedWorkCompleted.complete(null);
 						return Futures.completedNull();
-					})));
+					}));
 
 			ExecutionContext.run(ExecutionContext.capture(), implementation, null);
-			return result.get();
+			return result.value;
 		});
 
 		CompletableFuture<Void> bkgrndThread = Futures.runAsync(() -> {

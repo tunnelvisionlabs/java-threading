@@ -107,8 +107,8 @@ public enum Async {
 	public static <T> CompletableFuture<T> runAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
 		try {
 			StrongBox<CompletableFuture<T>> result = new StrongBox<>();
-			ExecutionContext.run(ExecutionContext.capture(), s -> result.set(s.get()), supplier);
-			return result.get();
+			ExecutionContext.run(ExecutionContext.capture(), s -> result.value = s.get(), supplier);
+			return result.value;
 		} catch (Throwable ex) {
 			return Futures.fromException(ex);
 		}

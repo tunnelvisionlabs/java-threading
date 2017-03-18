@@ -54,10 +54,10 @@ enum Dgml {
 
 		dgml.appendChild(root);
 
-		nodes.set(dgml.createElementNS(NAMESPACE, "Nodes"));
-		links.set(dgml.createElementNS(NAMESPACE, "Links"));
-		dgml.getDocumentElement().appendChild(nodes.get());
-		dgml.getDocumentElement().appendChild(links.get());
+		nodes.value = dgml.createElementNS(NAMESPACE, "Nodes");
+		links.value = dgml.createElementNS(NAMESPACE, "Links");
+		dgml.getDocumentElement().appendChild(nodes.value);
+		dgml.getDocumentElement().appendChild(links.value);
 		withCategories(dgml, category(dgml, "Contains", null, null, null, null, false, /*isContainment:*/ true));
 		return dgml;
 	}

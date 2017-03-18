@@ -325,7 +325,7 @@ public abstract class TestBase {
 			try {
 				action.run();
 			} catch (Throwable ex) {
-				staFailure.set(ex);
+				staFailure.value = ex;
 			}
 		});
 //            staThread.SetApartmentState(ApartmentState.STA);
@@ -345,8 +345,8 @@ public abstract class TestBase {
 			Thread.currentThread().interrupt();
 		}
 
-		if (staFailure.get() != null) {
-			throw new CompletionException(staFailure.get());
+		if (staFailure.value != null) {
+			throw new CompletionException(staFailure.value);
 		}
 	}
 
@@ -365,15 +365,15 @@ public abstract class TestBase {
 				ignored -> {
 					Async.awaitAsync(action.get())
 					.whenComplete((result, ex) -> {
-						failure.set(ex);
+						failure.value = ex;
 						frame.setContinue(false);
 					});
 				},
 				null);
 
 			SingleThreadedSynchronizationContext.pushFrame(SynchronizationContext.getCurrent(), frame);
-			if (failure.get() != null) {
-				throw new CompletionException(failure.get());
+			if (failure.value != null) {
+				throw new CompletionException(failure.value);
 			}
 		};
 

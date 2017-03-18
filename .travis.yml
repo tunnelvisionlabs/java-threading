@@ -1,6 +1,12 @@
 sudo: false
 language: java
+before_script:
+  - echo "MAVEN_OPTS='$CUSTOM_MAVEN_OPTS'" > ~/.mavenrc
 script:
-  - mvn test
+  - mvn verify
 jdk:
   - oraclejdk8
+env:
+  - CUSTOM_MAVEN_OPTS="-DENABLE_JACOCO=true"
+after_success:
+  - bash <(curl -s https://codecov.io/bash) -F linux

@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -500,6 +501,7 @@ public class AsyncQueueTest extends TestBase {
 
 	//[Fact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
 	@Test
+	@Ignore("GC test is unreliable")
 	public void testUnusedQueueGCPressure() {
 		checkGCPressure(() -> {
 			AsyncQueue<GenericParameterHelper> queue = new AsyncQueue<>();

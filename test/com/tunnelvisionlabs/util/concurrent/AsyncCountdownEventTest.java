@@ -62,12 +62,12 @@ public class AsyncCountdownEventTest extends TestBase {
 		future.join();
 	}
 
-//	@Test
-//	public void testSignalAndWaitSynchronousBlockDoesNotHang() throws Exception {
-//		SynchronizationContext.setSynchronizationContext(SingleThreadedSynchronizationContext.create());
-//		AsyncCountdownEvent evt = new AsyncCountdownEvent(1);
-//		evt.signalAndWaitAsync().get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
-//	}
+	@Test
+	public void testSignalAndWaitSynchronousBlockDoesNotHang() throws Exception {
+		SynchronizationContext.setSynchronizationContext(SingleThreadedSynchronizationContext.create());
+		AsyncCountdownEvent evt = new AsyncCountdownEvent(1);
+		evt.signalAndWaitAsync().get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+	}
 
 	/**
 	 * Verifies that the exception is returned in a future rather than thrown from the asynchronous method.

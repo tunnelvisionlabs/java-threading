@@ -1,9 +1,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-class SynchronizationContext {
+class SynchronizationContext implements Executor {
 	private static final ThreadLocal<SynchronizationContext> CURRENT_CONTEXT = new ThreadLocal<>();
 
 	@Nullable
@@ -12,7 +13,7 @@ class SynchronizationContext {
 	}
 
 	public static void setSynchronizationContext(@Nullable SynchronizationContext synchronizationContext) {
-		throw new UnsupportedOperationException("Not implemented");
+		CURRENT_CONTEXT.set(synchronizationContext);
 	}
 
 	@NotNull
@@ -40,5 +41,10 @@ class SynchronizationContext {
 
 	protected final void setWaitNotificationRequired() {
 		throw new UnsupportedOperationException("Not implemented");
+	}
+
+	@Override
+	public void execute(@NotNull Runnable command) {
+		post(state -> command.run(), null);
 	}
 }

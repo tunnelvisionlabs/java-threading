@@ -12,7 +12,7 @@ class ExecutionContext {
 	private static final AsyncLocal<?>[] EMPTY_NOTIFICATIONS = { };
 	static final ExecutionContext DEFAULT = new ExecutionContext();
 
-	private final IAsyncLocalValueMap localValues;
+	private final AsyncLocalValueMap localValues;
 	private final AsyncLocal<?>[] localChangeNotifications;
 	private final boolean isFlowSuppressed;
 
@@ -22,7 +22,7 @@ class ExecutionContext {
 		isFlowSuppressed = false;
 	}
 
-	private ExecutionContext(IAsyncLocalValueMap localValues, AsyncLocal<?>[] localChangeNotifications, boolean isFlowSuppressed) {
+	private ExecutionContext(AsyncLocalValueMap localValues, AsyncLocal<?>[] localChangeNotifications, boolean isFlowSuppressed) {
 		this.localValues = localValues;
 		this.localChangeNotifications = localChangeNotifications;
 		this.isFlowSuppressed = isFlowSuppressed;
@@ -197,7 +197,7 @@ class ExecutionContext {
 			return;
 		}
 
-		IAsyncLocalValueMap newValues = current.localValues.put(local, newValue);
+		AsyncLocalValueMap newValues = current.localValues.put(local, newValue);
 
 		//
 		// Either copy the change notification array, or create a new one, depending on whether we need to add a new item.

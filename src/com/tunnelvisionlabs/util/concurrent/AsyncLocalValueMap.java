@@ -4,15 +4,19 @@ package com.tunnelvisionlabs.util.concurrent;
 import java.util.HashMap;
 import java.util.Map;
 
-enum AsyncLocalValueMap {
+abstract class AsyncLocalValueMap {
 	;
 
-	public static final IAsyncLocalValueMap EMPTY = new EmptyAsyncLocalValueMap();
+	public static final AsyncLocalValueMap EMPTY = new EmptyAsyncLocalValueMap();
 
-	private static final class EmptyAsyncLocalValueMap implements IAsyncLocalValueMap {
+	abstract <T> T get(AsyncLocal<T> key);
+
+	abstract <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value);
+
+	private static final class EmptyAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// If the value isn't null, then create a new one-element map to store
 			// the key/value pair.  If it is null, then we're still empty.
 			return value != null
@@ -27,7 +31,7 @@ enum AsyncLocalValueMap {
 	}
 
 	// Instance with one key/value pair.
-	private static final class OneElementAsyncLocalValueMap implements IAsyncLocalValueMap {
+	private static final class OneElementAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		private final AsyncLocal<?> key1;
 		private final Object value1;
@@ -38,7 +42,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// This cast is safe for our use in copying the map
 			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
 			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
@@ -49,7 +53,7 @@ enum AsyncLocalValueMap {
 				// a two-element map with the additional key/value.
 				return key == key1
 					? new OneElementAsyncLocalValueMap(key, value)
-					: (IAsyncLocalValueMap)new TwoElementAsyncLocalValueMap(key1, value1, key, value);
+					: (AsyncLocalValueMap)new TwoElementAsyncLocalValueMap(key1, value1, key, value);
 			} else {
 				// The value is null.  If the key exists in this map, remove it by downgrading to an empty map.
 				// Otherwise, there's nothing to add or remove, so just return this map.
@@ -70,7 +74,7 @@ enum AsyncLocalValueMap {
 	}
 
 	// Instance with two key/value pairs.
-	private static final class TwoElementAsyncLocalValueMap implements IAsyncLocalValueMap {
+	private static final class TwoElementAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		private final AsyncLocal<?> key1;
 		private final AsyncLocal<?> key2;
@@ -85,7 +89,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// These casts are safe for our use in copying the map
 			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
 			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
@@ -104,7 +108,7 @@ enum AsyncLocalValueMap {
 				// without the key.  Otherwise, there's nothing to add or remove, so just return this map.
 				return key == key1 ? new OneElementAsyncLocalValueMap(key2, value2)
 					: key == key2 ? new OneElementAsyncLocalValueMap(key1, value1)
-						: (IAsyncLocalValueMap)this;
+						: (AsyncLocalValueMap)this;
 			}
 		}
 
@@ -125,7 +129,7 @@ enum AsyncLocalValueMap {
 	}
 
 	// Instance with three key/value pairs.
-	private static final class ThreeElementAsyncLocalValueMap implements IAsyncLocalValueMap {
+	private static final class ThreeElementAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		private final AsyncLocal<?> key1;
 		private final AsyncLocal<?> key2;
@@ -144,7 +148,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// These casts are safe for our use in copying the map
 			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
 			AsyncLocal<Object> key1 = (AsyncLocal<Object>)this.key1;
@@ -205,7 +209,7 @@ enum AsyncLocalValueMap {
 	}
 
 	// Instance with up to 16 key/value pairs.
-	private static final class MultiElementAsyncLocalValueMap implements IAsyncLocalValueMap {
+	private static final class MultiElementAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		static final int MAX_MULTI_ELEMENTS = 16;
 		private final AsyncLocal<?>[] keys;
@@ -224,7 +228,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			// This cast is safe for our use in copying the map
 			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
 			AsyncLocal<Object>[] keys = (AsyncLocal<Object>[])this.keys;
@@ -309,7 +313,7 @@ enum AsyncLocalValueMap {
 	}
 
 	// Instance with any number of key/value pairs.
-	private static final class ManyElementAsyncLocalValueMap implements IAsyncLocalValueMap {
+	private static final class ManyElementAsyncLocalValueMap extends AsyncLocalValueMap {
 
 		private final Map<AsyncLocal<?>, Object> values;
 
@@ -318,7 +322,7 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public <T> IAsyncLocalValueMap put(AsyncLocal<T> key, T value) {
+		public <T> AsyncLocalValueMap put(AsyncLocal<T> key, T value) {
 			int count = values.size();
 			boolean containsKey = values.containsKey(key);
 

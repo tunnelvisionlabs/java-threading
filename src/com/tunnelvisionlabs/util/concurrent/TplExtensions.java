@@ -1,8 +1,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Requires;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Extensions to the Task Parallel Library.
@@ -59,26 +61,27 @@ public enum TplExtensions {
 	 * @param <T> The type of value returned by the original future.
 	 * @param future The future to wait for.
 	 * @param timeout The maximum time to wait.
-	 * @param unit The units for {@code timeout}.
 	 * @return A future that completes with the result of the specified {@code future} or fails with a {@link CancellationException} if {@code timeout} elapses first.
 	 */
-	public static <T> CompletableFuture<T> withTimeout(@NotNull CompletableFuture<T> future, long timeout, @NotNull TimeUnit unit) {
-		Requires.notNull(future, "future");
+	public static <T> CompletableFuture<T> withTimeout(@NotNull CompletableFuture<T> future, @NotNull Duration timeout) {
+		return Async.runAsync(() -> {
+			Requires.notNull(future, "future");
+			Requires.notNull(timeout, "timeout");
 
-		CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout, unit);
-		return Async.awaitAsync(
-			Async.whenAny(future, timeoutTask),
-			completedFuture -> {
-				if (completedFuture == timeoutTask) {
-					return Futures.completedCancelled();
-				}
+			CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout);
+			return Async.awaitAsync(
+				Async.configureAwait(Async.whenAny(future, timeoutTask), false),
+				completedFuture -> {
+					if (completedFuture == timeoutTask) {
+						return Futures.completedCancelled();
+					}
 
-				// The timeout did not elapse, so cancel the timer to recover system resources.
-				timeoutTask.cancel(false);
+					// The timeout did not elapse, so cancel the timer to recover system resources.
+					timeoutTask.cancel(false);
 
-				return Async.awaitAsync(future, false);
-			},
-			false);
+					return Async.awaitAsync(Async.configureAwait(future, false));
+				});
+		});
 	}
 
 //        /// <summary>
@@ -251,7 +254,9 @@ public enum TplExtensions {
 	}
 
 	/**
-	 * Consumes a future and doesn't do anything with it. Useful for fire-and-forget calls to async methods within async methods.
+	 * Consumes a future and doesn't do anything with it. Useful for fire-and-forget calls to async methods within async
+	 * methods.
+	 *
 	 * @param future The future whose result is to be ignored.
 	 */
 	public static void forget(CompletableFuture<?> future) {
@@ -572,7 +577,7 @@ public enum TplExtensions {
 	/**
 	 * An awaiter that wraps a future and never throws an exception when waited on.
 	 */
-	public static final class NoThrowFutureAwaiter implements Awaiter<Void> {
+	public static final class NoThrowFutureAwaiter implements Awaiter<Void>, CriticalNotifyCompletion {
 
 		/**
 		 * The future.
@@ -612,6 +617,16 @@ public enum TplExtensions {
 		@Override
 		public void onCompleted(Runnable continuation) {
 			new FutureAwaitable<>(task, captureContext).getAwaiter().onCompleted(continuation);
+		}
+
+		/**
+		 * Schedules a delegate for execution at the conclusion of a future's execution.
+		 *
+		 * @param continuation The action.
+		 */
+		@Override
+		public void unsafeOnCompleted(Runnable continuation) {
+			new FutureAwaitable<>(task, captureContext).getAwaiter().unsafeOnCompleted(continuation);
 		}
 
 		/**

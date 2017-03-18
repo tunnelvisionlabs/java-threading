@@ -2,9 +2,11 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.SingleThreadedSynchronizationContext.Frame;
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
@@ -147,7 +149,7 @@ public class AsyncLazyTest extends TestBase {
 	private void testValueFactoryExecutedOnlyOnceConcurrent(boolean specifyJtf) {
 		// use our own so we don't get main thread deadlocks, which isn't the point of this test.
 		JoinableFutureFactory jtf = specifyJtf ? new JoinableFutureContext().getFactory() : null;
-		CompletableFuture<Void> cts = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		CompletableFuture<Void> cts = Async.delayAsync(ASYNC_DELAY);
 		while (!cts.isDone()) {
 			// for debugging purposes only
 			AtomicBoolean valueFactoryResumed = new AtomicBoolean(false);
@@ -308,10 +310,10 @@ public class AsyncLazyTest extends TestBase {
 			jtf));
 
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
+			AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
 			() -> Async.awaitAsync(
 				// Do it again, to verify that AsyncLazy recorded the failure and will replay it.
-				AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync())));
+				AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync())));
 
 		asyncTest.join();
 	}
@@ -332,21 +334,21 @@ public class AsyncLazyTest extends TestBase {
 		JoinableFutureFactory jtf = specifyJff ? new JoinableFutureContext().getFactory() : null;
 		StrongBox<AsyncLazy<Object>> lazy = new StrongBox<>();
 		AtomicBoolean executed = new AtomicBoolean(false);
-		lazy.set(new AsyncLazy<>(() -> {
+		lazy.value = new AsyncLazy<>(() -> {
 			Assert.assertFalse(executed.get());
 			executed.set(true);
 			return Async.awaitAsync(
 				Async.yieldAsync(),
 				() -> Async.awaitAsync(
-					lazy.get().getValueAsync(),
+					lazy.value.getValueAsync(),
 					() -> CompletableFuture.completedFuture(new Object())));
-		}, jtf));
+		}, jtf);
 
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()),
+			AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()),
 			() -> {
 				// Do it again, to verify that AsyncLazy recorded the failure and will replay it.
-				return Async.awaitAsync(AsyncAssert.throwsAsync(IllegalStateException.class, () -> lazy.get().getValueAsync()));
+				return Async.awaitAsync(AsyncAssert.assertThrowsAsync(IllegalStateException.class, () -> lazy.value.getValueAsync()));
 			});
 
 		asyncTest.join();
@@ -366,7 +368,7 @@ public class AsyncLazyTest extends TestBase {
 
 		// Verify that the future returned from the canceled request actually completes before the value factory does.
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> task1),
+			AsyncAssert.assertCancelsAsync(() -> task1),
 			() -> {
 				// Now verify that the value factory does actually complete anyway for other callers.
 				evt.set();
@@ -398,7 +400,7 @@ public class AsyncLazyTest extends TestBase {
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			// This is not the behavior we want. The cancellation is wrapped in a failed future rather than producing a
 			// cancelled future.
-			AsyncAssert.cancelsAsync(() -> task1),
+			AsyncAssert.assertCancelsAsync(() -> task1),
 			() -> {
 				// Now verify that the value factory does actually complete anyway for other callers.
 				evt.set();
@@ -420,7 +422,7 @@ public class AsyncLazyTest extends TestBase {
 
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> lazy.getValueAsync(cancellationTokenSource.getToken())),
+			AsyncAssert.assertCancelsAsync(() -> lazy.getValueAsync(cancellationTokenSource.getToken())),
 			() -> {
 				Assert.assertFalse("Value factory should not have been invoked for a pre-canceled token.", lazy.isValueCreated());
 				return Futures.completedNull();
@@ -527,7 +529,7 @@ public class AsyncLazyTest extends TestBase {
 
 		// Now that the value factory has completed, the earlier acquired
 		// task should have no problem completing.
-		resultTask.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		resultTask.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test
@@ -567,12 +569,12 @@ public class AsyncLazyTest extends TestBase {
 		CompletableFuture<?> backgroundRequest = Futures.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call GetValueAsync(), but it doesn't yield (when the test was written).
-		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));
+		Thread.sleep(ASYNC_DELAY.toMillis());
 		CompletableFuture<?> foregroundRequest = lazy.getValueAsync();
 
 		Frame frame = SingleThreadedSynchronizationContext.newFrame();
 		CompletableFuture<?> combinedTask = CompletableFuture.allOf(foregroundRequest, backgroundRequest);
-		TplExtensions.withTimeout(combinedTask, UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT).thenRun(() -> frame.setContinue(false));
+		TplExtensions.withTimeout(combinedTask, UNEXPECTED_TIMEOUT).thenRun(() -> frame.setContinue(false));
 		SingleThreadedSynchronizationContext.pushFrame(ctxt, frame);
 
 		// Ensure that the test didn't simply timeout, and that the individual tasks did not throw.
@@ -609,7 +611,7 @@ public class AsyncLazyTest extends TestBase {
 		CompletableFuture<?> backgroundRequest = Futures.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call getValueAsync(), but it doesn't yield (when the test was written).
-		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));
+		Thread.sleep(ASYNC_DELAY.toMillis());
 		asyncPump.run(() -> Async.awaitAsync(
 			lazy.getValueAsync(getTimeoutToken()),
 			foregroundValue -> Async.awaitAsync(

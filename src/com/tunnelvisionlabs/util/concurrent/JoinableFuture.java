@@ -3,6 +3,9 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureCollection.JoinRelease;
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureFactory.SingleExecuteProtector;
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -18,11 +21,11 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 /**
- * Tracks asynchronous operations and provides the ability to Join those operations to avoid deadlocks while synchronously blocking the main thread for the operation's completion.
+ * Tracks asynchronous operations and provides the ability to Join those operations to avoid deadlocks while
+ * synchronously blocking the main thread for the operation's completion.
  *
  * <p>For more complete comments please see the {@link JoinableFutureContext}.</p>
  *
@@ -167,9 +170,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	@NotNull
 	private CompletableFuture<Void> getQueueNeedProcessEvent() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (this.queueNeedProcessEvent == null) {
 					// We pass in allowInliningWaiters: true,
 					// since we control all waiters and their continuations
@@ -178,8 +179,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 				}
 
 				return this.queueNeedProcessEvent.waitAsync();
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -205,9 +204,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	public final boolean isDone() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (!isCompleteRequested()) {
 					return false;
 				}
@@ -221,8 +218,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 				}
 
 				return true;
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -233,15 +228,11 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	@NotNull
 	public final CompletableFuture<? extends T> getFuture() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				// If this assumes ever fails, we need to add the ability to synthesize a future
 				// that we'll complete when the wrapped future that we eventually are assigned completes.
 				assert wrappedTask != null;
 				return wrappedTask;
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -267,9 +258,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	@NotNull
 	final SynchronizationContext getApplicableJobSyncContext() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (getFactory().getContext().isOnMainThread()) {
 					if (mainThreadJobSyncContext == null) {
 						mainThreadJobSyncContext = new JoinableFutureSynchronizationContext(this, true);
@@ -286,8 +275,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 					// If we're not blocking the thread pool, there is no reason to use a thread pool sync context.
 					return null;
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -320,7 +307,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * Gets a value indicating whether this future has a non-empty queue. FOR DIAGNOSTICS COLLECTION ONLY.
 	 */
 	final boolean hasNonEmptyQueue() {
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 		return (mainThreadQueue != null && !mainThreadQueue.isEmpty())
 			|| (threadPoolQueue != null && !threadPoolQueue.isEmpty());
 	}
@@ -342,7 +329,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	final Iterable<SingleExecuteProtector<?>> getMainThreadQueueContents() {
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 		if (mainThreadQueue == null) {
 			return Collections.emptyList();
 		}
@@ -354,7 +341,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * Gets a snapshot of all work queued to synchronously blocking thread pool thread. FOR DIAGNOSTICS COLLECTION ONLY.
 	 */
 	final Iterable<SingleExecuteProtector<?>> getThreadPoolQueueContents() {
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 		if (threadPoolQueue == null) {
 			return Collections.emptyList();
 		}
@@ -367,7 +354,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	final Collection<JoinableFutureCollection> getContainingCollections() {
-		assert this.owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 		List<JoinableFutureCollection> result = new ArrayList<>();
 		for (JoinableFutureCollection collection : collectionMembership) {
 			result.add(collection);
@@ -454,13 +441,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	public final CompletableFuture<T> joinAsync(@NotNull CancellationToken cancellationToken) {
-		if (cancellationToken.isCancellationRequested()) {
-			return Futures.completedCancelled();
-		}
+		return Async.runAsync(() -> {
+			if (cancellationToken.isCancellationRequested()) {
+				return Futures.completedCancelled();
+			}
 
-		return Async.usingAsync(
-			ambientJobJoinsThis(),
-			() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationToken)));
+			return Async.usingAsync(
+				ambientJobJoinsThis(),
+				() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationToken)));
+		});
 	}
 
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {
@@ -472,13 +461,9 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 			boolean isCompleteRequested;
 			boolean synchronouslyBlockingMainThread;
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				isCompleteRequested = this.isCompleteRequested();
 				synchronouslyBlockingMainThread = this.isSynchronouslyBlockingMainThread();
-			} finally {
-				syncObject.unlock();
 			}
 
 			if (isCompleteRequested) {
@@ -498,9 +483,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 					wrapper.raiseTransitioningEvents();
 				}
 
-				syncObject = owner.getContext().getSyncContextLock();
-				syncObject.lock();
-				try {
+				synchronized (owner.getContext().getSyncContextLock()) {
 					if (mainThreadAffinitized) {
 						if (mainThreadQueue == null) {
 							mainThreadQueue = new ExecutionQueue(this);
@@ -546,8 +529,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 							}
 						}
 					}
-				} finally {
-					syncObject.unlock();
 				}
 			}
 
@@ -584,17 +565,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	@Override
-	public final FutureAwaiter<T> getAwaiter() {
-		return new FutureAwaiter<>(joinAsync(), true);
+	public final FutureAwaitable<T>.FutureAwaiter getAwaiter() {
+		return new FutureAwaitable<>(joinAsync(), true).getAwaiter();
 	}
 
 	final void setWrappedFuture(@NotNull CompletableFuture<? extends T> wrappedFuture) {
 		Requires.notNull(wrappedFuture, "wrappedFuture");
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				assert wrappedTask == null;
 				this.wrappedTask = wrappedFuture;
 
@@ -606,8 +585,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						complete();
 					});
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -618,9 +595,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	final void complete() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			AsyncManualResetEvent queueNeedProcessEvent = null;
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (!this.isCompleteRequested()) {
 					this.setCompleteRequested();
 
@@ -640,8 +615,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 					this.cleanupDependingSynchronousFuture();
 				}
-			} finally {
-				syncObject.unlock();
 			}
 
 			if (queueNeedProcessEvent != null) {
@@ -655,9 +628,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		Requires.notNull(joinChild, "joinChild");
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (childOrJoinedJobs != null) {
 					Integer referenceCount = childOrJoinedJobs.get(joinChild);
 					if (referenceCount != null) {
@@ -669,8 +640,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						}
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -718,15 +687,11 @@ public class JoinableFuture<T> implements Awaitable<T> {
 //                    }
 
 				try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-					ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-					syncObject.lock();
-					try {
+					synchronized (owner.getContext().getSyncContextLock()) {
 						pendingEventCount.set(0);
 
 						// Add the task to the depending tracking list of itself, so it will monitor the event queue.
 						pendingEventSource = new WeakReference<>(addDependingSynchronousFuture(this, pendingEventCount));
-					} finally {
-						syncObject.unlock();
 					}
 				}
 
@@ -743,23 +708,19 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						StrongBox<SingleExecuteProtector<?>> work = new StrongBox<>();
 						StrongBox<CompletableFuture<?>> tryAgainAfter = new StrongBox<>();
 						if (tryPollSelfOrDependencies(onMainThread, visited, work, tryAgainAfter)) {
-							work.get().tryExecute();
-						} else if (tryAgainAfter.get() != null) {
+							work.value.tryExecute();
+						} else if (tryAgainAfter.value != null) {
 //                                ThreadingEventSource.Instance.WaitSynchronouslyStart();
-							this.owner.waitSynchronously(tryAgainAfter.get());
+							this.owner.waitSynchronously(tryAgainAfter.value);
 //                                ThreadingEventSource.Instance.WaitSynchronouslyStop();
-							assert tryAgainAfter.get().isDone();
+							assert tryAgainAfter.value.isDone();
 						}
 					}
 				} finally {
 					try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-						ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-						syncObject.lock();
-						try {
+						synchronized (owner.getContext().getSyncContextLock()) {
 							// Remove itself from the tracking list, after the future is completed.
 							removeDependingSynchronousFuture(this, true);
-						} finally {
-							syncObject.unlock();
 						}
 					}
 				}
@@ -776,8 +737,12 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			// that was queued but evidently not required to complete this task
 			// back to the threadpool so it still gets done.
 			if (threadPoolQueue != null && !threadPoolQueue.isEmpty()) {
-				SingleExecuteProtector<?> executor = threadPoolQueue.poll();
-				while (executor != null) {
+				while (true) {
+					SingleExecuteProtector<?> executor = threadPoolQueue.poll();
+					if (executor == null) {
+						break;
+					}
+
 					ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(executor)));
 				}
 			}
@@ -833,12 +798,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		// Try to avoid taking a lock if the flags are already set appropriately.
 		if (!this.state.containsAll(flags)) {
 			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-				ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-				syncObject.lock();
-				try {
+				synchronized (owner.getContext().getSyncContextLock()) {
 					this.state.addAll(flags);
-				} finally {
-					syncObject.unlock();
 				}
 			}
 		}
@@ -846,12 +807,10 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 	private boolean tryPollSelfOrDependencies(boolean onMainThread, @NotNull final StrongBox<Set<JoinableFuture<?>>> visited, @NotNull final StrongBox<SingleExecuteProtector<?>> work, @NotNull final StrongBox<CompletableFuture<?>> tryAgainAfter) {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (isDone()) {
-					work.set(null);
-					tryAgainAfter.set(null);
+					work.value = null;
+					tryAgainAfter.value = null;
 					return false;
 				}
 
@@ -863,13 +822,13 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						if (pendingSource != null && pendingSource.isDependingSynchronousFuture(this)) {
 							ExecutionQueue queue = onMainThread ? pendingSource.mainThreadQueue : pendingSource.threadPoolQueue;
 							if (queue != null && !queue.isCompleted()) {
-								work.set(queue.poll());
-								if (work.get() != null) {
+								work.value = queue.poll();
+								if (work.value != null) {
 									if (queue.isEmpty()) {
 										this.pendingEventSource = null;
 									}
 
-									tryAgainAfter.set(null);
+									tryAgainAfter.value = null;
 									return true;
 								}
 							}
@@ -878,42 +837,40 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						this.pendingEventSource = null;
 					}
 
-					if (visited.get() == null) {
-						visited.set(new HashSet<>());
+					if (visited.value == null) {
+						visited.value = new HashSet<>();
 					} else {
-						visited.get().clear();
+						visited.value.clear();
 					}
 
-					if (tryPollSelfOrDependencies(onMainThread, visited.get(), work)) {
-						tryAgainAfter.set(null);
+					if (tryPollSelfOrDependencies(onMainThread, visited.value, work)) {
+						tryAgainAfter.value = null;
 						return true;
 					}
 				}
 
 				this.pendingEventCount.set(0);
 
-				work.set(null);
-				tryAgainAfter.set(getQueueNeedProcessEvent());
+				work.value = null;
+				tryAgainAfter.value = getQueueNeedProcessEvent();
 				return false;
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
 
 	private boolean tryPollSelfOrDependencies(boolean onMainThread, @NotNull Set<JoinableFuture<?>> visited, @NotNull final StrongBox<SingleExecuteProtector<?>> work) {
 		Requires.notNull(visited, "visited");
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		// We only need find the first work item.
-		work.set(null);
+		work.value = null;
 		if (visited.add(this)) {
 			ExecutionQueue queue = onMainThread ? this.mainThreadQueue : this.threadPoolQueue;
 			if (queue != null && !queue.isCompleted()) {
-				work.set(queue.poll());
+				work.value = queue.poll();
 			}
 
-			if (work.get() == null) {
+			if (work.value == null) {
 				if (childOrJoinedJobs != null && !isDone()) {
 					for (JoinableFuture<?> item : this.childOrJoinedJobs.keySet()) {
 						if (item.tryPollSelfOrDependencies(onMainThread, visited, work)) {
@@ -924,7 +881,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			}
 		}
 
-		return work.get() != null;
+		return work.value != null;
 	}
 
 	/**
@@ -942,9 +899,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			List<AsyncManualResetEvent> eventsNeedNotify = null;
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				if (childOrJoinedJobs == null) {
 					childOrJoinedJobs = new WeakHashMap<>(3);
 				}
@@ -974,8 +929,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						}
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 
 			// We explicitly do this outside our lock.
@@ -1012,9 +965,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	final boolean hasMainThreadSynchronousFutureWaiting() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = owner.getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (owner.getContext().getSyncContextLock()) {
 				DependentSynchronousFuture existingFutureTracking = this.dependingSynchronousFutureTracking;
 				while (existingFutureTracking != null) {
 					if (existingFutureTracking.getSynchronousFuture().getState().contains(JoinableFutureFlag.SYNCHRONOUSLY_BLOCKING_MAIN_THREAD)) {
@@ -1025,8 +976,6 @@ public class JoinableFuture<T> implements Awaitable<T> {
 				}
 
 				return false;
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -1069,7 +1018,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * @return The collection of synchronous futures we need notify.
 	 */
 	private List<JoinableFuture<?>> getDependingSynchronousFutures(boolean forMainThread) {
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		List<JoinableFuture<?>> tasksNeedNotify = new ArrayList<>(countOfDependingSynchronousFutures());
 		DependentSynchronousFuture existingTaskTracking = this.dependingSynchronousFutureTracking;
@@ -1096,7 +1045,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private List<PendingNotification> addDependingSynchronousFutureToChild(@NotNull JoinableFuture<?> child) {
 		Requires.notNull(child, "child");
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		List<PendingNotification> tasksNeedNotify = new ArrayList<>(countOfDependingSynchronousFutures());
 		DependentSynchronousFuture existingTaskTracking = this.dependingSynchronousFutureTracking;
@@ -1120,7 +1069,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private void removeDependingSynchronousFutureFromChild(@NotNull JoinableFuture<?> child) {
 		Requires.notNull(child, "child");
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		DependentSynchronousFuture existingTaskTracking = this.dependingSynchronousFutureTracking;
 		while (existingTaskTracking != null) {
@@ -1155,7 +1104,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	private JoinableFuture<?> addDependingSynchronousFuture(@NotNull JoinableFuture<?> future, @NotNull AtomicInteger totalEventsPending) {
 		Requires.notNull(future, "future");
 		Requires.notNull(totalEventsPending, "totalEventsPending");
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		if (isDone()) {
 			return null;
@@ -1243,7 +1192,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private void removeDependingSynchronousFuture(@NotNull JoinableFuture<?> future, boolean force) {
 		Requires.notNull(future, "future");
-		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		assert Thread.holdsLock(owner.getContext().getSyncContextLock());
 
 		if (future.dependingSynchronousFutureTracking != null) {
 			removeDependingSynchronousFutureFrom(Arrays.asList(this), future, force);
@@ -1273,18 +1222,18 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			task.removeDependingSynchronousFuture(syncTask, reachableTasks, remainTasks);
 		}
 
-		if (!force && remainTasks.get() != null && !remainTasks.get().isEmpty()) {
+		if (!force && remainTasks.value != null && !remainTasks.value.isEmpty()) {
 			// a set of tasks may form a dependent loop, so it will make the reference count system
 			// not to work correctly when we try to remove the synchronous task.
 			// To get rid of those loops, if a task still tracks the synchronous task after reducing
 			// the reference count, we will calculate the entire reachable tree from the root.  That will
 			// tell us the exactly tasks which need track the synchronous task, and we will clean up the rest.
 			reachableTasks = new HashSet<>();
-			syncTask.computeSelfAndDescendentOrJoinedJobsAndRemainFutures(reachableTasks, remainTasks.get());
+			syncTask.computeSelfAndDescendentOrJoinedJobsAndRemainFutures(reachableTasks, remainTasks.value);
 
 			// force to remove all invalid items
 			final StrongBox<Set<JoinableFuture<?>>> remainPlaceHold = new StrongBox<>();
-			for (JoinableFuture<?> remainTask : remainTasks.get()) {
+			for (JoinableFuture<?> remainTask : remainTasks.value) {
 				remainTask.removeDependingSynchronousFuture(syncTask, reachableTasks, remainPlaceHold);
 			}
 		}
@@ -1355,15 +1304,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 				if (reachableTasks == null) {
 					if (removed) {
-						if (remainingDependentTasks.get() != null) {
-							remainingDependentTasks.get().remove(this);
+						if (remainingDependentTasks.value != null) {
+							remainingDependentTasks.value.remove(this);
 						}
 					} else {
-						if (remainingDependentTasks.get() == null) {
-							remainingDependentTasks.set(new HashSet<>());
+						if (remainingDependentTasks.value == null) {
+							remainingDependentTasks.value = new HashSet<>();
 						}
 
-						remainingDependentTasks.get().add(this);
+						remainingDependentTasks.value.add(this);
 					}
 				}
 
@@ -1535,7 +1484,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		}
 
 		private void scavenge() {
-			while (poll(p -> p.hasBeenExecuted()) != null) {
+			while (poll(SingleExecuteProtector::hasBeenExecuted) != null) {
 			}
 		}
 	}

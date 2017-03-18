@@ -1,9 +1,12 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
+import com.tunnelvisionlabs.util.validation.Verify;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -22,7 +25,7 @@ public class AsyncLazy<T> {
 	/**
 	 * The object to lock to provide thread-safety.
 	 */
-	private final ReentrantLock syncObject = new ReentrantLock();
+	private final Object syncObject = new Object();
 
 	/**
 	 * The unique instance identifier.
@@ -104,15 +107,14 @@ public class AsyncLazy<T> {
 		}
 
 		if (this.value == null) {
-			if (this.syncObject.isHeldByCurrentThread()) {
+			if (Thread.holdsLock(syncObject)) {
 				// PERF: we check the condition and *then* retrieve the string resource only on failure
 				// because the string retrieval has shown up as significant on ETL traces.
 				Verify.failOperation("ValueFactoryReentrancy");
 			}
 
 			final StrongBox<InlineResumable> resumableAwaiter = new StrongBox<>();
-			syncObject.lock();
-			try {
+			synchronized (syncObject) {
 				// Note that if multiple threads hit getValueAsync() before
 				// the valueFactory has completed its synchronous execution,
 				// then only one thread will execute the valueFactory while the
@@ -123,12 +125,12 @@ public class AsyncLazy<T> {
 						return Futures.completedCancelled();
 					}
 
-					resumableAwaiter.set(new InlineResumable());
+					resumableAwaiter.value = new InlineResumable();
 					Supplier<? extends CompletableFuture<? extends T>> originalValueFactory = this.valueFactory.getAndSet(null);
-					Supplier<? extends CompletableFuture<? extends T>> localValueFactory =
+					Supplier<? extends CompletableFuture<? extends T>> localValueFactory = () -> Async.runAsync(
 						() -> Async.awaitAsync(
-							resumableAwaiter.get(),
-							() -> Async.awaitAsync(originalValueFactory.get(), false));
+							resumableAwaiter.value,
+							() -> Async.awaitAsync(Async.configureAwait(originalValueFactory.get(), false))));
 
 					this.recursiveFactoryCheck.setValue(RECURSIVE_CHECK_SENTINEL);
 					try {
@@ -149,13 +151,11 @@ public class AsyncLazy<T> {
 						this.recursiveFactoryCheck.setValue(null);
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 
 			// Allow the original value factory to actually run.
-			if (resumableAwaiter.get() != null) {
-				resumableAwaiter.get().resume();
+			if (resumableAwaiter.value != null) {
+				resumableAwaiter.value.resume();
 			}
 		}
 

@@ -1,6 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -51,18 +53,16 @@ public class AsyncCountdownEvent {
 	 */
 	@Deprecated
 	final CompletableFuture<Void> signalAsync() {
-		try {
+		return Async.runAsync(() -> {
 			int newCount = remainingCount.decrementAndGet();
 			if (newCount == 0) {
-				return Async.awaitAsync(manualEvent.setAsync(), false);
+				return Async.awaitAsync(Async.configureAwait(manualEvent.setAsync(), false));
 			} else if (newCount < 0) {
 				throw new IllegalStateException();
 			} else {
 				return Futures.completedNull();
 			}
-		} catch (Throwable ex) {
-			return Futures.completedFailed(ex);
-		}
+		});
 	}
 
 	/**

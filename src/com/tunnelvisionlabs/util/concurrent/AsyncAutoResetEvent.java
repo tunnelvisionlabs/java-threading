@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
@@ -112,8 +113,8 @@ public class AsyncAutoResetEvent {
 		 * Constructs a new instance of the {@link WaiterCompletableFuture} class.
 		 *
 		 * @param cancellationFuture The cancellation future associated with the waiter.
-		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's
-		 * call stack.
+		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's call
+		 * stack.
 		 */
 		public WaiterCompletableFuture(CancellationToken cancellationToken, boolean allowInliningContinuations) {
 			super(allowInliningContinuations);

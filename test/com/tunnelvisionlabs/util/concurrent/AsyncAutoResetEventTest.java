@@ -7,6 +7,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Assert;
@@ -44,7 +45,7 @@ public class AsyncAutoResetEventTest extends TestBase {
 				CompletableFuture<Void> t = event.waitAsync();
 				Assert.assertFalse(t.isDone());
 				return Async.awaitAsync(
-					Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+					Async.delayAsync(ASYNC_DELAY),
 					() -> {
 						Assert.assertFalse(t.isDone());
 						return Futures.completedNull();
@@ -84,7 +85,7 @@ public class AsyncAutoResetEventTest extends TestBase {
 			try {
 				// Arrange to synchronously block the continuation until set() has returned,
 				// which would deadlock if set() does not return until inlined continuations complete.
-				setReturned.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				setReturned.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);
 			}
@@ -92,7 +93,7 @@ public class AsyncAutoResetEventTest extends TestBase {
 
 		event.set();
 		setReturned.complete(null);
-		inlinedContinuation.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		inlinedContinuation.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -114,7 +115,7 @@ public class AsyncAutoResetEventTest extends TestBase {
 		setReturned.set(true);
 		Assert.assertTrue(inlinedContinuation.isDone());
 		// rethrow any exceptions in the continuation
-		inlinedContinuation.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		inlinedContinuation.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -25,6 +26,9 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	 * <p>This should not need the {@code volatile} modifier because it is always accessed within a lock.</p>
 	 */
 	private CompletableFutureWithoutInlining<Void> future;
+
+	private CompletableFuture<Void> priorityFuture;
+	private CompletableFuture<Void> secondaryFuture;
 
 	/**
 	 * A flag indicating whether the event is signaled. When this is set to {@code true}, it's possible that
@@ -62,6 +66,10 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			// Complete the task immediately.
 			future.complete(null);
 		}
+
+		StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+		this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+		this.secondaryFuture = secondaryHandlerBox.value;
 	}
 
 	/**
@@ -79,7 +87,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@NotNull
 	public final CompletableFuture<Void> waitAsync() {
 		synchronized (this.syncObject) {
-			return Futures.nonCancellationPropagating(future);
+			return Futures.nonCancellationPropagating(priorityFuture);
 		}
 	}
 
@@ -92,10 +100,12 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@Deprecated
 	final CompletableFuture<Void> setAsync() {
 		CompletableFutureWithoutInlining<Void> localFuture;
+		CompletableFuture<Void> secondaryFuture;
 		boolean transitionRequired = false;
 		synchronized (this.syncObject) {
 			transitionRequired = !this.isSet;
 			localFuture = this.future;
+			secondaryFuture = this.secondaryFuture;
 			this.isSet = true;
 		}
 
@@ -103,7 +113,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			localFuture.trySetResultToNull();
 		}
 
-		return localFuture;
+		return secondaryFuture;
 	}
 
 	/**
@@ -120,6 +130,11 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 		synchronized (this.syncObject) {
 			if (this.isSet) {
 				this.future = this.createFuture();
+
+				StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+				this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+				this.secondaryFuture = secondaryHandlerBox.value;
+
 				this.isSet = false;
 			}
 		}
@@ -135,6 +150,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@Deprecated
 	final CompletableFuture<Void> pulseAllAsync() {
 		CompletableFutureWithoutInlining<Void> localFuture;
+		CompletableFuture<Void> secondaryFuture;
 		synchronized (this.syncObject) {
 			// Atomically replace the future with a new, uncompleted future
 			// while capturing the previous one so we can complete it.
@@ -142,12 +158,19 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			// continue to return completed futures due to a pulse method which should
 			// execute instantaneously.
 			localFuture = this.future;
+			secondaryFuture = this.secondaryFuture;
+
 			this.future = this.createFuture();
+
+			StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+			this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+			this.secondaryFuture = secondaryHandlerBox.value;
+
 			this.isSet = false;
 		}
 
 		localFuture.trySetResultToNull();
-		return localFuture;
+		return secondaryFuture;
 	}
 
 	/**
@@ -164,8 +187,8 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 //        [EditorBrowsable(EditorBrowsableState.Never)]
 	@NotNull
 	@Override
-	public final FutureAwaiter<Void> getAwaiter() {
-		return new FutureAwaiter<>(waitAsync(), true);
+	public final FutureAwaitable<Void>.FutureAwaiter getAwaiter() {
+		return new FutureAwaitable<>(waitAsync(), true).getAwaiter();
 	}
 
 	/**

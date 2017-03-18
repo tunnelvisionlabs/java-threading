@@ -2,7 +2,9 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureCollection.JoinRelease;
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -56,12 +58,12 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 	@Test
 	public void testJoinUntilEmptyUsesConfigureAwaitFalse() throws Exception {
 		AsyncManualResetEvent evt = new AsyncManualResetEvent();
-		JoinableFuture<Void> joinable = getJoinableFactory().runAsync(() -> Async.awaitAsync(evt.waitAsync(), false));
+		JoinableFuture<Void> joinable = getJoinableFactory().runAsync(() -> Async.awaitAsync(Async.configureAwait(evt.waitAsync(), false)));
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());
 		evt.set();
-		waiter.get(UNEXPECTED_TIMEOUT, UNEXPECTED_TIMEOUT_UNIT);
+		waiter.get(UNEXPECTED_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test

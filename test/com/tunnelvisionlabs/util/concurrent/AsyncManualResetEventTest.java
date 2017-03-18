@@ -5,6 +5,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,7 +54,7 @@ public class AsyncManualResetEventTest extends TestBase {
 				try {
 					// Arrange to synchronously block the continuation until set() has returned,
 					// which would deadlock if set() does not return until inlined continuations complete.
-					setReturned.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+					setReturned.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 				} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 					throw new CompletionException(ex);
 				}
@@ -61,7 +62,7 @@ public class AsyncManualResetEventTest extends TestBase {
 		event.set();
 		Assert.assertTrue(event.isSet());
 		setReturned.complete(null);
-		inlinedContinuation.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		inlinedContinuation.get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Test

@@ -4,6 +4,11 @@ package com.tunnelvisionlabs.util.concurrent;
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureFlag;
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureSynchronizationContext;
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureFactory.SingleExecuteProtector;
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Report;
+import com.tunnelvisionlabs.util.validation.Requires;
+import com.tunnelvisionlabs.util.validation.Verify;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
@@ -19,7 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Transformer;
@@ -46,7 +50,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * in this file has a very similar problem, so we use a similar solution. Except that our lock is only as global as
 	 * the {@link JoinableFutureContext}. It isn't static.</p>
 	 */
-	private final ReentrantLock syncContextLock = new ReentrantLock();
+	private final Object syncContextLock = new Object();
 
 	/**
 	 * An {@link AsyncLocal} value that carries the joinable instance associated with an async operation.
@@ -61,7 +65,8 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	private final Set<JoinableFuture<?>> pendingTasks = new HashSet<>();
 
 	/**
-	 * The stack of futures which synchronously blocks the main thread in the initial stage (before it yields and completeOnCurrentThread starts.)
+	 * The stack of futures which synchronously blocks the main thread in the initial stage (before it yields and
+	 * completeOnCurrentThread starts.)
 	 *
 	 * <p>Normally we expect this stack contains 0 or 1 future. When a synchronous future starts another synchronous
 	 * future in the initialization stage, we might get more than 1 futures, but it should be very rare to exceed 2
@@ -80,11 +85,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * The main thread.
 	 */
 	private final Thread mainThread;
-
-	/**
-	 * The ID for the main thread;
-	 */
-	private final long mainThreadManagedThreadId;
 
 	/**
 	 * A single joinable future factory that itself cannot be joined.
@@ -115,7 +115,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 */
 	public JoinableFutureContext(Thread mainThread, SynchronizationContext synchronizationContext) {
 		this.mainThread = mainThread != null ? mainThread : Thread.currentThread();
-		this.mainThreadManagedThreadId = this.getMainThread().getId();
 		this.underlyingSynchronizationContext = synchronizationContext != null ? synchronizationContext : SynchronizationContext.getCurrent();
 	}
 
@@ -125,15 +124,12 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	@NotNull
 	public final JoinableFutureFactory getFactory() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-			getSyncContextLock().lock();
-			try {
+			synchronized (getSyncContextLock()) {
 				if (nonJoinableFactory == null) {
 					nonJoinableFactory = createDefaultFactory();
 				}
 
 				return nonJoinableFactory;
-			} finally {
-				getSyncContextLock().unlock();
 			}
 		}
 	}
@@ -174,7 +170,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	/**
 	 * Gets the context-wide synchronization lock.
 	 */
-	final ReentrantLock getSyncContextLock() {
+	final Object getSyncContextLock() {
 		return syncContextLock;
 	}
 
@@ -199,9 +195,9 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 */
 	@NotNull
 	protected SynchronizationContext getNoMessagePumpSynchronizationContext() {
-                // Callers of this method are about to take a private lock, which tends
-                // to cause a deadlock while debugging because of lock contention with the
-                // debugger's expression evaluator. So prevent that.
+		// Callers of this method are about to take a private lock, which tends
+		// to cause a deadlock while debugging because of lock contention with the
+		// debugger's expression evaluator. So prevent that.
 //                Debugger.NotifyOfCrossThreadDependency();
 
 		return NoMessagePumpSyncContext.getDefault();
@@ -211,7 +207,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * Conceals any {@link JoinableFuture} the caller is associated with until the returned value is disposed.
 	 *
 	 * <p>In some cases asynchronous work may be spun off inside a delegate supplied to {@code run}, so that the work
-	 * does not have privileges to re-enter the Main thread until the {@link JoinableFutureFactory#run(Function)} call
+	 * does not have privileges to re-enter the Main thread until the {@link JoinableFutureFactory#run(Supplier)} call
 	 * has returned and the UI thread is idle. To prevent the asynchronous work from automatically being allowed to
 	 * re-enter the Main thread, wrap the code that calls the asynchronous future in a {@code true}-with-resources block
 	 * with a call to this method as the expression.</p>
@@ -255,8 +251,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			// In that case, we still need to follow the descendent of the task in the initialization stage.
 			// We hope the dependency tree is relatively small in that stage.
 			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-				getSyncContextLock().lock();
-				try {
+				synchronized (getSyncContextLock()) {
 					Set<JoinableFuture<?>> allJoinedJobs = new HashSet<>();
 					synchronized (initializingSynchronouslyMainThreadTasks) {
 						// our read lock doesn't cover this collection
@@ -274,8 +269,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 							}
 						}
 					}
-				} finally {
-					getSyncContextLock().unlock();
 				}
 			}
 		}
@@ -338,7 +331,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			} catch (Throwable ex) {
 				// Report it in CHK, but don't throw. In a hang situation, we don't want the product
 				// to fail for another reason, thus hiding the hang issue.
-//                    Report.Fail("Exception thrown from OnHangDetected listener. {0}", ex);
+				Report.fail("Exception thrown from OnHangDetected listener. %s", ex);
 			}
 		}
 	}
@@ -359,7 +352,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			} catch (Throwable ex) {
 				// Report it in CHK, but don't throw. In a hang situation, we don't want the product
 				// to fail for another reason, thus hiding the hang issue.
-//                    Report.Fail("Exception thrown from OnHangDetected listener. {0}", ex);
+				Report.fail("Exception thrown from OnHangDetected listener. %s", ex);
 			}
 		}
 	}
@@ -433,7 +426,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 		Requires.notNull(node, "node");
 		synchronized (hangNotifications) {
 			if (!hangNotifications.add(node)) {
-//                    Verify.FailOperation(Strings.JoinableTaskContextNodeAlreadyRegistered);
+				Verify.failOperation("JoinableFutureContextNodeAlreadyRegistered");
 			}
 		}
 
@@ -444,7 +437,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * A class that clears {@link CallContext} and {@link SynchronizationContext} async/thread statics and restores
 	 * those values when this structure is disposed.
 	 */
-	public final class RevertRelevance implements AutoCloseable {
+	public final class RevertRelevance implements Disposable {
 		private final SpecializedSyncContext temporarySyncContext;
 		private final JoinableFuture<?> oldJoinable;
 
@@ -595,56 +588,54 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	@Override
 	public HangReportContribution getHangReport() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getSyncContextLock();
-			syncObject.lock();
-			try {
-				StrongBox<Element> nodes = new StrongBox<>();
-				StrongBox<Element> links = new StrongBox<>();
-				Document dgml = createTemplateDgml(nodes, links);
+			synchronized (getSyncContextLock()) {
+				try {
+					StrongBox<Element> nodes = new StrongBox<>();
+					StrongBox<Element> links = new StrongBox<>();
+					Document dgml = createTemplateDgml(nodes, links);
 
-				Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
-				List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
-				Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
-				for (Element child : pendingTasksElements.values()) {
-					nodes.get().appendChild(child);
+					Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
+					List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
+					Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
+					for (Element child : pendingTasksElements.values()) {
+						nodes.value.appendChild(child);
+					}
+
+					for (Element child : pendingTaskCollections.values()) {
+						nodes.value.appendChild(child);
+					}
+
+					for (Map.Entry<Element, Element> pair : taskLabels) {
+						nodes.value.appendChild(pair.getKey());
+					}
+
+					for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
+						links.value.appendChild(element);
+					}
+
+					for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
+						links.value.appendChild(element);
+					}
+
+					for (Map.Entry<Element, Element> pair : taskLabels) {
+						links.value.appendChild(pair.getValue());
+					}
+
+					TransformerFactory transformerFactory = TransformerFactory.newInstance();
+					Transformer transformer = transformerFactory.newTransformer();
+					DOMSource source = new DOMSource(dgml);
+
+					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+					StreamResult result = new StreamResult(outputStream);
+					transformer.transform(source, result);
+
+					return new HangReportContribution(
+						new String(outputStream.toByteArray(), "UTF-8"),
+						"application/xml",
+						"JoinableTaskContext.dgml");
+				} catch (ParserConfigurationException | UnsupportedEncodingException | TransformerException ex) {
+					throw new CompletionException(ex);
 				}
-
-				for (Element child : pendingTaskCollections.values()) {
-					nodes.get().appendChild(child);
-				}
-
-				for (Map.Entry<Element, Element> pair : taskLabels) {
-					nodes.get().appendChild(pair.getKey());
-				}
-
-				for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
-					links.get().appendChild(element);
-				}
-
-				for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
-					links.get().appendChild(element);
-				}
-
-				for (Map.Entry<Element, Element> pair : taskLabels) {
-					links.get().appendChild(pair.getValue());
-				}
-
-				TransformerFactory transformerFactory = TransformerFactory.newInstance();
-				Transformer transformer = transformerFactory.newTransformer();
-				DOMSource source = new DOMSource(dgml);
-
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-				StreamResult result = new StreamResult(outputStream);
-				transformer.transform(source, result);
-
-				return new HangReportContribution(
-					new String(outputStream.toByteArray(), "UTF-8"),
-					"application/xml",
-					"JoinableTaskContext.dgml");
-			} catch (ParserConfigurationException | UnsupportedEncodingException | TransformerException ex) {
-				throw new CompletionException(ex);
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -810,7 +801,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			}
 		} catch (Exception ex) {
 			// Just eat the exception so we don't crash during a hang report.
-//                Report.fail("GetAsyncReturnStackFrames threw exception: ", ex);
+			Report.fail("GetAsyncReturnStackFrames threw exception: %s", ex);
 		}
 
 		return stringBuilder.toString().trim();

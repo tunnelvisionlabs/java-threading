@@ -1,6 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.Nullable;
+
 /**
  * Provides a facility to produce reports that may be useful when analyzing hangs.
  *

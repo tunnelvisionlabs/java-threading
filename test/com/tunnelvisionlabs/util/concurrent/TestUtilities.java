@@ -1,6 +1,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -96,22 +99,22 @@ enum TestUtilities {
 		// execute the provided function at precisely the same time.
 		// The barrier will unblock all of them together.
 		CyclicBarrier barrier = new CyclicBarrier(concurrency);
-			List<CompletableFuture<T>> tasks = new ArrayList<>();
-			for (int i = 0; i < concurrency; i++) {
-				tasks.add(Futures.supplyAsync(() -> {
-					try {
-						barrier.await();
-						return CompletableFuture.completedFuture(action.get());
-					} catch (InterruptedException ex) {
-						return Futures.completedCancelled();
-					} catch (BrokenBarrierException ex) {
-						return Futures.completedFailed(ex);
-					}
-				}));
-			}
+		List<CompletableFuture<T>> tasks = new ArrayList<>();
+		for (int i = 0; i < concurrency; i++) {
+			tasks.add(Futures.supplyAsync(() -> {
+				try {
+					barrier.await();
+					return CompletableFuture.completedFuture(action.get());
+				} catch (InterruptedException ex) {
+					return Futures.completedCancelled();
+				} catch (BrokenBarrierException ex) {
+					return Futures.completedFailed(ex);
+				}
+			}));
+		}
 
-			CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
-			return tasks.stream().map(f -> f.join()).collect(Collectors.toList());
+		CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
+		return tasks.stream().map(CompletableFuture::join).collect(Collectors.toList());
 	}
 
 //        internal static DebugAssertionRevert DisableAssertionDialog()
@@ -168,7 +171,7 @@ enum TestUtilities {
 		// any threads assigned to them.
 		int workerThreads = ForkJoinPool.getCommonPoolParallelism();
 		for (int i = 0; i < workerThreads * 10; i++) {
-			ForkJoinPool.commonPool().submit(() -> evt.join());
+			ForkJoinPool.commonPool().submit(evt::join);
 		}
 
 		return new ForkJoinPoolStarvation(evt);

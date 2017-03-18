@@ -1,27 +1,26 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 class SynchronizationContext implements Executor {
-	private static final ThreadLocal<SynchronizationContext> CURRENT_CONTEXT = new ThreadLocal<>();
-
 	private boolean waitNotificationRequired;
 
 	@Nullable
 	public static SynchronizationContext getCurrent() {
-		return CURRENT_CONTEXT.get();
+		return ThreadProperties.getSynchronizationContext(Thread.currentThread());
 	}
 
 	public static void setSynchronizationContext(@Nullable SynchronizationContext synchronizationContext) {
-		CURRENT_CONTEXT.set(synchronizationContext);
+		ThreadProperties.setSynchronizationContext(Thread.currentThread(), synchronizationContext);
 	}
 
 	@NotNull
 	public SynchronizationContext createCopy() {
-		throw new UnsupportedOperationException("Not implemented");
+		return new SynchronizationContext();
 	}
 
 	public final boolean isWaitNotificationRequired() {
@@ -35,11 +34,11 @@ class SynchronizationContext implements Executor {
 	}
 
 	public <T> void post(@NotNull Consumer<T> callback, T state) {
-		ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> callback.accept(state)));
+		Futures.runAsync(() -> callback.accept(state));
 	}
 
 	public <T> void send(@NotNull Consumer<T> callback, T state) {
-		throw new UnsupportedOperationException("Not implemented");
+		callback.accept(state);
 	}
 
 	protected final void setWaitNotificationRequired() {
@@ -48,6 +47,6 @@ class SynchronizationContext implements Executor {
 
 	@Override
 	public void execute(@NotNull Runnable command) {
-		post(state -> command.run(), null);
+		post(Runnable::run, command);
 	}
 }

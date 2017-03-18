@@ -3,6 +3,9 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.ExecutionQueue;
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureSynchronizationContext;
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Collections;
@@ -15,12 +18,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * A factory for starting asynchronous futures that can mitigate deadlocks when the futures require the main thread of an application and the main thread may itself be blocking on the completion of a future.
+ * A factory for starting asynchronous futures that can mitigate deadlocks when the futures require the main thread of
+ * an application and the main thread may itself be blocking on the completion of a future.
  *
  * <p>For more complete comments please see the {@link JoinableFutureContext}.</p>
  *
@@ -179,12 +182,12 @@ public class JoinableFutureFactory {
 		// can help this switch to complete.
 		StrongBox<JoinableFuture<?>> ambientJob = new StrongBox<>(getContext().getAmbientFuture());
 		StrongBox<SingleExecuteProtector<?>> wrapper = new StrongBox<>(null);
-		if (ambientJob.get() == null || (this.jobCollection != null && !this.jobCollection.contains(ambientJob.get()))) {
+		if (ambientJob.value == null || (this.jobCollection != null && !this.jobCollection.contains(ambientJob.value))) {
 			JoinableFuture<?> transientFuture = runAsync(
 				() -> {
-					ambientJob.set(getContext().getAmbientFuture());
-					wrapper.set(SingleExecuteProtector.create(ambientJob.get(), callback));
-					ambientJob.get().post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.get(), true);
+					ambientJob.value = getContext().getAmbientFuture();
+					wrapper.value = SingleExecuteProtector.create(ambientJob.value, callback);
+					ambientJob.value.post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.value, true);
 					return Futures.completedNull();
 				},
 				/*synchronouslyBlocking:*/ false,
@@ -196,12 +199,12 @@ public class JoinableFutureFactory {
 				transientFuture.getFuture().join();
 			}
 		} else {
-			wrapper.set(SingleExecuteProtector.create(ambientJob.get(), callback));
-			ambientJob.get().post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.get(), true);
+			wrapper.value = SingleExecuteProtector.create(ambientJob.value, callback);
+			ambientJob.value.post(SingleExecuteProtector.EXECUTE_ONCE, wrapper.value, true);
 		}
 
-		assert wrapper.get() != null;
-		return wrapper.get();
+		assert wrapper.value != null;
+		return wrapper.value;
 	}
 
 	/**
@@ -343,13 +346,9 @@ public class JoinableFutureFactory {
 
 			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(NoMessagePumpSyncContext.getDefault())) {
 				Set<JoinableFuture<?>> allJoinedJobs = new HashSet<>();
-				ReentrantLock syncObject = getContext().getSyncContextLock();
-				syncObject.lock();
-				try {
+				synchronized (getContext().getSyncContextLock()) {
 					currentBlockingTask.addSelfAndDescendentOrJoinedJobs(allJoinedJobs);
 					return allJoinedJobs.stream().anyMatch(t -> t.getCreationOptions().contains(JoinableFutureCreationOption.LONG_RUNNING));
-				} finally {
-					syncObject.unlock();
 				}
 			}
 		}
@@ -741,7 +740,7 @@ public class JoinableFutureFactory {
 		 * @param continuation The action to invoke when the operation completes.
 		 */
 		@Override
-		public void onCompleted(Runnable continuation) {
+		public void onCompleted(@NotNull Runnable continuation) {
 			assert this.jobFactory != null;
 
 			try {
@@ -749,7 +748,7 @@ public class JoinableFutureFactory {
 				// or the main thread will execute the continuation first. So we must wrap the continuation
 				// in a SingleExecuteProtector so that it can't be executed twice by accident.
 				// Success case of the main thread.
-				SingleExecuteProtector<?> wrapper = this.jobFactory.requestSwitchToMainThread(continuation);
+				SingleExecuteProtector<?> wrapper = this.jobFactory.requestSwitchToMainThread(ExecutionContext.wrap(continuation));
 
 				// Cancellation case of a threadpool thread.
 				if (this.cancellationRegistrationPtr != null) {
@@ -769,8 +768,8 @@ public class JoinableFutureFactory {
 					// and should not register the cancellation here. Without protecting that, "this.cancellationRegistrationPtr" will be leaked.
 					boolean disposeThisRegistration = false;
 					synchronized (this.cancellationRegistrationPtr) {
-						if (this.cancellationRegistrationPtr.get() == null) {
-							this.cancellationRegistrationPtr.set(registration);
+						if (this.cancellationRegistrationPtr.value == null) {
+							this.cancellationRegistrationPtr.value = registration;
 						} else {
 							disposeThisRegistration = true;
 						}
@@ -803,8 +802,8 @@ public class JoinableFutureFactory {
 			if (this.cancellationRegistrationPtr != null) {
 				CancellationTokenRegistration registration = null;
 				synchronized (this.cancellationRegistrationPtr) {
-					if (this.cancellationRegistrationPtr.get() != null) {
-						registration = this.cancellationRegistrationPtr.get();
+					if (this.cancellationRegistrationPtr.value != null) {
+						registration = this.cancellationRegistrationPtr.value;
 					}
 
 					// The reason we set this is to effectively null the struct that
@@ -818,7 +817,7 @@ public class JoinableFutureFactory {
 					// stores a Nullable<CancellationTokenRegistration> effectively gives it a HasValue status,
 					// which will let OnCompleted know it lost the interest on the cancellation. That is an
 					// important hint for OnCompleted() in order NOT to leak the cancellation registration.
-					this.cancellationRegistrationPtr.set(null);
+					this.cancellationRegistrationPtr.value = null;
 				}
 
 				// Intentionally deferring disposal till we exit the lock to avoid executing outside code within the lock.
@@ -913,7 +912,7 @@ public class JoinableFutureFactory {
 		/**
 		 * Executes the delegate if it has not already executed.
 		 */
-		static final Consumer<SingleExecuteProtector<?>> EXECUTE_ONCE = state -> state.tryExecute();
+		static final Consumer<SingleExecuteProtector<?>> EXECUTE_ONCE = SingleExecuteProtector::tryExecute;
 
 //            /// <summary>
 //            /// Executes the delegate if it has not already executed.
@@ -987,19 +986,18 @@ public class JoinableFutureFactory {
 		}
 
 		/**
-		 * Walk the continuation objects inside "async state machines" to generate the return call stack. FOR DIAGNOSTIC PURPOSES ONLY.
+		 * Walk the continuation objects inside "async state machines" to generate the return call stack. FOR DIAGNOSTIC
+		 * PURPOSES ONLY.
 		 */
-            final Iterable<String> walkAsyncReturnStackFrames()
-            {
-                // This instance might be a wrapper of another instance of "SingleExecuteProtector".
-                // If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
-                SingleExecuteProtector<?> singleExecuteProtector = this;
-                while (singleExecuteProtector.state instanceof SingleExecuteProtector)
-                {
-                    singleExecuteProtector = (SingleExecuteProtector<?>)singleExecuteProtector.state;
-                }
+		final Iterable<String> walkAsyncReturnStackFrames() {
+			// This instance might be a wrapper of another instance of "SingleExecuteProtector".
+			// If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
+			SingleExecuteProtector<?> singleExecuteProtector = this;
+			while (singleExecuteProtector.state instanceof SingleExecuteProtector) {
+				singleExecuteProtector = (SingleExecuteProtector<?>)singleExecuteProtector.state;
+			}
 
-				return Collections.emptyList();
+			return Collections.emptyList();
 //                var invokeDelegate = singleExecuteProtector.invokeDelegate as Method;
 //                var stateDelegate = singleExecuteProtector.state as Delegate;
 //
@@ -1015,7 +1013,7 @@ public class JoinableFutureFactory {
 //                {
 //                    yield return frame;
 //                }
-            }
+		}
 
 		final void raiseTransitioningEvents() {
 			// if this method is called twice, that's the sign of a problem.

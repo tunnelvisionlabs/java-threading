@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +45,7 @@ public class AsyncLocalTest extends TestBase {
 	public void testSetGetWithDelay() {
 		GenericParameterHelper value = new GenericParameterHelper();
 		asyncLocal.setValue(value);
-		CompletableFuture<Void> asyncTest = Async.delayAsync(10, TimeUnit.MILLISECONDS).thenRun(
+		CompletableFuture<Void> asyncTest = Async.delayAsync(Duration.ofMillis(10)).thenRun(
 			() -> {
 				Assert.assertSame(value, asyncLocal.getValue());
 				asyncLocal.setValue(null);

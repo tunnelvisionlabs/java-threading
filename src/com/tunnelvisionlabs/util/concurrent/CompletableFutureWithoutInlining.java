@@ -101,7 +101,7 @@ class CompletableFutureWithoutInlining<T> extends CompletableFuture<T> {
 			if (this.getCanCompleteInline()) {
 				this.complete(null);
 			} else {
-				ThreadPool.queueUserWorkItem(state -> state.complete(null), this);
+				Futures.runAsync(() -> complete(null));
 			}
 		}
 	}
@@ -128,15 +128,14 @@ class CompletableFutureWithoutInlining<T> extends CompletableFuture<T> {
 					super.cancel(mayInterruptIfRunning);
 				}
 			} else {
-				ThreadPool.queueUserWorkItem(
-					ignored -> {
+				Futures.runAsync(
+					() -> {
 						if (!canCancel()) {
 							return;
 						}
 
 						CompletableFutureWithoutInlining.super.cancel(mayInterruptIfRunning);
-					},
-					null);
+					});
 			}
 		}
 

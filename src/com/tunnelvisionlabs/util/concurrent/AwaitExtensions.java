@@ -1,6 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -94,7 +96,7 @@ public enum AwaitExtensions {
 	/**
 	 * An awaiter returned from {@link #getAwaiter(Executor)}.
 	 */
-	public static final class ExecutorAwaiter implements Awaiter<Void> {
+	public static final class ExecutorAwaiter implements Awaiter<Void>, CriticalNotifyCompletion {
 
 		/**
 		 * The executor for continuations.
@@ -162,6 +164,11 @@ public enum AwaitExtensions {
 		 */
 		@Override
 		public void onCompleted(@NotNull Runnable continuation) {
+			executor.execute(ExecutionContext.wrap(continuation));
+		}
+
+		@Override
+		public void unsafeOnCompleted(@NotNull Runnable continuation) {
 			executor.execute(continuation);
 		}
 

@@ -1,13 +1,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 /**
@@ -21,7 +23,7 @@ public class AsyncQueue<T> {
 	/**
 	 * The object to lock when reading/writing the internal data structures.
 	 */
-	private final ReentrantLock syncObject = new ReentrantLock();
+	private final Object syncObject = new Object();
 
 	/**
 	 * The futures wanting to poll elements from the queue. Lazily constructed.
@@ -71,11 +73,8 @@ public class AsyncQueue<T> {
 	 * Gets the number of elements currently in the queue.
 	 */
 	public final int size() {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			return this.queueElements != null ? this.queueElements.size() : 0;
-		} finally {
-			syncObject.unlock();
 		}
 	}
 
@@ -88,11 +87,8 @@ public class AsyncQueue<T> {
 	 * {@link CompletableFuture} to exist.</p>
 	 */
 	public final boolean isCompleted() {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			return this.completeSignaled && this.isEmpty();
-		} finally {
-			syncObject.unlock();
 		}
 	}
 
@@ -101,8 +97,7 @@ public class AsyncQueue<T> {
 	 */
 	public CompletableFuture<Void> getFuture() {
 		if (future == null) {
-			syncObject.lock();
-			try {
+			synchronized (syncObject) {
 				if (future == null) {
 					if (isCompleted()) {
 						return Futures.completedNull();
@@ -110,8 +105,6 @@ public class AsyncQueue<T> {
 						future = new CompletableFuture<>();
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 
@@ -121,7 +114,7 @@ public class AsyncQueue<T> {
 	/**
 	 * Gets the synchronization object used by this queue.
 	 */
-	protected final ReentrantLock getSyncRoot() {
+	protected final Object getSyncRoot() {
 		return this.syncObject;
 	}
 
@@ -136,11 +129,8 @@ public class AsyncQueue<T> {
 	 * Signals that no further elements will be added.
 	 */
 	public final void complete() {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			completeSignaled = true;
-		} finally {
-			syncObject.unlock();
 		}
 
 		completeIfNecessary();
@@ -167,8 +157,7 @@ public class AsyncQueue<T> {
 		Requires.notNull(value, "value");
 
 		CompletableFuture<T> poller = null;
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			if (completeSignaled) {
 				return false;
 			}
@@ -194,12 +183,10 @@ public class AsyncQueue<T> {
 
 				queueElements.add(value);
 			}
-		} finally {
-			syncObject.unlock();
 		}
 
 		// important because we'll transition a task to complete.
-		assert !syncObject.isHeldByCurrentThread();
+		assert !Thread.holdsLock(syncObject);
 
 		// We only transition this future to complete outside of our lock so
 		// we don't accidentally inline continuations inside our lock.
@@ -219,20 +206,17 @@ public class AsyncQueue<T> {
 
 	/**
 	 * Gets the value at the head of the queue without removing it from the queue, if it is non-empty.
-	 * 
+	 *
 	 * @return The value at the head of the queue; or {@code null} if the queue is empty.
 	 */
 	@Nullable
 	public final T peek() {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			if (queueElements != null) {
 				return queueElements.peek();
 			} else {
 				return null;
 			}
-		} finally {
-			syncObject.unlock();
 		}
 	}
 
@@ -272,8 +256,7 @@ public class AsyncQueue<T> {
 			completableFuture.whenComplete((result, exception) -> registration.close());
 		}
 
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			T value = pollInternal(null);
 			if (value != null) {
 				completableFuture.complete(value);
@@ -284,8 +267,6 @@ public class AsyncQueue<T> {
 
 				pollingFutures.add(completableFuture);
 			}
-		} finally {
-			syncObject.unlock();
 		}
 
 		completeIfNecessary();
@@ -309,11 +290,8 @@ public class AsyncQueue<T> {
 	 */
 	@NotNull
 	final List<T> toList() {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			return new ArrayList<>(queueElements);
-		} finally {
-			syncObject.unlock();
 		}
 	}
 
@@ -368,8 +346,7 @@ public class AsyncQueue<T> {
 	private T pollInternal(@Nullable Predicate<? super T> valueCheck) {
 		T value;
 		boolean polled;
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			if (queueElements != null && !queueElements.isEmpty() && (valueCheck == null || valueCheck.test(queueElements.peek()))) {
 				value = queueElements.poll();
 				polled = true;
@@ -377,8 +354,6 @@ public class AsyncQueue<T> {
 				value = null;
 				polled = false;
 			}
-		} finally {
-			syncObject.unlock();
 		}
 
 		if (polled) {
@@ -389,13 +364,10 @@ public class AsyncQueue<T> {
 	}
 
 	private void cancelPoller(CompletableFuture<T> poller) {
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			if (pollingFutures != null) {
 				pollingFutures.remove(poller);
 			}
-		} finally {
-			syncObject.unlock();
 		}
 	}
 
@@ -404,13 +376,12 @@ public class AsyncQueue<T> {
 	 */
 	private void completeIfNecessary() {
 		// important because we'll transition a task to complete.
-		assert !syncObject.isHeldByCurrentThread();
+		assert !Thread.holdsLock(syncObject);
 
 		boolean transitionFuture;
 		boolean invokeOnCompleted = false;
 		List<CompletableFuture<T>> futuresToCancel = null;
-		syncObject.lock();
-		try {
+		synchronized (syncObject) {
 			transitionFuture = completeSignaled && (queueElements == null || queueElements.isEmpty());
 			if (transitionFuture) {
 				invokeOnCompleted = !onCompletedInvoked;
@@ -432,8 +403,6 @@ public class AsyncQueue<T> {
 					pollingFutures.clear();
 				}
 			}
-		} finally {
-			syncObject.unlock();
 		}
 
 		if (transitionFuture) {

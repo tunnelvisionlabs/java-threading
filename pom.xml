@@ -182,6 +182,12 @@
                 <artifactId>maven-bundle-plugin</artifactId>
                 <version>3.0.1</version>
                 <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Export-Package>com.tunnelvisionlabs.util.concurrent</Export-Package>
+                        <Private-Package>com.tunnelvisionlabs.util.validation</Private-Package>
+                    </instructions>
+                </configuration>
             </plugin>
 
             <plugin>

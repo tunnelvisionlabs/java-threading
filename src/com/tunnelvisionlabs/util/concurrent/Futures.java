@@ -1,8 +1,10 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
@@ -51,6 +53,10 @@ enum Futures {
 	@NotNull
 	public static <T> CompletableFuture<T> completedFailed(@NotNull Throwable ex) {
 		CompletableFuture<T> result = new CompletableFuture<>();
+		if (!(ex instanceof CompletionException)) {
+			ex = new CompletionException(ex);
+		}
+
 		result.completeExceptionally(ex);
 		return result;
 	}
@@ -84,6 +90,60 @@ enum Futures {
 		});
 
 		return wrapper;
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> createPriorityHandler(@NotNull CompletableFuture<T> future, @NotNull StrongBox<CompletableFuture<T>> secondaryHandler) {
+		if (future.isDone()) {
+			secondaryHandler.value = future;
+			return future;
+		}
+
+		secondaryHandler.value = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (future.isCancelled()) {
+					return super.cancel(mayInterruptIfRunning);
+				}
+
+				return future.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		CompletableFuture<T> priorityHandler = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (future.isCancelled()) {
+					return super.cancel(mayInterruptIfRunning);
+				}
+
+				return future.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		future.whenComplete((result, exception) -> {
+			if (future.isCancelled()) {
+				try {
+					priorityHandler.cancel(true);
+				} finally {
+					secondaryHandler.value.cancel(true);
+				}
+			} else if (exception != null) {
+				try {
+					priorityHandler.completeExceptionally(exception);
+				} finally {
+					secondaryHandler.value.completeExceptionally(exception);
+				}
+			} else {
+				try {
+					priorityHandler.complete(result);
+				} finally {
+					secondaryHandler.value.complete(result);
+				}
+			}
+		});
+
+		return priorityHandler;
 	}
 
 	@NotNull

@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -172,7 +173,7 @@ public class AsyncQueueTest extends TestBase {
 		CompletableFuture<GenericParameterHelper> dequeueTask = queue.pollAsync(cancellationTokenSource.getToken());
 		Assert.assertTrue(dequeueTask.isDone());
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> dequeueTask),
+			AsyncAssert.assertCancelsAsync(() -> dequeueTask),
 			() -> {
 				GenericParameterHelper enqueuedValue = new GenericParameterHelper(1);
 				this.queue.add(enqueuedValue);
@@ -213,7 +214,7 @@ public class AsyncQueueTest extends TestBase {
 		}
 
 		for (int i = 0; i < pollers.size(); i++) {
-			long completedCount = pollers.stream().filter(d -> d.isDone()).count();
+			long completedCount = pollers.stream().filter(CompletableFuture::isDone).count();
 			Assert.assertEquals(i, completedCount);
 			queue.add(new GenericParameterHelper(i));
 		}
@@ -244,7 +245,7 @@ public class AsyncQueueTest extends TestBase {
 			}
 		}
 
-		Assert.assertTrue(pollers.stream().allMatch(d -> d.isDone()));
+		Assert.assertTrue(pollers.stream().allMatch(CompletableFuture::isDone));
 	}
 
 	@Test
@@ -270,7 +271,7 @@ public class AsyncQueueTest extends TestBase {
 			}
 		}
 
-		Assert.assertTrue(pollers.stream().allMatch(d -> d.isDone()));
+		Assert.assertTrue(pollers.stream().allMatch(CompletableFuture::isDone));
 	}
 
 	@Test
@@ -400,7 +401,7 @@ public class AsyncQueueTest extends TestBase {
 					// if and only if the queue is holding a lock while invoking
 					// our cancellation continuation (which they shouldn't be doing).
 					queue.add(new GenericParameterHelper(1));
-				})).get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				})).get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 				return null;
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);
@@ -426,7 +427,7 @@ public class AsyncQueueTest extends TestBase {
 					// if and only if the queue is holding a lock while invoking
 					// our cancellation continuation (which they shouldn't be doing).
 					queue.add(new GenericParameterHelper(1));
-				})).get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+				})).get(ASYNC_DELAY.toMillis(), TimeUnit.MILLISECONDS);
 				return null;
 			} catch (InterruptedException | ExecutionException | TimeoutException ex) {
 				throw new CompletionException(ex);
@@ -488,7 +489,7 @@ public class AsyncQueueTest extends TestBase {
 	public void testOnCompletedInvoked() {
 		DerivedQueue<GenericParameterHelper> queue = new DerivedQueue<>();
 		AtomicInteger invoked = new AtomicInteger(0);
-		queue.onCompletedHandler = () -> invoked.incrementAndGet();
+		queue.onCompletedHandler = invoked::incrementAndGet;
 		queue.complete();
 		Assert.assertEquals(1, invoked.get());
 
@@ -497,18 +498,16 @@ public class AsyncQueueTest extends TestBase {
 		Assert.assertEquals(1, invoked.get());
 	}
 
-//        [Fact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
-//        public void UnusedQueueGCPressure()
-//        {
-//            this.CheckGCPressure(
-//                delegate
-//                {
-//                    var queue = new AsyncQueue<GenericParameterHelper>();
-//                    queue.Complete();
-//                    Assert.True(queue.IsCompleted);
-//                },
-//                maxBytesAllocated: 81);
-//        }
+	//[Fact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
+	@Test
+	public void testUnusedQueueGCPressure() {
+		checkGCPressure(() -> {
+			AsyncQueue<GenericParameterHelper> queue = new AsyncQueue<>();
+			queue.complete();
+			Assert.assertTrue(queue.isCompleted());
+		},
+			/*maxBytesAllocated:*/ 80); // NOTE: .NET has this at 81
+	}
 
 	private static class DerivedQueue<T> extends AsyncQueue<T> {
 

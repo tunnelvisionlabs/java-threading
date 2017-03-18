@@ -1,6 +1,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Requires;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -54,10 +57,10 @@ enum Dgml {
 
 		dgml.appendChild(root);
 
-		nodes.set(dgml.createElementNS(NAMESPACE, "Nodes"));
-		links.set(dgml.createElementNS(NAMESPACE, "Links"));
-		dgml.getDocumentElement().appendChild(nodes.get());
-		dgml.getDocumentElement().appendChild(links.get());
+		nodes.value = dgml.createElementNS(NAMESPACE, "Nodes");
+		links.value = dgml.createElementNS(NAMESPACE, "Links");
+		dgml.getDocumentElement().appendChild(nodes.value);
+		dgml.getDocumentElement().appendChild(links.value);
 		withCategories(dgml, category(dgml, "Contains", null, null, null, null, false, /*isContainment:*/ true));
 		return dgml;
 	}
@@ -203,7 +206,7 @@ enum Dgml {
 
 	@NotNull
 	static Element comment(@NotNull Document document, String label) {
-		return withCategories(node(document, null, /*label:*/label, null), "Comment");
+		return withCategories(node(document, null, /*label:*/ label, null), "Comment");
 	}
 
 //        internal static XElement Container(string id, string label = null)

@@ -1,12 +1,16 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Report;
+
 /**
  * A class that applies and reverts changes to the {@link SynchronizationContext}.
  *
  * <p>Copied from Microsoft/vs-threading@14f77875.</p>
  */
-public final class SpecializedSyncContext implements AutoCloseable {
+public final class SpecializedSyncContext implements Disposable {
 	/**
 	 * The {@link SynchronizationContext} to restore when {@link #close()} is invoked.
 	 */
@@ -60,7 +64,7 @@ public final class SpecializedSyncContext implements AutoCloseable {
 	 */
 	@Override
 	public void close() {
-//                Report.If(this.checkForChangesOnRevert && SynchronizationContext.getCurrent() != this.appliedContext);
+		Report.reportIf(checkForChangesOnRevert && SynchronizationContext.getCurrent() != this.appliedContext);
 		SynchronizationContext.setSynchronizationContext(this.prior);
 	}
 }

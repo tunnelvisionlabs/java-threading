@@ -1,6 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Verify;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -9,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -54,7 +57,7 @@ public abstract class JoinableFutureTestBase extends TestBase {
 
 	@After
 	public final void teardown() {
-		Assert.assertTrue(ForkJoinPool.commonPool().awaitQuiescence(TEST_TIMEOUT, TEST_TIMEOUT_UNIT));
+		Assert.assertTrue(ForkJoinPool.commonPool().awaitQuiescence(TEST_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
 	}
 
 	@NotNull
@@ -122,7 +125,7 @@ public abstract class JoinableFutureTestBase extends TestBase {
 				Async.finallyAsync(
 					Async.awaitAsync(testMethod.get())
 					.exceptionally(ex -> {
-						failure.set(ex);
+						failure.value = ex;
 						return null;
 					}),
 					() -> testFrame.setContinue(false));
@@ -130,9 +133,9 @@ public abstract class JoinableFutureTestBase extends TestBase {
 			null);
 
 		SingleThreadedSynchronizationContext.pushFrame(this.dispatcherContext, this.testFrame);
-		if (failure.get() != null) {
+		if (failure.value != null) {
 			// Rethrow original exception without rewriting the callstack.
-			throw new CompletionException(failure.get());
+			throw new CompletionException(failure.value);
 		}
 	}
 

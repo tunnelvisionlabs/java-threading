@@ -1,7 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
-import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Stores references such that they are available for retrieval in the same call context.
@@ -10,20 +10,28 @@ import java.util.UUID;
  *
  * @param <T> The type of value to store.
  */
-public class AsyncLocal<T> {
-	private final String contextKey = UUID.randomUUID().toString();
+public final class AsyncLocal<T> {
+	private final Consumer<? super AsyncLocalValueChangedEventArgs<T>> valueChangedHandler;
+
+	public AsyncLocal() {
+		this.valueChangedHandler = null;
+	}
+
+	public AsyncLocal(Consumer<? super AsyncLocalValueChangedEventArgs<T>> valueChangedHandler) {
+		this.valueChangedHandler = valueChangedHandler;
+	}
 
 	public final T getValue() {
-		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
-		T result = (T)CallContext.getData(contextKey);
-		return result;
+		return ExecutionContext.getLocalValue(this);
 	}
 
 	public final void setValue(T value) {
-		if (value == null) {
-			CallContext.freeNamedDataSlot(contextKey);
-		} else {
-			CallContext.setData(contextKey, value);
-		}
+		ExecutionContext.setLocalValue(this, value, valueChangedHandler != null);
+	}
+
+	public final void onValueChanged(T previousValue, T currentValue, boolean contextChanged) {
+		assert valueChangedHandler != null;
+
+		valueChangedHandler.accept(new AsyncLocalValueChangedEventArgs<>(previousValue, currentValue, contextChanged));
 	}
 }

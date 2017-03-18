@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureContext.HangDetails;
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.Charset;
 import java.time.Duration;
@@ -10,7 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -59,7 +59,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 			-> hangQueue.add(new HangDetails(hangDuration, iterations, id, null));
 
 		Futures.runAsync(() -> {
-			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
+			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(TEST_TIMEOUT);
 			try {
 				StrongBox<Duration> lastDuration = new StrongBox<>(Duration.ZERO);
 				StrongBox<Integer> lastIteration = new StrongBox<>(0);
@@ -75,13 +75,13 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 								Duration duration = tuple.getHangDuration();
 								int iterations = tuple.getNotificationCount();
 								UUID id = tuple.getHangId();
-								Assert.assertTrue(lastDuration.get() == Duration.ZERO || lastDuration.get().compareTo(duration) < 0);
-								Assert.assertEquals(lastIteration.get() + 1, iterations);
+								Assert.assertTrue(lastDuration.value == Duration.ZERO || lastDuration.value.compareTo(duration) < 0);
+								Assert.assertEquals(lastIteration.value + 1, iterations);
 								Assert.assertNotEquals(new UUID(0, 0), id);
-								Assert.assertTrue(lastId.get().equals(new UUID(0, 0)) || lastId.get().equals(id));
-								lastDuration.set(duration);
-								lastIteration.set(iterations);
-								lastId.set(id);
+								Assert.assertTrue(lastId.value.equals(new UUID(0, 0)) || lastId.value.equals(id));
+								lastDuration.value = duration;
+								lastIteration.value = iterations;
+								lastId.value = id;
 								return Futures.completedNull();
 							});
 					})
@@ -109,7 +109,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<?> joinableTask = getFactory().runAsync(
-			() -> Async.delayAsync((int)getFactory().getHangDetectionTimeout().toMillis() * 3, TimeUnit.MILLISECONDS));
+			() -> Async.delayAsync(getFactory().getHangDetectionTimeout().multipliedBy(3)));
 
 		// don't use JoinableFuture.join, since we're trying to simulate runAsync not becoming synchronous.
 		joinableTask.getFuture().join();
@@ -124,7 +124,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangQueue.add(hangDuration);
 
 		TplExtensions.forget(Futures.supplyAsync(() -> {
-			CancellationTokenSource ct = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
+			CancellationTokenSource ct = new CancellationTokenSource(TEST_TIMEOUT);
 			return Async.awaitAsync(
 				Futures.completedNull(),
 				() -> {
@@ -137,8 +137,8 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 							i -> Async.awaitAsync(
 								hangQueue.pollAsync(ct.getToken()),
 								duration -> {
-									Assert.assertTrue(lastDuration.get() == Duration.ZERO || lastDuration.get().compareTo(duration) < 0);
-									lastDuration.set(duration);
+									Assert.assertTrue(lastDuration.value == Duration.ZERO || lastDuration.value.compareTo(duration) < 0);
+									lastDuration.value = duration;
 									return Futures.completedNull();
 								})),
 						() -> {
@@ -166,7 +166,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		getFactory().run(
-			() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(20))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		Assert.assertFalse(hangReported.get());
@@ -180,7 +180,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 
 		getFactory().run(() -> {
 			JoinableFuture<Void> task = getFactory().runAsync(
-				() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)),
+				() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(20))),
 				EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 			return Async.awaitAsync(task);
@@ -196,7 +196,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(30, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(30))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		getFactory().run(() -> Async.awaitAsync(task));
@@ -211,7 +211,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(30, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(30))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		task.join();
@@ -226,10 +226,10 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(40))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
-		getFactory().run(() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)));
+		getFactory().run(() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(20))));
 
 		Assert.assertTrue(hangReported.get());
 		task.join();
@@ -242,7 +242,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(40))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		JoinableFutureCollection taskCollection = new JoinableFutureCollection(getFactory().getContext());
@@ -253,7 +253,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 				Async.usingAsync(
 					taskCollection.join(),
 					tempJoin -> Async.awaitAsync(Async.yieldAsync())),
-				() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)));
+				() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(20))));
 		});
 
 		Assert.assertTrue(hangReported.get());
@@ -267,7 +267,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(40))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		getFactory().run(() -> {
@@ -276,7 +276,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 			cancellationSource.cancel();
 			return Async.awaitAsync(
 				TplExtensions.noThrowAwaitable(joinTask),
-				() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)));
+				() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(20))));
 		});
 
 		Assert.assertTrue(hangReported.get());
@@ -290,7 +290,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
 
 		JoinableFuture<Void> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(30, TimeUnit.MILLISECONDS)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(30))),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		task.join();
@@ -301,7 +301,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 
 		getFactory().run(() -> Async.usingAsync(
 			taskCollection.join(),
-			tempJoin -> Async.awaitAsync(Async.delayAsync(30, TimeUnit.MILLISECONDS))));
+			tempJoin -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(30)))));
 
 		Assert.assertTrue(hangReported.get());
 	}
@@ -311,10 +311,10 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getFactory().setHangDetectionTimeout(Duration.ofMillis(10));
 		AtomicBoolean hangReported = new AtomicBoolean(false);
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
 		JoinableFuture<?> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS, cancellationFuture)),
+			() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(40), cancellationTokenSource.getToken())),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		JoinableFutureCollection taskCollection = new JoinableFutureCollection(getFactory().getContext());
@@ -323,10 +323,10 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getFactory().run(() -> Async.usingAsync(
 			taskCollection.join(),
 			tempJoin -> {
-				cancellationFuture.cancel(true);
+				cancellationTokenSource.cancel();
 				return Async.awaitAsync(
 					TplExtensions.noThrowAwaitable(task.joinAsync()),
-					() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS)));
+					() -> Async.awaitAsync(Async.delayAsync(Duration.ofMillis(40))));
 			}));
 
 		Assert.assertTrue(hangReported.get());
@@ -597,7 +597,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent nowBlocking = new AsyncManualResetEvent();
 		StrongBox<JoinableFuture<Void>> joinableTask = new StrongBox<>();
 		Futures.runAsync(() -> {
-			joinableTask.set(getFactory().runAsync(() -> {
+			joinableTask.value = getFactory().runAsync(() -> {
 				Assert.assertFalse(getContext().isMainThreadBlocked());
 				nonBlockingStateObserved.set();
 				return Async.awaitAsync(
@@ -608,13 +608,13 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 							Assert.assertTrue(getContext().isMainThreadBlocked());
 							return Futures.completedNull();
 						}));
-			}));
+			});
 		}).join();
 
 		getFactory().run(() -> Async.awaitAsync(
 			nonBlockingStateObserved,
 			() -> {
-				TplExtensions.forget(joinableTask.get().joinAsync());
+				TplExtensions.forget(joinableTask.value.joinAsync());
 				nowBlocking.set();
 				return Futures.completedNull();
 			}));

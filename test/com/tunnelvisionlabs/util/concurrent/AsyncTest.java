@@ -3,7 +3,12 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.Assert;
 import org.junit.Test;
+
+import static org.hamcrest.CoreMatchers.isA;
 
 public class AsyncTest extends TestBase {
 
@@ -31,5 +36,44 @@ public class AsyncTest extends TestBase {
 
 		thrown.expect(CancellationException.class);
 		asyncTest.join();
+	}
+
+	@Test
+	public void testContinuationOrder() {
+		AtomicInteger value = new AtomicInteger();
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		future.thenRun(() -> value.set(1));
+		future.thenRun(() -> value.set(2));
+		future.complete(null);
+		Assert.assertEquals("Continuations are a stack, not a queue.", 1, value.get());
+	}
+
+	@Test
+	public void testCompletedThenComposeCancelled() {
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		future.complete(null);
+		CompletableFuture<Void> composed = future.thenCompose(s -> Futures.completedCancelled());
+
+		Assert.assertTrue(composed.isDone());
+		Assert.assertTrue(composed.isCompletedExceptionally());
+		Assert.assertTrue(composed.isCancelled());
+
+		thrown.expect(CancellationException.class);
+		composed.join();
+	}
+
+	@Test
+	public void testNotCompletedThenComposeCancelled() {
+		CompletableFuture<Void> future = new CompletableFuture<>();
+		CompletableFuture<Void> composed = future.thenCompose(s -> Futures.completedCancelled());
+		future.complete(null);
+
+		Assert.assertTrue(composed.isDone());
+		Assert.assertTrue(composed.isCompletedExceptionally());
+		Assert.assertFalse("Cancellation is only preserved when the antecedent is pre-completed", composed.isCancelled());
+
+		thrown.expect(CompletionException.class);
+		thrown.expectCause(isA(CancellationException.class));
+		composed.join();
 	}
 }

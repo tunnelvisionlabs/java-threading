@@ -3,10 +3,12 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.SingleThreadedSynchronizationContext.Frame;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -273,7 +275,7 @@ public class AsyncLazyTest extends TestBase {
 
 		CompletableFuture<? extends Object> future1 = lazy.getValueAsync();
 		CompletableFuture<? extends Object> future2 = lazy.getValueAsync();
-		Assert.assertSame(future1, future2);
+		Assert.assertNotSame("Futures must be different to isolate cancellation.", future1, future2);
 		Assert.assertTrue(future1.isDone());
 		Assert.assertTrue(future1.isCompletedExceptionally());
 		Assert.assertFalse(future1.isCancelled());
@@ -382,30 +384,117 @@ public class AsyncLazyTest extends TestBase {
 		asyncTest.join();
 	}
 
-//        [Fact]
-//        public async Task GetValueAsyncWithCancellationTokenPreCanceled()
-//        {
-//            var lazy = new AsyncLazy<GenericParameterHelper>(() => Task.FromResult(new GenericParameterHelper(5)));
-//            var cts = new CancellationTokenSource();
-//            cts.Cancel();
-//            await Assert.ThrowsAsync<OperationCanceledException>(() => lazy.GetValueAsync(cts.Token));
-//
-//            Assert.False(lazy.IsValueCreated, "Value factory should not have been invoked for a pre-canceled token.");
-//        }
-//
-//        [Fact]
-//        public async Task GetValueAsyncAlreadyCompletedWithCancellationTokenPreCanceled()
-//        {
-//            var lazy = new AsyncLazy<GenericParameterHelper>(() => Task.FromResult(new GenericParameterHelper(5)));
-//            await lazy.GetValueAsync();
-//
-//            var cts = new CancellationTokenSource();
-//            cts.Cancel();
-//            var result = await lazy.GetValueAsync(cts.Token); // this shouldn't throw canceled because it was already done.
-//            Assert.Equal(5, result.Data);
-//            Assert.True(lazy.IsValueCreated);
-//            Assert.True(lazy.IsValueFactoryCompleted);
-//        }
+	@Test
+	public void testGetValueAsyncWithCancellationFuture_Completed() {
+		testGetValueAsyncWithCancellationFuture(future -> future.complete(null));
+	}
+
+	@Test
+	public void testGetValueAsyncWithCancellationFuture_Cancelled() {
+		testGetValueAsyncWithCancellationFuture(future -> future.cancel(true));
+	}
+
+	@Test
+	public void testGetValueAsyncWithCancellationFuture_Failed() {
+		testGetValueAsyncWithCancellationFuture(future -> future.completeExceptionally(new IllegalArgumentException()));
+	}
+
+	public void testGetValueAsyncWithCancellationFuture(@NotNull Consumer<? super CompletableFuture<?>> cancelAction) {
+		AsyncManualResetEvent evt = new AsyncManualResetEvent();
+		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() ->
+			Async.awaitAsync(
+				evt,
+				() -> CompletableFuture.completedFuture(new GenericParameterHelper(5))));
+
+		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
+		CompletableFuture<? extends GenericParameterHelper> task1 = lazy.getValueAsync(cancellationFuture);
+		CompletableFuture<? extends GenericParameterHelper> task2 = lazy.getValueAsync();
+		cancelAction.accept(cancellationFuture);
+		Assert.assertTrue(cancellationFuture.isDone());
+
+		// Verify that the future returned from the canceled request actually completes before the value factory does.
+		CompletableFuture<Void> asyncTest = Async.awaitAsync(
+			// This is not the behavior we want. The cancellation is wrapped in a failed future rather than producing a
+			// cancelled future.
+			AsyncAssert.throwsAsync(CancellationException.class, () -> task1),
+			() -> {
+				// Now verify that the value factory does actually complete anyway for other callers.
+				evt.set();
+				return Async.awaitAsync(
+					task2,
+					task2Result -> {
+						Assert.assertEquals(5, task2Result.getData());
+						return Futures.completedNull();
+					});
+			});
+
+		asyncTest.join();
+	}
+
+	@Test
+	public void testGetValueAsyncWithCancellationFuturePreCanceled_Completed() {
+		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedNull());
+	}
+
+	@Test
+	public void testGetValueAsyncWithCancellationFuturePreCanceled_Cancelled() {
+		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedCancelled());
+	}
+
+	@Test
+	public void testGetValueAsyncWithCancellationFuturePreCanceled_Failed() {
+		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedFailed(new IllegalArgumentException()));
+	}
+
+	private void testGetValueAsyncWithCancellationFuturePreCanceled(@NotNull CompletableFuture<?> cancellationFuture) {
+		Assert.assertNotNull(cancellationFuture);
+		Assert.assertTrue(cancellationFuture.isDone());
+
+		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
+		CompletableFuture<Void> asyncTest = Async.awaitAsync(
+			AsyncAssert.cancelsAsync(() -> lazy.getValueAsync(cancellationFuture)),
+			() -> {
+				Assert.assertFalse("Value factory should not have been invoked for a pre-canceled token.", lazy.isValueCreated());
+				return Futures.completedNull();
+			});
+
+		asyncTest.join();
+	}
+
+	@Test
+	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Completed() {
+		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedNull());
+	}
+
+	@Test
+	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Cancelled() {
+		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedCancelled());
+	}
+
+	@Test
+	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Failed() {
+		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedFailed(new IllegalArgumentException()));
+	}
+
+	private void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(@NotNull CompletableFuture<?> cancellationFuture) {
+		Assert.assertNotNull(cancellationFuture);
+		Assert.assertTrue(cancellationFuture.isDone());
+
+		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
+		CompletableFuture<Void> asyncTest = Async.awaitAsync(
+			lazy.getValueAsync(),
+			() -> Async.awaitAsync(
+				// this shouldn't throw canceled because it was already done.
+				lazy.getValueAsync(cancellationFuture),
+				result -> {
+					Assert.assertEquals(5, result.getData());
+					Assert.assertTrue(lazy.isValueCreated());
+					Assert.assertTrue(lazy.isValueFactoryCompleted());
+					return Futures.completedNull();
+				}));
+
+		asyncTest.join();
+	}
 
 	@Test
 	public void testToStringForUncreatedValue() {

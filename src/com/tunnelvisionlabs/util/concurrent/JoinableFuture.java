@@ -454,9 +454,25 @@ public class JoinableFuture<T> {
 	 */
 	@NotNull
 	public final CompletableFuture<T> joinAsync() {
+		return joinAsync(null);
+	}
+
+	/**
+	 * Shares any access to the main thread the caller may have. Joins any main thread affinity of the caller with the
+	 * asynchronous operation to avoid deadlocks in the event that the main thread ultimately synchronously blocks
+	 * waiting for the operation to complete.
+	 *
+	 * @return A future that completes after the asynchronous operation completes and the join is reverted.
+	 */
+	@NotNull
+	public final CompletableFuture<T> joinAsync(@Nullable CompletableFuture<?> cancellationFuture) {
+		if (cancellationFuture != null && cancellationFuture.isDone()) {
+			return Futures.completedCancelled();
+		}
+
 		return Async.usingAsync(
 			ambientJobJoinsThis(),
-			() -> Async.awaitAsync(getFuture()));
+			() -> Async.awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationFuture)));
 	}
 
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {

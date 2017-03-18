@@ -44,7 +44,15 @@ class ExecutionContext {
 		CallContext originalCallContext = CallContext.getCurrent();
 		try {
 			CallContext.setCallContext(executionContext.callContext);
-			callback.accept(state);
+			SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
+			try {
+				callback.accept(state);
+			} finally {
+				if (SynchronizationContext.getCurrent() != synchronizationContext) {
+					// Restore the synchronization context if it was altered during the callback
+					SynchronizationContext.setSynchronizationContext(synchronizationContext);
+				}
+			}
 		} finally {
 			CallContext.setCallContext(originalCallContext);
 		}

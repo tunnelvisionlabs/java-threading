@@ -1,8 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;

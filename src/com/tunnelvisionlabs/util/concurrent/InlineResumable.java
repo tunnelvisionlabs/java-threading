@@ -1,6 +1,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import com.tunnelvisionlabs.util.validation.Requires;
+
 /**
  * An awaiter that can be pre-created, and later immediately execute its one scheduled continuation.
  *

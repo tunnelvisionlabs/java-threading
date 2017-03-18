@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureCollection.JoinRelease;
+import com.tunnelvisionlabs.util.validation.NotNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;

@@ -23,15 +23,15 @@ enum AsyncAssert {
 			Assert.assertThat(exception, instanceOf(CancellationException.class));
 			return null;
 		});
-	} 
+	}
 
 	public static CompletableFuture<Void> assertCancelsIncorrectlyAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
 		return AsyncAssert.assertThrowsAsync(CancellationException.class, supplier);
-	} 
+	}
 
 	public static CompletableFuture<Void> assertThrowsAsync(@NotNull Class<? extends Throwable> exceptionClass, @NotNull Supplier<CompletableFuture<?>> supplier) {
 		return assertThrowsAsync(instanceOf(exceptionClass), supplier);
-	} 
+	}
 
 	public static CompletableFuture<Void> assertThrowsAsync(@NotNull Matcher<? super Throwable> matcher, @NotNull Supplier<CompletableFuture<?>> supplier) {
 		// Shouldn't throw (operation is expected to return a failed future)
@@ -43,5 +43,5 @@ enum AsyncAssert {
 			Assert.assertThat(exception.getCause(), matcher);
 			return null;
 		});
-	} 
+	}
 }

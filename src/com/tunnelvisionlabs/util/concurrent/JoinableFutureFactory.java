@@ -22,7 +22,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * A factory for starting asynchronous futures that can mitigate deadlocks when the futures require the main thread of an application and the main thread may itself be blocking on the completion of a future.
+ * A factory for starting asynchronous futures that can mitigate deadlocks when the futures require the main thread of
+ * an application and the main thread may itself be blocking on the completion of a future.
  *
  * <p>For more complete comments please see the {@link JoinableFutureContext}.</p>
  *
@@ -985,19 +986,18 @@ public class JoinableFutureFactory {
 		}
 
 		/**
-		 * Walk the continuation objects inside "async state machines" to generate the return call stack. FOR DIAGNOSTIC PURPOSES ONLY.
+		 * Walk the continuation objects inside "async state machines" to generate the return call stack. FOR DIAGNOSTIC
+		 * PURPOSES ONLY.
 		 */
-            final Iterable<String> walkAsyncReturnStackFrames()
-            {
-                // This instance might be a wrapper of another instance of "SingleExecuteProtector".
-                // If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
-                SingleExecuteProtector<?> singleExecuteProtector = this;
-                while (singleExecuteProtector.state instanceof SingleExecuteProtector)
-                {
-                    singleExecuteProtector = (SingleExecuteProtector<?>)singleExecuteProtector.state;
-                }
+		final Iterable<String> walkAsyncReturnStackFrames() {
+			// This instance might be a wrapper of another instance of "SingleExecuteProtector".
+			// If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
+			SingleExecuteProtector<?> singleExecuteProtector = this;
+			while (singleExecuteProtector.state instanceof SingleExecuteProtector) {
+				singleExecuteProtector = (SingleExecuteProtector<?>)singleExecuteProtector.state;
+			}
 
-				return Collections.emptyList();
+			return Collections.emptyList();
 //                var invokeDelegate = singleExecuteProtector.invokeDelegate as Method;
 //                var stateDelegate = singleExecuteProtector.state as Delegate;
 //
@@ -1013,7 +1013,7 @@ public class JoinableFutureFactory {
 //                {
 //                    yield return frame;
 //                }
-            }
+		}
 
 		final void raiseTransitioningEvents() {
 			// if this method is called twice, that's the sign of a problem.

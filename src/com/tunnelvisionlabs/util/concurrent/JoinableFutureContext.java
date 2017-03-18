@@ -65,7 +65,8 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	private final Set<JoinableFuture<?>> pendingTasks = new HashSet<>();
 
 	/**
-	 * The stack of futures which synchronously blocks the main thread in the initial stage (before it yields and completeOnCurrentThread starts.)
+	 * The stack of futures which synchronously blocks the main thread in the initial stage (before it yields and
+	 * completeOnCurrentThread starts.)
 	 *
 	 * <p>Normally we expect this stack contains 0 or 1 future. When a synchronous future starts another synchronous
 	 * future in the initialization stage, we might get more than 1 futures, but it should be very rare to exceed 2
@@ -194,9 +195,9 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 */
 	@NotNull
 	protected SynchronizationContext getNoMessagePumpSynchronizationContext() {
-                // Callers of this method are about to take a private lock, which tends
-                // to cause a deadlock while debugging because of lock contention with the
-                // debugger's expression evaluator. So prevent that.
+		// Callers of this method are about to take a private lock, which tends
+		// to cause a deadlock while debugging because of lock contention with the
+		// debugger's expression evaluator. So prevent that.
 //                Debugger.NotifyOfCrossThreadDependency();
 
 		return NoMessagePumpSyncContext.getDefault();

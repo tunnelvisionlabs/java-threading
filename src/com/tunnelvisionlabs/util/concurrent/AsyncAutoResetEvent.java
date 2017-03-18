@@ -113,8 +113,8 @@ public class AsyncAutoResetEvent {
 		 * Constructs a new instance of the {@link WaiterCompletableFuture} class.
 		 *
 		 * @param cancellationFuture The cancellation future associated with the waiter.
-		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's
-		 * call stack.
+		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's call
+		 * stack.
 		 */
 		public WaiterCompletableFuture(CancellationToken cancellationToken, boolean allowInliningContinuations) {
 			super(allowInliningContinuations);

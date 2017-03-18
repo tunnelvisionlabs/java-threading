@@ -2,5 +2,5 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 public interface FailsInCloudTest {
-	
+
 }

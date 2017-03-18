@@ -297,8 +297,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	 * {@link JoinableFutureFactory} throws an informative exception.
 	 */
 	@Test
-	public void testSwitchToMainThreadThrowsUsefulExceptionIfJFCIsMisconfigured()
-	{
+	public void testSwitchToMainThreadThrowsUsefulExceptionIfJFCIsMisconfigured() {
 		SynchronizationContext.setSynchronizationContext(new SynchronizationContext());
 		JoinableFutureContext jtc = new JoinableFutureContext();
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
@@ -2070,15 +2069,15 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				AtomicBoolean executed2 = new AtomicBoolean(false);
 				syncContext.value.send(
 					s -> {
-					try {
-						Assert.assertSame(this.originalThread, Thread.currentThread());
-						Assert.assertSame(state, s);
-						executed2.set(true);
-					} finally {
-						// Allow the message pump to exit.
-						countdownEvent.signal();
-					}
-				},
+						try {
+							Assert.assertSame(this.originalThread, Thread.currentThread());
+							Assert.assertSame(state, s);
+							executed2.set(true);
+						} finally {
+							// Allow the message pump to exit.
+							countdownEvent.signal();
+						}
+					},
 					state);
 				Assert.assertTrue(executed2.get());
 			});
@@ -3817,13 +3816,13 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 				}
 
 				return Async.awaitAsync(
-						dependentOperation,
-						() -> {
-							stopRequested.set();
-							return Async.usingAsync(
-									joinableCollection.join(),
-									() -> Async.awaitAsync(operation));
-						});
+					dependentOperation,
+					() -> {
+						stopRequested.set();
+						return Async.usingAsync(
+							joinableCollection.join(),
+							() -> Async.awaitAsync(operation));
+					});
 			});
 		}
 	}

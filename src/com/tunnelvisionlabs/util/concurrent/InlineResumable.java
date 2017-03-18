@@ -27,6 +27,7 @@ class InlineResumable implements Awaitable<Void>, Awaiter<Void> {
 
 	/**
 	 * Gets a value indicating whether an awaiting expression should yield.
+	 *
 	 * @return Always {@code false}
 	 */
 	@Override

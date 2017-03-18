@@ -24,7 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
- * Tracks asynchronous operations and provides the ability to Join those operations to avoid deadlocks while synchronously blocking the main thread for the operation's completion.
+ * Tracks asynchronous operations and provides the ability to Join those operations to avoid deadlocks while
+ * synchronously blocking the main thread for the operation's completion.
  *
  * <p>For more complete comments please see the {@link JoinableFutureContext}.</p>
  *

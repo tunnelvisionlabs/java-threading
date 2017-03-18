@@ -99,127 +99,124 @@ class ListOfOftenOne<T> implements Iterable<T> {
 	 * @return The new value to store as the collection.
 	 */
 	@NotNull
-        private static <T> Object combine(@Nullable Object baseValue, @NotNull T value)
-        {
-            Requires.notNull(value, "value");
+	private static <T> Object combine(@Nullable Object baseValue, @NotNull T value) {
+		Requires.notNull(value, "value");
 
-            if (baseValue == null)
-            {
-                return value;
-            }
-
-			if (baseValue instanceof Object[]) {
-				Object[] oldArray = (Object[])baseValue;
-				Object[] newArray = Arrays.copyOf(oldArray, oldArray.length + 1);
-				newArray[newArray.length - 1] = value;
-				return newArray;
-			}
-
-			return new Object[] { baseValue, value };
-        }
-
-		/**
-		 * Removes a value from contents of the collection.
-		 *
-		 * @param baseValue The collection's prior contents.
-		 * @param value The value to remove from the collection.
-		 * @return The new value to store as the collection.
-		 */
-        private static <T> Object remove(Object baseValue, T value)
-        {
-            if (baseValue == value || baseValue == null)
-            {
-                return null;
-            }
-
-			if (!(baseValue instanceof Object[])) {
-				// baseValue is a single element not equal to value
-				return baseValue;
-			}
-
-			Object[] oldArray = (Object[])baseValue;
-			for (int i = 0; i < oldArray.length; i++) {
-				if (oldArray[i] == value) {
-					if (oldArray.length == 2) {
-						return oldArray[i == 0 ? 1 : 0];
-					}
-
-					// Shift remaining elements and return
-					for (int j = i + 1; j < oldArray.length; j++) {
-						oldArray[j - 1] = oldArray[j];
-					}
-
-					return Arrays.copyOf(oldArray, oldArray.length - 1);
-				}
-			}
-
-			return baseValue;
-        }
-
-		public static class IteratorImpl<T> implements Iterator<T> {
-			private static final int INDEX_BEFORE_FIRST_ARRAY_ELEMENT = -1;
-			private static final int INDEX_SINGLE_ELEMENT = -2;
-			private static final int INDEX_BEFORE_SINGLE_ELEMENT = -3;
-
-			private final Object iteratedValue;
-			private int currentIndex;
-
-			public IteratorImpl(@Nullable Object iteratedValue) {
-				this.iteratedValue = iteratedValue;
-				if (iteratedValue instanceof Object[]) {
-					this.currentIndex = INDEX_BEFORE_FIRST_ARRAY_ELEMENT;
-				} else {
-					this.currentIndex = INDEX_BEFORE_SINGLE_ELEMENT;
-				}
-			}
-
-			@Override
-			public boolean hasNext() {
-				switch (currentIndex) {
-					case INDEX_SINGLE_ELEMENT:
-						return false;
-
-					case INDEX_BEFORE_SINGLE_ELEMENT:
-						return iteratedValue != null;
-
-					case INDEX_BEFORE_FIRST_ARRAY_ELEMENT:
-						return true;
-
-					default:
-						// currentIndex is the index of the item previously returned
-						return ((Object[])iteratedValue).length > currentIndex + 1;
-				}
-			}
-
-			@Override
-			@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
-			public T next() {
-				switch (currentIndex) {
-					case INDEX_SINGLE_ELEMENT:
-						break;
-
-					case INDEX_BEFORE_SINGLE_ELEMENT:
-						if (iteratedValue != null) {
-							currentIndex = INDEX_SINGLE_ELEMENT;
-							return (T)iteratedValue;
-						}
-
-						break;
-
-					case INDEX_BEFORE_FIRST_ARRAY_ELEMENT:
-					default:
-						Object[] data = (Object[])iteratedValue;
-						if (currentIndex + 1 < data.length) {
-							return (T)data[++currentIndex];
-						}
-
-						break;
-				}
-
-				throw new NoSuchElementException();
-			}
-
+		if (baseValue == null) {
+			return value;
 		}
+
+		if (baseValue instanceof Object[]) {
+			Object[] oldArray = (Object[])baseValue;
+			Object[] newArray = Arrays.copyOf(oldArray, oldArray.length + 1);
+			newArray[newArray.length - 1] = value;
+			return newArray;
+		}
+
+		return new Object[] { baseValue, value };
+	}
+
+	/**
+	 * Removes a value from contents of the collection.
+	 *
+	 * @param baseValue The collection's prior contents.
+	 * @param value The value to remove from the collection.
+	 * @return The new value to store as the collection.
+	 */
+	private static <T> Object remove(Object baseValue, T value) {
+		if (baseValue == value || baseValue == null) {
+			return null;
+		}
+
+		if (!(baseValue instanceof Object[])) {
+			// baseValue is a single element not equal to value
+			return baseValue;
+		}
+
+		Object[] oldArray = (Object[])baseValue;
+		for (int i = 0; i < oldArray.length; i++) {
+			if (oldArray[i] == value) {
+				if (oldArray.length == 2) {
+					return oldArray[i == 0 ? 1 : 0];
+				}
+
+				// Shift remaining elements and return
+				for (int j = i + 1; j < oldArray.length; j++) {
+					oldArray[j - 1] = oldArray[j];
+				}
+
+				return Arrays.copyOf(oldArray, oldArray.length - 1);
+			}
+		}
+
+		return baseValue;
+	}
+
+	public static class IteratorImpl<T> implements Iterator<T> {
+
+		private static final int INDEX_BEFORE_FIRST_ARRAY_ELEMENT = -1;
+		private static final int INDEX_SINGLE_ELEMENT = -2;
+		private static final int INDEX_BEFORE_SINGLE_ELEMENT = -3;
+
+		private final Object iteratedValue;
+		private int currentIndex;
+
+		public IteratorImpl(@Nullable Object iteratedValue) {
+			this.iteratedValue = iteratedValue;
+			if (iteratedValue instanceof Object[]) {
+				this.currentIndex = INDEX_BEFORE_FIRST_ARRAY_ELEMENT;
+			} else {
+				this.currentIndex = INDEX_BEFORE_SINGLE_ELEMENT;
+			}
+		}
+
+		@Override
+		public boolean hasNext() {
+			switch (currentIndex) {
+				case INDEX_SINGLE_ELEMENT:
+					return false;
+
+				case INDEX_BEFORE_SINGLE_ELEMENT:
+					return iteratedValue != null;
+
+				case INDEX_BEFORE_FIRST_ARRAY_ELEMENT:
+					return true;
+
+				default:
+					// currentIndex is the index of the item previously returned
+					return ((Object[])iteratedValue).length > currentIndex + 1;
+			}
+		}
+
+		@Override
+		@SuppressWarnings(Suppressions.UNCHECKED_SAFE)
+		public T next() {
+			switch (currentIndex) {
+				case INDEX_SINGLE_ELEMENT:
+					break;
+
+				case INDEX_BEFORE_SINGLE_ELEMENT:
+					if (iteratedValue != null) {
+						currentIndex = INDEX_SINGLE_ELEMENT;
+						return (T)iteratedValue;
+					}
+
+					break;
+
+				case INDEX_BEFORE_FIRST_ARRAY_ELEMENT:
+				default:
+					Object[] data = (Object[])iteratedValue;
+					if (currentIndex + 1 < data.length) {
+						return (T)data[++currentIndex];
+					}
+
+					break;
+			}
+
+			throw new NoSuchElementException();
+		}
+
+	}
 
 //        public struct Enumerator : IEnumerator<T>
 //        {

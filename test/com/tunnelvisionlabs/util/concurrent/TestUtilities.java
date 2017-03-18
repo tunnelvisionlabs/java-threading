@@ -99,22 +99,22 @@ enum TestUtilities {
 		// execute the provided function at precisely the same time.
 		// The barrier will unblock all of them together.
 		CyclicBarrier barrier = new CyclicBarrier(concurrency);
-			List<CompletableFuture<T>> tasks = new ArrayList<>();
-			for (int i = 0; i < concurrency; i++) {
-				tasks.add(Futures.supplyAsync(() -> {
-					try {
-						barrier.await();
-						return CompletableFuture.completedFuture(action.get());
-					} catch (InterruptedException ex) {
-						return Futures.completedCancelled();
-					} catch (BrokenBarrierException ex) {
-						return Futures.completedFailed(ex);
-					}
-				}));
-			}
+		List<CompletableFuture<T>> tasks = new ArrayList<>();
+		for (int i = 0; i < concurrency; i++) {
+			tasks.add(Futures.supplyAsync(() -> {
+				try {
+					barrier.await();
+					return CompletableFuture.completedFuture(action.get());
+				} catch (InterruptedException ex) {
+					return Futures.completedCancelled();
+				} catch (BrokenBarrierException ex) {
+					return Futures.completedFailed(ex);
+				}
+			}));
+		}
 
-			CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
-			return tasks.stream().map(CompletableFuture::join).collect(Collectors.toList());
+		CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
+		return tasks.stream().map(CompletableFuture::join).collect(Collectors.toList());
 	}
 
 //        internal static DebugAssertionRevert DisableAssertionDialog()

@@ -206,7 +206,7 @@ enum Dgml {
 
 	@NotNull
 	static Element comment(@NotNull Document document, String label) {
-		return withCategories(node(document, null, /*label:*/label, null), "Comment");
+		return withCategories(node(document, null, /*label:*/ label, null), "Comment");
 	}
 
 //        internal static XElement Container(string id, string label = null)

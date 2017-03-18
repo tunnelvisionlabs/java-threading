@@ -180,7 +180,8 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	}
 
 	/**
-	 * Shares access to the main thread that the caller's {@link JoinableFuture} may have (if any) with all {@link JoinableFuture} instances in this collection until the returned value is closed.
+	 * Shares access to the main thread that the caller's {@link JoinableFuture} may have (if any) with all
+	 * {@link JoinableFuture} instances in this collection until the returned value is closed.
 	 *
 	 * <p>Calling this method when the caller is not executing within a {@link JoinableFuture} safely no-ops.</p>
 	 *

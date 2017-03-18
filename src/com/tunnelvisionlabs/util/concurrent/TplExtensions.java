@@ -254,7 +254,9 @@ public enum TplExtensions {
 	}
 
 	/**
-	 * Consumes a future and doesn't do anything with it. Useful for fire-and-forget calls to async methods within async methods.
+	 * Consumes a future and doesn't do anything with it. Useful for fire-and-forget calls to async methods within async
+	 * methods.
+	 *
 	 * @param future The future whose result is to be ignored.
 	 */
 	public static void forget(CompletableFuture<?> future) {

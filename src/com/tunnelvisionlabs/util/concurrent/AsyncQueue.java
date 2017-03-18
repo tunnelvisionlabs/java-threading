@@ -206,7 +206,7 @@ public class AsyncQueue<T> {
 
 	/**
 	 * Gets the value at the head of the queue without removing it from the queue, if it is non-empty.
-	 * 
+	 *
 	 * @return The value at the head of the queue; or {@code null} if the queue is empty.
 	 */
 	@Nullable

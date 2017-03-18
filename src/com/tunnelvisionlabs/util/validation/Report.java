@@ -6,11 +6,11 @@ public enum Report {
 
 	public static void fail(@NotNull String message) {
 		// Currently a NOP
-	}	
+	}
 
 	public static void fail(@NotNull String format, Object... params) {
 		// Currently a NOP
-	}	
+	}
 
 	public static void reportIf(boolean condition) {
 		// Currently a NOP

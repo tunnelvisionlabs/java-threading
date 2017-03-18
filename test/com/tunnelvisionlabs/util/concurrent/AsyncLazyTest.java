@@ -3,7 +3,6 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.SingleThreadedSynchronizationContext.Frame;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -415,7 +414,7 @@ public class AsyncLazyTest extends TestBase {
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			// This is not the behavior we want. The cancellation is wrapped in a failed future rather than producing a
 			// cancelled future.
-			AsyncAssert.throwsAsync(CancellationException.class, () -> task1),
+			AsyncAssert.cancelsAsync(() -> task1),
 			() -> {
 				// Now verify that the value factory does actually complete anyway for other callers.
 				evt.set();
@@ -609,9 +608,7 @@ public class AsyncLazyTest extends TestBase {
 			// mix it up to exercise all the code paths in the ctor.
 			passJtfToLazyCtor ? asyncPump : null);
 
-		CompletableFuture<?> backgroundRequest = CompletableFuture
-			.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()))
-			.thenCompose(AsyncFunctions.unwrap());
+		CompletableFuture<?> backgroundRequest = Async.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call GetValueAsync(), but it doesn't yield (when the test was written).
 		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));
@@ -653,9 +650,7 @@ public class AsyncLazyTest extends TestBase {
 			},
 			asyncPump);
 
-		CompletableFuture<?> backgroundRequest = CompletableFuture
-			.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()))
-			.thenCompose(AsyncFunctions.unwrap());
+		CompletableFuture<?> backgroundRequest = Async.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call getValueAsync(), but it doesn't yield (when the test was written).
 		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));

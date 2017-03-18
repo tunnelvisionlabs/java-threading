@@ -6,6 +6,7 @@ import com.tunnelvisionlabs.util.concurrent.JoinableFutureContext.RevertRelevanc
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
@@ -124,7 +125,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 		derivedNode.registerOnHangDetected();
 
 		JoinableFuture<?> dectionTask = factory.runAsync(() -> Async.awaitAsync(
-			ThreadPool.commonPool(),
+			ForkJoinPool.commonPool(),
 			() -> Async.awaitAsync(
 				Async.forAsync(
 					() -> 0,
@@ -190,10 +191,10 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	@Category(FailsInCloudTest.class)
 	@Ignore("Entry point isn't handled correctly")
 	public void testOnHangDetected_Run_OffMainThread() {
-		CompletableFuture.runAsync(() -> {
+		Async.runAsync(() -> {
 			// Now that we're off the main thread, just call the other test.
 			testOnHangDetected_Run_OnMainThread();
-		}, ThreadPool.commonPool()).join();
+		}).join();
 	}
 
 	@Test
@@ -225,10 +226,10 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	@Test
 	@Ignore("Entry point isn't handled correctly")
 	public void testOnHangDetected_RunAsync_OffMainThread_BlamedMethodIsEntrypointNotBlockingMethod() {
-		CompletableFuture.runAsync(() -> {
+		Async.runAsync(() -> {
 			// Now that we're off the main thread, just call the other test.
 			testOnHangDetected_RunAsync_OnMainThread_BlamedMethodIsEntrypointNotBlockingMethod();
-		}, ThreadPool.commonPool()).join();
+		}).join();
 	}
 
 	/**

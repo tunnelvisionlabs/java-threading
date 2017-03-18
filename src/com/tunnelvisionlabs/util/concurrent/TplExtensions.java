@@ -225,18 +225,30 @@ public enum TplExtensions {
 //                return taskThatFollows.Task;
 //            }
 //        }
-//
-//        /// <summary>
-//        /// Returns an awaitable for the specified task that will never throw, even if the source task
-//        /// faults or is canceled.
-//        /// </summary>
-//        /// <param name="task">The task whose completion should signal the completion of the returned awaitable.</param>
-//        /// <param name="captureContext">if set to <c>true</c> the continuation will be scheduled on the caller's context; <c>false</c> to always execute the continuation on the threadpool.</param>
-//        /// <returns>An awaitable.</returns>
-//        public static NoThrowTaskAwaitable NoThrowAwaitable(this Task task, bool captureContext = true)
-//        {
-//            return new NoThrowTaskAwaitable(task, captureContext);
-//        }
+
+	/**
+	 * Returns an awaitable for the specified future that will never throw, even if the source future fails or is
+	 * canceled.
+	 *
+	 * @param future The future whose completion should signal the completion of the returned awaitable.
+	 * @return An awaitable.
+	 */
+	public static NoThrowFutureAwaitable noThrowAwaitable(@NotNull CompletableFuture<?> future) {
+		return noThrowAwaitable(future, true);
+	}
+
+	/**
+	 * Returns an awaitable for the specified future that will never throw, even if the source future fails or is
+	 * canceled.
+	 *
+	 * @param future The future whose completion should signal the completion of the returned awaitable.
+	 * @param captureContext if set to {@code true} the continuation will be scheduled on the caller's context;
+	 * {@code false} to always execute the continuation on the thread pool.
+	 * @return An awaitable.
+	 */
+	public static NoThrowFutureAwaitable noThrowAwaitable(@NotNull CompletableFuture<?> future, boolean captureContext) {
+		return new NoThrowFutureAwaitable(future, captureContext);
+	}
 
 	/**
 	 * Consumes a future and doesn't do anything with it. Useful for fire-and-forget calls to async methods within async methods.
@@ -518,101 +530,100 @@ public enum TplExtensions {
 //
 //            return tcs.Task;
 //        }
-//
-//        /// <summary>
-//        /// An awaitable that wraps a task and never throws an exception when waited on.
-//        /// </summary>
-//        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-//        public struct NoThrowTaskAwaitable
-//        {
-//            /// <summary>
-//            /// The task.
-//            /// </summary>
-//            private readonly Task task;
-//
-//            /// <summary>
-//            /// A value indicating whether the continuation should be scheduled on the current sync context.
-//            /// </summary>
-//            private readonly bool captureContext;
-//
-//            /// <summary>
-//            /// Initializes a new instance of the <see cref="NoThrowTaskAwaitable" /> struct.
-//            /// </summary>
-//            /// <param name="task">The task.</param>
-//            /// <param name="captureContext">Whether the continuation should be scheduled on the current sync context.</param>
-//            public NoThrowTaskAwaitable(Task task, bool captureContext)
-//            {
-//                Requires.NotNull(task, nameof(task));
-//                this.task = task;
-//                this.captureContext = captureContext;
-//            }
-//
-//            /// <summary>
-//            /// Gets the awaiter.
-//            /// </summary>
-//            /// <returns>The awaiter.</returns>
-//            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-//            public NoThrowTaskAwaiter GetAwaiter()
-//            {
-//                return new NoThrowTaskAwaiter(this.task, this.captureContext);
-//            }
-//        }
-//
-//        /// <summary>
-//        /// An awaiter that wraps a task and never throws an exception when waited on.
-//        /// </summary>
-//        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1815:OverrideEqualsAndOperatorEqualsOnValueTypes")]
-//        public struct NoThrowTaskAwaiter : INotifyCompletion
-//        {
-//            /// <summary>
-//            /// The task
-//            /// </summary>
-//            private readonly Task task;
-//
-//            /// <summary>
-//            /// A value indicating whether the continuation should be scheduled on the current sync context.
-//            /// </summary>
-//            private readonly bool captureContext;
-//
-//            /// <summary>
-//            /// Initializes a new instance of the <see cref="NoThrowTaskAwaiter"/> struct.
-//            /// </summary>
-//            /// <param name="task">The task.</param>
-//            /// <param name="captureContext">if set to <c>true</c> [capture context].</param>
-//            public NoThrowTaskAwaiter(Task task, bool captureContext)
-//            {
-//                Requires.NotNull(task, nameof(task));
-//                this.task = task;
-//                this.captureContext = captureContext;
-//            }
-//
-//            /// <summary>
-//            /// Gets a value indicating whether the task has completed.
-//            /// </summary>
-//            public bool IsCompleted
-//            {
-//                get { return this.task.IsCompleted; }
-//            }
-//
-//            /// <summary>
-//            /// Schedules a delegate for execution at the conclusion of a task's execution.
-//            /// </summary>
-//            /// <param name="continuation">The action.</param>
-//            public void OnCompleted(Action continuation)
-//            {
-//                this.task.ConfigureAwait(this.captureContext).GetAwaiter().OnCompleted(continuation);
-//            }
-//
-//            /// <summary>
-//            /// Does nothing.
-//            /// </summary>
-//            [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1822:MarkMembersAsStatic")]
-//            public void GetResult()
-//            {
-//                // Never throw here.
-//            }
-//        }
-//
+
+	/**
+	 * An awaitable that wraps a future and never throws an exception when waited on.
+	 */
+	public static final class NoThrowFutureAwaitable implements Awaitable<Void> {
+
+		/**
+		 * The future.
+		 */
+		private final CompletableFuture<?> task;
+
+		/**
+		 * A value indicating whether the continuation should be scheduled on the current sync context.
+		 */
+		private final boolean captureContext;
+
+		/**
+		 * Constructs a new instance of the {@link NoThrowTaskAwaitable} class.
+		 *
+		 * @param future The future.
+		 * @param captureContext Whether the continuation should be scheduled on the current sync context.
+		 */
+		public NoThrowFutureAwaitable(@NotNull CompletableFuture<?> future, boolean captureContext) {
+			Requires.notNull(future, "task");
+			this.task = future;
+			this.captureContext = captureContext;
+		}
+
+		/**
+		 * Gets the awaiter.
+		 *
+		 * @return The awaiter.
+		 */
+		@Override
+		public NoThrowFutureAwaiter getAwaiter() {
+			return new NoThrowFutureAwaiter(this.task, this.captureContext);
+		}
+	}
+
+	/**
+	 * An awaiter that wraps a future and never throws an exception when waited on.
+	 */
+	public static final class NoThrowFutureAwaiter implements Awaiter<Void> {
+
+		/**
+		 * The future.
+		 */
+		private final CompletableFuture<?> task;
+
+		/**
+		 * A value indicating whether the continuation should be scheduled on the current sync context.
+		 */
+		private final boolean captureContext;
+
+		/**
+		 * Constructs a new instance of the {@link NoThrowTaskAwaiter} class.
+		 *
+		 * @param task The future.
+		 * @param captureContext if set to {@code true} [capture context].
+		 */
+		public NoThrowFutureAwaiter(@NotNull CompletableFuture<?> task, boolean captureContext) {
+			Requires.notNull(task, "future");
+			this.task = task;
+			this.captureContext = captureContext;
+		}
+
+		/**
+		 * Gets a value indicating whether the future has completed.
+		 */
+		@Override
+		public boolean isDone() {
+			return this.task.isDone();
+		}
+
+		/**
+		 * Schedules a delegate for execution at the conclusion of a future's execution.
+		 *
+		 * @param continuation The action.
+		 */
+		@Override
+		public void onCompleted(Runnable continuation) {
+			new FutureAwaitable<>(task, captureContext).getAwaiter().onCompleted(continuation);
+		}
+
+		/**
+		 * Does nothing.
+		 */
+		@Override
+		public Void getResult() {
+			// Never throw here.
+			return null;
+		}
+	}
+
 //        /// <summary>
 //        /// A state bag for the <see cref="FollowCancelableTaskToCompletion"/> method.
 //        /// </summary>

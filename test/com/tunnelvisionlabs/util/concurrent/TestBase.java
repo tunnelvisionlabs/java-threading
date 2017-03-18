@@ -17,11 +17,13 @@ import org.junit.rules.Timeout;
  * Copied from Microsoft/vs-threading@14f77875.
  */
 public abstract class TestBase {
+	private static final boolean DEBUG = false;
+
 	protected static final int ASYNC_DELAY = 500;
 	protected static final TimeUnit ASYNC_DELAY_UNIT = TimeUnit.MILLISECONDS;
 
 	protected static final int TEST_TIMEOUT = 1000;
-	protected static final TimeUnit TEST_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+	protected static final TimeUnit TEST_TIMEOUT_UNIT = DEBUG ? TimeUnit.MINUTES : TimeUnit.MILLISECONDS;
 
 	private CompletableFuture<?> timeoutFutureSource = Async.delayAsync(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
 

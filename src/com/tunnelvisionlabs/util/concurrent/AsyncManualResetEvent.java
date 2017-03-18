@@ -165,7 +165,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@NotNull
 	@Override
 	public final FutureAwaiter<Void> getAwaiter() {
-		return new FutureAwaiter<>(waitAsync());
+		return new FutureAwaiter<>(waitAsync(), true);
 	}
 
 	/**

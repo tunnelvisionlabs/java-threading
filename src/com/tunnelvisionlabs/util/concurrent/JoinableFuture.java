@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -516,15 +517,15 @@ public class JoinableFuture<T> implements Awaitable<T> {
 						backgroundThreadQueueUpdated = this.threadPoolQueue.tryAdd(wrapper);
 						if (!backgroundThreadQueueUpdated) {
 							SingleExecuteProtector<T> finalWrapper = wrapper;
-							ThreadPool.commonPool().execute(() -> {
+							ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> {
 								SingleExecuteProtector.EXECUTE_ONCE.accept(finalWrapper);
-							});
+							}));
 						}
 					} else {
 						SingleExecuteProtector<T> finalWrapper = wrapper;
-						ThreadPool.commonPool().execute(() -> {
+						ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> {
 							SingleExecuteProtector.EXECUTE_ONCE.accept(finalWrapper);
-						});
+						}));
 					}
 
 					if (mainThreadQueueUpdated || backgroundThreadQueueUpdated) {
@@ -582,7 +583,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	@NotNull
 	@Override
 	public final FutureAwaiter<T> getAwaiter() {
-		return new FutureAwaiter<>(joinAsync());
+		return new FutureAwaiter<>(joinAsync(), true);
 	}
 
 	final void setWrappedFuture(@NotNull CompletableFuture<? extends T> wrappedFuture) {
@@ -775,7 +776,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			if (threadPoolQueue != null && !threadPoolQueue.isEmpty()) {
 				SingleExecuteProtector<?> executor = threadPoolQueue.poll();
 				while (executor != null) {
-					ThreadPool.commonPool().execute(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(executor));
+					ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(executor)));
 				}
 			}
 
@@ -1093,7 +1094,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private List<PendingNotification> addDependingSynchronousFutureToChild(@NotNull JoinableFuture<?> child) {
 		Requires.notNull(child, "child");
-		assert owner.getContext().getSyncContextLock().isLocked();
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
 
 		List<PendingNotification> tasksNeedNotify = new ArrayList<>(countOfDependingSynchronousFutures());
 		DependentSynchronousFuture existingTaskTracking = this.dependingSynchronousFutureTracking;
@@ -1117,7 +1118,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private void removeDependingSynchronousFutureFromChild(@NotNull JoinableFuture<?> child) {
 		Requires.notNull(child, "child");
-		assert owner.getContext().getSyncContextLock().isLocked();
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
 
 		DependentSynchronousFuture existingTaskTracking = this.dependingSynchronousFutureTracking;
 		while (existingTaskTracking != null) {
@@ -1240,7 +1241,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	private void removeDependingSynchronousFuture(@NotNull JoinableFuture<?> future, boolean force) {
 		Requires.notNull(future, "future");
-		assert owner.getContext().getSyncContextLock().isLocked();
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
 
 		if (future.dependingSynchronousFutureTracking != null) {
 			removeDependingSynchronousFutureFrom(Arrays.asList(this), future, force);
@@ -1630,7 +1631,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 				if (isThreadPoolThread) {
 					callback.accept(state);
 				} else {
-					CompletableFuture.runAsync(() -> callback.accept(state), ThreadPool.commonPool()).join();
+					CompletableFuture.runAsync(ExecutionContext.wrap(() -> callback.accept(state))).join();
 				}
 			}
 		}

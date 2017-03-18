@@ -24,6 +24,10 @@ enum AsyncAssert {
 		});
 	} 
 
+	public static CompletableFuture<Void> cancelsIncorrectlyAsync(@NotNull Supplier<CompletableFuture<?>> supplier) {
+		return throwsAsync(CancellationException.class, supplier);
+	} 
+
 	public static CompletableFuture<Void> throwsAsync(@NotNull Class<? extends Throwable> exceptionClass, @NotNull Supplier<CompletableFuture<?>> supplier) {
 		return throwsAsync(instanceOf(exceptionClass), supplier);
 	} 

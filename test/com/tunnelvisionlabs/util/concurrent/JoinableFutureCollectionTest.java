@@ -40,7 +40,7 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());
-		CompletableFuture.supplyAsync(() -> {
+		Async.runAsync(() -> {
 			evt.set();
 			return Async.awaitAsync(
 				waiter,
@@ -48,7 +48,7 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 					this.testFrame.setContinue(false);
 					return Futures.completedNull();
 				});
-		}, ThreadPool.commonPool()).thenCompose(AsyncFunctions.unwrap());
+		});
 
 		pushFrame();
 	}
@@ -74,17 +74,15 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());
-		CompletableFuture.supplyAsync(
-			() -> {
-				evt.set();
-				return Async.awaitAsync(
-					waiter,
-					() -> {
-						testFrame.setContinue(false);
-						return Futures.completedNull();
-					});
-			}, ThreadPool.commonPool())
-			.thenCompose(AsyncFunctions.unwrap());
+		Async.runAsync(() -> {
+			evt.set();
+			return Async.awaitAsync(
+				waiter,
+				() -> {
+					testFrame.setContinue(false);
+					return Futures.completedNull();
+				});
+		});
 		pushFrame();
 	}
 

@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -18,7 +19,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 	public void testOnTransitioningToMainThread_DoesNotHoldPrivateLock() {
 		this.simulateUIThread(() -> Async.awaitAsync(
 			// Get off the UI thread first so that we can transition (back) to it.
-			ThreadPool.commonPool(),
+			ForkJoinPool.commonPool(),
 			() -> {
 				JTFWithTransitioningBlock jtf = new JTFWithTransitioningBlock(this.context);
 				AtomicBoolean noDeadlockDetected = new AtomicBoolean(true);
@@ -29,12 +30,12 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 					// in the JTF overridden method called into another service, which also had a private lock
 					// but who had issued that private lock to another thread, that was blocked waiting for
 					// JTC.Factory to return.
-					CompletableFuture<Void> otherThread = CompletableFuture.runAsync(() -> {
+					CompletableFuture<Void> otherThread = Async.runAsync(() -> {
 						// It so happens as of the time of this writing that the Factory property
 						// always requires a SyncContextLock. If it ever stops needing that,
 						// we'll need to change this delegate to do something else that requires it.
 						this.context.getFactory();
-					}, ThreadPool.commonPool());
+					});
 
 					try {
 						// Wait up to the timeout interval. Don't Assert here because
@@ -61,7 +62,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 	public void testOnTransitionedToMainThread_DoesNotHoldPrivateLock() {
 		this.simulateUIThread(() -> Async.awaitAsync(
 			// Get off the UI thread first so that we can transition (back) to it.
-			ThreadPool.commonPool(),
+			ForkJoinPool.commonPool(),
 			() -> {
 				JTFWithTransitioningBlock jtf = new JTFWithTransitioningBlock(this.context);
 				AtomicBoolean noDeadlockDetected = new AtomicBoolean(true);
@@ -72,12 +73,12 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 					// in the JTF overridden method called into another service, which also had a private lock
 					// but who had issued that private lock to another thread, that was blocked waiting for
 					// JTC.Factory to return.
-					CompletableFuture<Void> otherThread = CompletableFuture.runAsync(() -> {
+					CompletableFuture<Void> otherThread = Async.runAsync(() -> {
 						// It so happens as of the time of this writing that the Factory property
 						// always requires a SyncContextLock. If it ever stops needing that,
 						// we'll need to change this delegate to do something else that requires it.
 						context.getFactory();
-					}, ThreadPool.commonPool());
+					});
 
 					try {
 						// Wait up to the timeout interval. Don't Assert here because

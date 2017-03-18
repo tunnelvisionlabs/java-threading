@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -253,7 +254,7 @@ public class JoinableFutureFactory {
 		if (this.getUnderlyingSynchronizationContext() != null) {
 			this.postToUnderlyingSynchronizationContext(SingleExecuteProtector.EXECUTE_ONCE, callback);
 		} else {
-			ThreadPool.commonPool().execute(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(callback));
+			ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(callback)));
 		}
 	}
 
@@ -578,7 +579,7 @@ public class JoinableFutureFactory {
 				transientFuture.getFuture().join();
 			}
 		} else {
-			ThreadPool.commonPool().execute(() -> callback.accept(state));
+			ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> callback.accept(state)));
 		}
 	}
 
@@ -759,7 +760,7 @@ public class JoinableFutureFactory {
 					final AtomicBoolean registered = new AtomicBoolean(true);
 					CompletableFuture<?> registration = cancellationFuture.whenComplete((result, exception) -> {
 						if (registered.get()) {
-							ThreadPool.commonPool().execute(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(wrapper));
+							ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(wrapper)));
 						}
 					});
 //                        var registration = this.cancellationToken.Register(

@@ -39,9 +39,7 @@ public enum Async {
 		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
 
 		Executor executor = command -> awaiter.onCompleted(command);
-		return CompletableFuture
-			.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor)
-			.thenCompose(AsyncFunctions.<CompletableFuture<U>>unwrap());
+		return supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);
 	}
 
 	@NotNull
@@ -70,11 +68,8 @@ public enum Async {
 			return awaiter.thenCompose(continuation);
 		}
 
-		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
-
-		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
-		Executor executor = syncContext != null ? syncContext : ForkJoinPool.commonPool();
-		return awaiter.thenComposeAsync(result -> flowContinuation.apply(result), executor);
+		Awaitable<? extends T> awaitable = new FutureAwaitable<>(awaiter, continueOnCapturedContext);
+		return awaitAsync(awaitable, continuation);
 	}
 
 	@NotNull
@@ -88,28 +83,35 @@ public enum Async {
 			return awaiter.thenCompose(result -> continuation.get());
 		}
 
-		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
-
-		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
-		Executor executor = syncContext != null ? syncContext : ForkJoinPool.commonPool();
-		return awaiter.thenComposeAsync(result -> flowContinuation.get());
+		return awaitAsync(new FutureAwaitable<>(awaiter, continueOnCapturedContext), continuation);
 	}
 
 	@NotNull
 	public static CompletableFuture<Void> awaitAsync(@NotNull Executor executor) {
-		return awaitAsync(executor, () -> Futures.completedNull());
+		return awaitAsync(AwaitExtensions.switchTo(executor), AsyncFunctions.identity());
 	}
 
 	@NotNull
 	public static <U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
-		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
-		return Futures.completedNull().thenComposeAsync(
-			ignored -> flowContinuation.get(),
-			executor);
+		Function<Void, CompletableFuture<U>> function = ignored -> continuation.get();
+		return awaitAsync(AwaitExtensions.switchTo(executor), function);
 	}
 
 	@NotNull
 	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
+		return delayAsync(time, unit, null);
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit, @Nullable CompletableFuture<?> cancellationFuture) {
+		if (cancellationFuture != null && cancellationFuture.isDone()) {
+			return Futures.completedCancelled();
+		}
+
+		if (time == 0) {
+			return Futures.completedNull();
+		}
+
 		CompletableFuture<Void> result = new CompletableFuture<>();
 		ScheduledFuture<?> scheduled = DELAY_SCHEDULER.schedule(
 			ExecutionContext.wrap(() -> {
@@ -127,6 +129,10 @@ public enum Async {
 			}
 		});
 
+		if (cancellationFuture != null) {
+			cancellationFuture.whenComplete((ignored, exception) -> result.cancel(true));
+		}
+
 		return result;
 	}
 
@@ -135,12 +141,11 @@ public enum Async {
 		// When both future and runnable throw an exception, the semantics of a finally block give precedence to the
 		// exception thrown by the finally block. However, the implementation of CompletableFuture.whenComplete gives
 		// precedence to the future.
-		return future
-			.handle((result, exception) -> {
+		return unwrap(
+			future.handle((result, exception) -> {
 				runnable.run();
 				return future;
-			})
-			.thenCompose(Functions.identity());
+			}));
 	}
 
 	@NotNull
@@ -238,6 +243,90 @@ public enum Async {
 	}
 
 	@NotNull
+	public static <T> CompletableFuture<T> unwrap(@NotNull CompletableFuture<? extends CompletableFuture<T>> future) {
+		CompletableFuture<T> result = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (!future.cancel(mayInterruptIfRunning)) {
+					if (!future.isDone() || future.isCompletedExceptionally()) {
+						return false;
+					}
+
+					if (!future.join().cancel(mayInterruptIfRunning)) {
+						return false;
+					}
+				}
+
+				return super.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		future.whenComplete((outerResult, exception) -> {
+			if (exception != null) {
+				if (future.isCancelled()) {
+					result.cancel(false);
+				} else {
+					result.completeExceptionally(exception);
+				}
+			} else {
+				outerResult.whenComplete((innerResult, innerException) -> {
+					if (innerException != null) {
+						if (outerResult.isCancelled()) {
+							result.cancel(false);
+						} else {
+							result.completeExceptionally(innerException);
+						}
+					} else {
+						result.complete(innerResult);
+					}
+				});
+			}
+		});
+
+		return result;
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable, @NotNull Executor executor) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable), executor);
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
+		return unwrap(supply(asyncRunnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
+		return unwrap(supply(asyncRunnable, executor));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier, @NotNull Executor executor) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier), executor);
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
+		return unwrap(supply(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier, @NotNull Executor executor) {
+		return unwrap(supply(supplier, executor));
+	}
+
+	@NotNull
 	public static CompletableFuture<CompletableFuture<?>> whenAny(@NotNull CompletableFuture<?>... futures) {
 		return CompletableFuture.anyOf(futures).handle(
 			(result, exception) -> {
@@ -276,12 +365,13 @@ public enum Async {
 		public void onCompleted(@NotNull Runnable continuation) {
 			Requires.notNull(continuation, "continuation");
 
+			Executor executor = ForkJoinPool.commonPool();
 			SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
 			if (synchronizationContext != null && synchronizationContext.getClass() != SynchronizationContext.class) {
-				synchronizationContext.execute(continuation);
+				executor = synchronizationContext;
 			}
 
-			ThreadPool.commonPool().execute(continuation);
+			executor.execute(ExecutionContext.wrap(continuation));
 		}
 	}
 }

@@ -199,7 +199,7 @@ public class AsyncQueue<T> {
 		}
 
 		// important because we'll transition a task to complete.
-		assert !syncObject.isLocked();
+		assert !syncObject.isHeldByCurrentThread();
 
 		// We only transition this future to complete outside of our lock so
 		// we don't accidentally inline continuations inside our lock.
@@ -257,12 +257,19 @@ public class AsyncQueue<T> {
 	 * @return A future whose result is the head element.
 	 */
 	public final CompletableFuture<T> pollAsync() {
-		CompletableFuture<T> completableFuture = new CompletableFuture<T>() {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				return super.cancel(mayInterruptIfRunning);
-			}
-		};
+		return pollAsync(null);
+	}
+
+	/**
+	 * Gets a future whose result is the element at the head of the queue.
+	 *
+	 * @return A future whose result is the head element.
+	 */
+	public final CompletableFuture<T> pollAsync(@Nullable CompletableFuture<?> cancellationFuture) {
+		CompletableFuture<T> completableFuture = new CompletableFuture<>();
+		if (cancellationFuture != null) {
+			cancellationFuture.whenComplete((result, exception) -> completableFuture.cancel(true));
+		}
 
 		syncObject.lock();
 		try {
@@ -396,7 +403,7 @@ public class AsyncQueue<T> {
 	 */
 	private void completeIfNecessary() {
 		// important because we'll transition a task to complete.
-		assert !syncObject.isLocked();
+		assert !syncObject.isHeldByCurrentThread();
 
 		boolean transitionFuture;
 		boolean invokeOnCompleted = false;

@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -59,16 +60,16 @@ public class AsyncLocalTest extends TestBase {
 		asyncLocal.setValue(value);
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			CompletableFuture.allOf(
-				CompletableFuture.runAsync(() -> {
+				Async.runAsync(() -> {
 					Assert.assertSame(value, asyncLocal.getValue());
 					asyncLocal.setValue(null);
 					Assert.assertNull(asyncLocal.getValue());
-				}, ThreadPool.commonPool()),
-				CompletableFuture.runAsync(() -> {
+				}),
+				Async.runAsync(() -> {
 					Assert.assertSame(value, asyncLocal.getValue());
 					asyncLocal.setValue(null);
 					Assert.assertNull(asyncLocal.getValue());
-				}, ThreadPool.commonPool())),
+				})),
 			() -> {
 				Assert.assertSame(value, asyncLocal.getValue());
 				asyncLocal.setValue(null);
@@ -157,7 +158,7 @@ public class AsyncLocalTest extends TestBase {
 					jtLocal.setValue(3);
 					Assert.assertEquals(3, (int)jtLocal.getValue());
 					result.set(Async.awaitAsync(
-						ThreadPool.commonPool(),
+						ForkJoinPool.commonPool(),
 						() -> {
 							Assert.assertEquals(3, (int)jtLocal.getValue());
 							return Futures.completedNull();
@@ -254,7 +255,7 @@ public class AsyncLocalTest extends TestBase {
 		AsyncAutoResetEvent player2 = new AsyncAutoResetEvent();
 		return Async.awaitAsync(
 			CompletableFuture.allOf(
-				CompletableFuture.supplyAsync(() -> {
+				Async.runAsync(() -> {
 					Assert.assertNull(asyncLocal.getValue());
 					T value = newInstance.get();
 					asyncLocal.setValue(value);
@@ -266,8 +267,8 @@ public class AsyncLocalTest extends TestBase {
 							Assert.assertSame(value, asyncLocal.getValue());
 							return Futures.completedNull();
 						});
-				}, ThreadPool.commonPool()).thenCompose(AsyncFunctions.unwrap()),
-				CompletableFuture.supplyAsync(() -> {
+				}),
+				Async.runAsync(() -> {
 					return Async.awaitAsync(
 						player1.waitAsync(),
 						() -> {
@@ -279,7 +280,7 @@ public class AsyncLocalTest extends TestBase {
 							player2.set();
 							return Futures.completedNull();
 						});
-				}, ThreadPool.commonPool()).thenCompose(AsyncFunctions.unwrap())),
+				})),
 			() -> {
 				Assert.assertNull(asyncLocal.getValue());
 				return Futures.completedNull();

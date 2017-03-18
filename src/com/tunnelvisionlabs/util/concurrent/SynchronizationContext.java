@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 class SynchronizationContext implements Executor {
@@ -34,7 +35,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	public <T> void post(@NotNull Consumer<T> callback, T state) {
-		throw new UnsupportedOperationException("Not implemented");
+		ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> callback.accept(state)));
 	}
 
 	public <T> void send(@NotNull Consumer<T> callback, T state) {

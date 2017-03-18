@@ -98,7 +98,7 @@ enum TestUtilities {
 		CyclicBarrier barrier = new CyclicBarrier(concurrency);
 			List<CompletableFuture<T>> tasks = new ArrayList<>();
 			for (int i = 0; i < concurrency; i++) {
-				tasks.add(CompletableFuture.<CompletableFuture<T>>supplyAsync(() -> {
+				tasks.add(Async.supplyAsync(() -> {
 					try {
 						barrier.await();
 						return CompletableFuture.completedFuture(action.get());
@@ -107,7 +107,7 @@ enum TestUtilities {
 					} catch (BrokenBarrierException ex) {
 						return Futures.completedFailed(ex);
 					}
-				}, ThreadPool.commonPool()).thenCompose(AsyncFunctions.unwrap()));
+				}));
 			}
 
 			CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
@@ -139,21 +139,22 @@ enum TestUtilities {
 //                }
 //            });
 //        }
-//
-//        /// <summary>
-//        /// Forces an awaitable to yield, setting signals after the continuation has been pended and when the continuation has begun execution.
-//        /// </summary>
-//        /// <param name="baseAwaiter">The awaiter to extend.</param>
-//        /// <param name="yieldingSignal">The signal to set after the continuation has been pended.</param>
-//        /// <param name="resumingSignal">The signal to set when the continuation has been invoked.</param>
-//        /// <returns>A new awaitable.</returns>
-//        internal static YieldAndNotifyAwaitable YieldAndNotify(this INotifyCompletion baseAwaiter, AsyncManualResetEvent yieldingSignal = null, AsyncManualResetEvent resumingSignal = null)
-//        {
-//            Requires.NotNull(baseAwaiter, nameof(baseAwaiter));
-//
-//            return new YieldAndNotifyAwaitable(baseAwaiter, yieldingSignal, resumingSignal);
-//        }
-//
+
+	/**
+	 * Forces an awaitable to yield, setting signals after the continuation has been pended and when the continuation
+	 * has begun execution.
+	 *
+	 * @param baseAwaiter The awaiter to extend.
+	 * @param yieldingSignal The signal to set after the continuation has been pended.
+	 * @param resumingSignal The signal to set when the continuation has been invoked.
+	 * @return A new awaitable.
+	 */
+	static YieldAndNotifyAwaitable yieldAndNotify(@NotNull Awaiter<?> baseAwaiter, @Nullable AsyncManualResetEvent yieldingSignal, @Nullable AsyncManualResetEvent resumingSignal) {
+		Requires.notNull(baseAwaiter, "baseAwaiter");
+
+		return new YieldAndNotifyAwaitable(baseAwaiter, yieldingSignal, resumingSignal);
+	}
+
 //        /// <summary>
 //        /// Flood the threadpool with requests that will just block the threads
 //        /// until the returned value is disposed of.
@@ -180,71 +181,66 @@ enum TestUtilities {
 //
 //            return new ThreadpoolStarvation(evt);
 //        }
-//
-//        internal struct YieldAndNotifyAwaitable
-//        {
-//            private readonly INotifyCompletion baseAwaiter;
-//            private readonly AsyncManualResetEvent yieldingSignal;
-//            private readonly AsyncManualResetEvent resumingSignal;
-//
-//            internal YieldAndNotifyAwaitable(INotifyCompletion baseAwaiter, AsyncManualResetEvent yieldingSignal, AsyncManualResetEvent resumingSignal)
-//            {
-//                Requires.NotNull(baseAwaiter, nameof(baseAwaiter));
-//
-//                this.baseAwaiter = baseAwaiter;
-//                this.yieldingSignal = yieldingSignal;
-//                this.resumingSignal = resumingSignal;
-//            }
-//
-//            public YieldAndNotifyAwaiter GetAwaiter()
-//            {
-//                return new YieldAndNotifyAwaiter(this.baseAwaiter, this.yieldingSignal, this.resumingSignal);
-//            }
-//        }
-//
-//        internal struct YieldAndNotifyAwaiter : INotifyCompletion
-//        {
-//            private readonly INotifyCompletion baseAwaiter;
-//            private readonly AsyncManualResetEvent yieldingSignal;
-//            private readonly AsyncManualResetEvent resumingSignal;
-//
-//            internal YieldAndNotifyAwaiter(INotifyCompletion baseAwaiter, AsyncManualResetEvent yieldingSignal, AsyncManualResetEvent resumingSignal)
-//            {
-//                Requires.NotNull(baseAwaiter, nameof(baseAwaiter));
-//
-//                this.baseAwaiter = baseAwaiter;
-//                this.yieldingSignal = yieldingSignal;
-//                this.resumingSignal = resumingSignal;
-//            }
-//
-//            public bool IsCompleted
-//            {
-//                get { return false; }
-//            }
-//
-//            public void OnCompleted(Action continuation)
-//            {
-//                var that = this;
-//                this.baseAwaiter.OnCompleted(delegate
-//                {
-//                    if (that.resumingSignal != null)
-//                    {
-//                        that.resumingSignal.Set();
-//                    }
-//
-//                    continuation();
-//                });
-//                if (this.yieldingSignal != null)
-//                {
-//                    this.yieldingSignal.Set();
-//                }
-//            }
-//
-//            public void GetResult()
-//            {
-//            }
-//        }
-//
+
+	static final class YieldAndNotifyAwaitable implements Awaitable<Void> {
+
+		private final Awaiter<?> baseAwaiter;
+		private final AsyncManualResetEvent yieldingSignal;
+		private final AsyncManualResetEvent resumingSignal;
+
+		YieldAndNotifyAwaitable(Awaiter<?> baseAwaiter, AsyncManualResetEvent yieldingSignal, AsyncManualResetEvent resumingSignal) {
+			Requires.notNull(baseAwaiter, "baseAwaiter");
+
+			this.baseAwaiter = baseAwaiter;
+			this.yieldingSignal = yieldingSignal;
+			this.resumingSignal = resumingSignal;
+		}
+
+		@Override
+		public YieldAndNotifyAwaiter getAwaiter() {
+			return new YieldAndNotifyAwaiter(baseAwaiter, yieldingSignal, resumingSignal);
+		}
+	}
+
+	static final class YieldAndNotifyAwaiter implements Awaiter<Void> {
+
+		private final Awaiter<?> baseAwaiter;
+		private final AsyncManualResetEvent yieldingSignal;
+		private final AsyncManualResetEvent resumingSignal;
+
+		YieldAndNotifyAwaiter(Awaiter<?> baseAwaiter, AsyncManualResetEvent yieldingSignal, AsyncManualResetEvent resumingSignal) {
+			Requires.notNull(baseAwaiter, "baseAwaiter");
+
+			this.baseAwaiter = baseAwaiter;
+			this.yieldingSignal = yieldingSignal;
+			this.resumingSignal = resumingSignal;
+		}
+
+		@Override
+		public boolean isDone() {
+			return false;
+		}
+
+		@Override
+		public void onCompleted(Runnable continuation) {
+			baseAwaiter.onCompleted(() -> {
+				if (resumingSignal != null) {
+					resumingSignal.set();
+				}
+
+				continuation.run();
+			});
+			if (this.yieldingSignal != null) {
+				this.yieldingSignal.set();
+			}
+		}
+
+		@Override
+		public Void getResult() {
+			return null;
+		}
+	}
+
 //        internal struct DebugAssertionRevert : IDisposable
 //        {
 //            public void Dispose()

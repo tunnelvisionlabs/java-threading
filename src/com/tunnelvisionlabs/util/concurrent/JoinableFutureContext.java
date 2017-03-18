@@ -1,24 +1,44 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureFlag;
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureSynchronizationContext;
+import com.tunnelvisionlabs.util.concurrent.JoinableFutureFactory.SingleExecuteProtector;
+import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 /**
  * A common context within which joinable tasks may be created and interact to avoid deadlocks.
  *
  * <p>Copied from Microsoft/vs-threading@14f77875.</p>
  */
-public class JoinableFutureContext implements AutoCloseable {
+public class JoinableFutureContext implements HangReportContributor, Disposable {
 	/**
 	 * A "global" lock that allows the graph of interconnected sync context and JoinableSet instances communicate in a
 	 * thread-safe way without fear of deadlocks due to each taking their own private lock and then calling others, thus
@@ -29,7 +49,6 @@ public class JoinableFutureContext implements AutoCloseable {
 	 * in this file has a very similar problem, so we use a similar solution. Except that our lock is only as global as
 	 * the {@link JoinableFutureContext}. It isn't static.</p>
 	 */
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
 	private final ReentrantLock syncContextLock = new ReentrantLock();
 
 	/**
@@ -570,195 +589,233 @@ public class JoinableFutureContext implements AutoCloseable {
 //        {
 //            return this.GetHangReport();
 //        }
-//
-//        /// <summary>
-//        /// Contributes data for a hang report.
-//        /// </summary>
-//        /// <returns>The hang report contribution. Null values should be ignored.</returns>
-//        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-//        protected virtual HangReportContribution GetHangReport()
-//        {
-//            using (this.NoMessagePumpSynchronizationContext.Apply())
-//            {
-//                lock (this.SyncContextLock)
-//                {
-//                    XElement nodes;
-//                    XElement links;
-//                    var dgml = CreateTemplateDgml(out nodes, out links);
-//
-//                    var pendingTasksElements = this.CreateNodesForPendingTasks();
-//                    var taskLabels = CreateNodeLabels(pendingTasksElements);
-//                    var pendingTaskCollections = CreateNodesForJoinableTaskCollections(pendingTasksElements.Keys);
-//                    nodes.Add(pendingTasksElements.Values);
-//                    nodes.Add(pendingTaskCollections.Values);
-//                    nodes.Add(taskLabels.Select(t => t.Item1));
-//                    links.Add(CreatesLinksBetweenNodes(pendingTasksElements));
-//                    links.Add(CreateCollectionContainingTaskLinks(pendingTasksElements, pendingTaskCollections));
-//                    links.Add(taskLabels.Select(t => t.Item2));
-//
-//                    return new HangReportContribution(
-//                        dgml.ToString(),
-//                        "application/xml",
-//                        "JoinableTaskContext.dgml");
-//                }
-//            }
-//        }
-//
-//        private static XDocument CreateTemplateDgml(out XElement nodes, out XElement links)
-//        {
-//            return Dgml.Create(out nodes, out links)
-//                .WithCategories(
-//                    Dgml.Category("MainThreadBlocking", "Blocking main thread", background: "#FFF9FF7F", isTag: true),
-//                    Dgml.Category("NonEmptyQueue", "Non-empty queue", background: "#FFFF0000", isTag: true));
-//        }
-//
-//        private static ICollection<XElement> CreatesLinksBetweenNodes(Dictionary<JoinableTask, XElement> pendingTasksElements)
-//        {
-//            Requires.NotNull(pendingTasksElements, nameof(pendingTasksElements));
-//
-//            var links = new List<XElement>();
-//            foreach (var joinableTaskAndElement in pendingTasksElements)
-//            {
-//                foreach (var joinedTask in joinableTaskAndElement.Key.ChildOrJoinedJobs)
-//                {
-//                    XElement joinedTaskElement;
-//                    if (pendingTasksElements.TryGetValue(joinedTask, out joinedTaskElement))
-//                    {
-//                        links.Add(Dgml.Link(joinableTaskAndElement.Value, joinedTaskElement));
-//                    }
-//                }
-//            }
-//
-//            return links;
-//        }
-//
-//        private static ICollection<XElement> CreateCollectionContainingTaskLinks(Dictionary<JoinableTask, XElement> tasks, Dictionary<JoinableTaskCollection, XElement> collections)
-//        {
-//            Requires.NotNull(tasks, nameof(tasks));
-//            Requires.NotNull(collections, nameof(collections));
-//
-//            var result = new List<XElement>();
-//            foreach (var task in tasks)
-//            {
-//                foreach (var collection in task.Key.ContainingCollections)
-//                {
-//                    var collectionElement = collections[collection];
-//                    result.Add(Dgml.Link(collectionElement, task.Value).WithCategories("Contains"));
-//                }
-//            }
-//
-//            return result;
-//        }
-//
-//        private static Dictionary<JoinableTaskCollection, XElement> CreateNodesForJoinableTaskCollections(IEnumerable<JoinableTask> tasks)
-//        {
-//            Requires.NotNull(tasks, nameof(tasks));
-//
-//            var collectionsSet = new HashSet<JoinableTaskCollection>(tasks.SelectMany(t => t.ContainingCollections));
-//            var result = new Dictionary<JoinableTaskCollection, XElement>(collectionsSet.Count);
-//            int collectionId = 0;
-//            foreach (var collection in collectionsSet)
-//            {
-//                collectionId++;
-//                var label = string.IsNullOrEmpty(collection.DisplayName) ? "Collection #" + collectionId : collection.DisplayName;
-//                var element = Dgml.Node("Collection#" + collectionId, label, group: "Expanded")
-//                    .WithCategories("Collection");
-//                result.Add(collection, element);
-//            }
-//
-//            return result;
-//        }
-//
-//        private static List<Tuple<XElement, XElement>> CreateNodeLabels(Dictionary<JoinableTask, XElement> tasksAndElements)
-//        {
-//            Requires.NotNull(tasksAndElements, nameof(tasksAndElements));
-//
-//            var result = new List<Tuple<XElement, XElement>>();
-//            foreach (var tasksAndElement in tasksAndElements)
-//            {
-//                var pendingTask = tasksAndElement.Key;
-//                var node = tasksAndElement.Value;
-//                int queueIndex = 0;
-//                foreach (var pendingTasksElement in pendingTask.MainThreadQueueContents)
-//                {
-//                    queueIndex++;
-//                    var callstackNode = Dgml.Node(node.Attribute("Id").Value + "MTQueue#" + queueIndex, GetAsyncReturnStack(pendingTasksElement));
-//                    var callstackLink = Dgml.Link(callstackNode, node);
-//                    result.Add(Tuple.Create(callstackNode, callstackLink));
-//                }
-//
-//                foreach (var pendingTasksElement in pendingTask.ThreadPoolQueueContents)
-//                {
-//                    queueIndex++;
-//                    var callstackNode = Dgml.Node(node.Attribute("Id").Value + "TPQueue#" + queueIndex, GetAsyncReturnStack(pendingTasksElement));
-//                    var callstackLink = Dgml.Link(callstackNode, node);
-//                    result.Add(Tuple.Create(callstackNode, callstackLink));
-//                }
-//            }
-//
-//            return result;
-//        }
-//
-//        private Dictionary<JoinableTask, XElement> CreateNodesForPendingTasks()
-//        {
-//            var pendingTasksElements = new Dictionary<JoinableTask, XElement>();
-//            lock (this.pendingTasks)
-//            {
-//                int taskId = 0;
-//                foreach (var pendingTask in this.pendingTasks)
-//                {
-//                    taskId++;
-//
-//                    string methodName = string.Empty;
-//                    var entryMethodInfo = pendingTask.EntryMethodInfo;
-//                    if (entryMethodInfo != null)
-//                    {
-//                        methodName = string.Format(
-//                            CultureInfo.InvariantCulture,
-//                            " ({0}.{1})",
-//                            entryMethodInfo.DeclaringType.FullName,
-//                            entryMethodInfo.Name);
-//                    }
-//
-//                    var node = Dgml.Node("Task#" + taskId, "Task #" + taskId + methodName)
-//                        .WithCategories("Task");
-//                    if (pendingTask.HasNonEmptyQueue)
-//                    {
-//                        node.WithCategories("NonEmptyQueue");
-//                    }
-//
-//                    if (pendingTask.State.HasFlag(JoinableTask.JoinableTaskFlags.SynchronouslyBlockingMainThread))
-//                    {
-//                        node.WithCategories("MainThreadBlocking");
-//                    }
-//
-//                    pendingTasksElements.Add(pendingTask, node);
-//                }
-//            }
-//
-//            return pendingTasksElements;
-//        }
-//
-//        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
-//        private static string GetAsyncReturnStack(JoinableTaskFactory.SingleExecuteProtector singleExecuteProtector)
-//        {
-//            Requires.NotNull(singleExecuteProtector, nameof(singleExecuteProtector));
-//
-//            var stringBuilder = new StringBuilder();
-//            try
-//            {
-//                foreach (var frame in singleExecuteProtector.WalkAsyncReturnStackFrames())
-//                {
-//                    stringBuilder.AppendLine(frame);
-//                }
-//            }
-//            catch (Exception ex)
-//            {
-//                // Just eat the exception so we don't crash during a hang report.
-//                Report.Fail("GetAsyncReturnStackFrames threw exception: ", ex);
-//            }
-//
-//            return stringBuilder.ToString().TrimEnd();
-//        }
 
+	/**
+	 * Contributes data for a hang report.
+	 *
+	 * @return The hang report contribution. {@code null} values should be ignored.
+	 */
+	@Override
+	public HangReportContribution getHangReport() {
+		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
+			ReentrantLock syncObject = getSyncContextLock();
+			syncObject.lock();
+			try {
+				StrongBox<Element> nodes = new StrongBox<>();
+				StrongBox<Element> links = new StrongBox<>();
+				Document dgml = createTemplateDgml(nodes, links);
+
+				Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
+				List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
+				Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
+				for (Element child : pendingTasksElements.values()) {
+					nodes.get().appendChild(child);
+				}
+
+				for (Element child : pendingTaskCollections.values()) {
+					nodes.get().appendChild(child);
+				}
+
+				for (Map.Entry<Element, Element> pair : taskLabels) {
+					nodes.get().appendChild(pair.getKey());
+				}
+
+				for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
+					links.get().appendChild(element);
+				}
+
+				for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
+					links.get().appendChild(element);
+				}
+
+				for (Map.Entry<Element, Element> pair : taskLabels) {
+					links.get().appendChild(pair.getValue());
+				}
+
+				TransformerFactory transformerFactory = TransformerFactory.newInstance();
+				Transformer transformer = transformerFactory.newTransformer();
+				DOMSource source = new DOMSource(dgml);
+
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+				StreamResult result = new StreamResult(outputStream);
+				transformer.transform(source, result);
+
+				return new HangReportContribution(
+					new String(outputStream.toByteArray(), "UTF-8"),
+					"application/xml",
+					"JoinableTaskContext.dgml");
+			} catch (ParserConfigurationException | UnsupportedEncodingException | TransformerException ex) {
+				throw new CompletionException(ex);
+			} finally {
+				syncObject.unlock();
+			}
+		}
+	}
+
+	private static Document createTemplateDgml(@NotNull StrongBox<Element> nodes, @NotNull StrongBox<Element> links) throws ParserConfigurationException {
+		Document document = Dgml.create(nodes, links, null, null);
+		return Dgml.withCategories(
+			document,
+			Dgml.category(document, "MainThreadBlocking", "Blocking main thread", /*background:*/ "#FFF9FF7F", null, null, /*isTag:*/ true, false),
+			Dgml.category(document, "NonEmptyQueue", "Non-empty queue", /*background:*/ "#FFFF0000", null, null, /*isTag:*/ true, false));
+	}
+
+	private static Collection<Element> createsLinksBetweenNodes(@NotNull Map<JoinableFuture<?>, Element> pendingTasksElements) {
+		Requires.notNull(pendingTasksElements, "pendingFuturesElements");
+
+		List<Element> links = new ArrayList<>();
+		for (Map.Entry<JoinableFuture<?>, Element> joinableTaskAndElement : pendingTasksElements.entrySet()) {
+			for (JoinableFuture<?> joinedTask : joinableTaskAndElement.getKey().getChildOrJoinedJobs()) {
+				Element joinedTaskElement = pendingTasksElements.get(joinedTask);
+				if (joinedTaskElement != null) {
+					links.add(Dgml.link(joinableTaskAndElement.getValue(), joinedTaskElement));
+				}
+			}
+		}
+
+		return links;
+	}
+
+	@NotNull
+	private static Collection<Element> createCollectionContainingFutureLinks(@NotNull Map<JoinableFuture<?>, Element> tasks, @NotNull Map<JoinableFutureCollection, Element> collections) {
+		Requires.notNull(tasks, "tasks");
+		Requires.notNull(collections, "collections");
+
+		List<Element> result = new ArrayList<>();
+		for (Map.Entry<JoinableFuture<?>, Element> task : tasks.entrySet()) {
+			for (JoinableFutureCollection collection : task.getKey().getContainingCollections()) {
+				Element collectionElement = collections.get(collection);
+				result.add(Dgml.withCategories(Dgml.link(collectionElement, task.getValue()), "Contains"));
+			}
+		}
+
+		return result;
+	}
+
+	@NotNull
+	private static Map<JoinableFutureCollection, Element> createNodesForJoinableFutureCollections(Document document, @NotNull Collection<JoinableFuture<?>> tasks) {
+		Requires.notNull(tasks, "futures");
+
+		Set<JoinableFutureCollection> collectionsSet = tasks.stream().flatMap(t -> t.getContainingCollections().stream()).collect(Collectors.toSet());
+		Map<JoinableFutureCollection, Element> result = new HashMap<>(collectionsSet.size());
+		int collectionId = 0;
+		for (JoinableFutureCollection collection : collectionsSet) {
+			collectionId++;
+			String label = collection.getDisplayName() == null || collection.getDisplayName().isEmpty() ? "Collection #" + collectionId : collection.getDisplayName();
+			Element element = Dgml.withCategories(
+				Dgml.node(document, "Collection#" + collectionId, label, /*group:*/ "Expanded"),
+				"Collection");
+			result.put(collection, element);
+		}
+
+		return result;
+	}
+
+	private static List<Map.Entry<Element, Element>> createNodeLabels(@NotNull Document document, @NotNull Map<JoinableFuture<?>, Element> tasksAndElements) {
+		Requires.notNull(tasksAndElements, "tasksAndElements");
+
+		List<Map.Entry<Element, Element>> result = new ArrayList<>();
+		for (Map.Entry<JoinableFuture<?>, Element> tasksAndElement : tasksAndElements.entrySet()) {
+			JoinableFuture<?> pendingTask = tasksAndElement.getKey();
+			Element node = tasksAndElement.getValue();
+			int queueIndex = 0;
+			for (SingleExecuteProtector<?> pendingTasksElement : pendingTask.getMainThreadQueueContents()) {
+				queueIndex++;
+				Element callstackNode = Dgml.node(document, node.getAttribute("Id") + "MTQueue#" + queueIndex, getAsyncReturnStack(pendingTasksElement), null);
+				Element callstackLink = Dgml.link(callstackNode, node);
+				result.add(new Map.Entry<Element, Element>() {
+					@Override
+					public Element getKey() {
+						return callstackNode;
+					}
+
+					@Override
+					public Element getValue() {
+						return callstackLink;
+					}
+
+					@Override
+					public Element setValue(Element value) {
+						throw new UnsupportedOperationException("Not supported yet.");
+					}
+
+				});
+			}
+
+			for (SingleExecuteProtector<?> pendingTasksElement : pendingTask.getThreadPoolQueueContents()) {
+				queueIndex++;
+				Element callstackNode = Dgml.node(document, node.getAttribute("Id") + "TPQueue#" + queueIndex, getAsyncReturnStack(pendingTasksElement), null);
+				Element callstackLink = Dgml.link(callstackNode, node);
+				result.add(new Map.Entry<Element, Element>() {
+					@Override
+					public Element getKey() {
+						return callstackNode;
+					}
+
+					@Override
+					public Element getValue() {
+						return callstackLink;
+					}
+
+					@Override
+					public Element setValue(Element value) {
+						throw new UnsupportedOperationException("Not supported yet.");
+					}
+				});
+			}
+		}
+
+		return result;
+	}
+
+	@NotNull
+	private Map<JoinableFuture<?>, Element> createNodesForPendingFutures(@NotNull Document document) {
+		Map<JoinableFuture<?>, Element> pendingTasksElements = new HashMap<>();
+		synchronized (this.pendingTasks) {
+			int taskId = 0;
+			for (JoinableFuture<?> pendingTask : this.pendingTasks) {
+				taskId++;
+
+				String methodName = "";
+				Method entryMethodInfo = pendingTask.getEntryMethod();
+				if (entryMethodInfo != null) {
+					methodName = String.format(
+						" (%s.%s)",
+						entryMethodInfo.getDeclaringClass().getName(),
+						entryMethodInfo.getName());
+				}
+
+				Element node = Dgml.withCategories(Dgml.node(document, "Task#" + taskId, "Task #" + taskId + methodName, null), "Task");
+				if (pendingTask.hasNonEmptyQueue()) {
+					Dgml.withCategories(node, "NonEmptyQueue");
+				}
+
+				if (pendingTask.getState().contains(JoinableFutureFlag.SYNCHRONOUSLY_BLOCKING_MAIN_THREAD)) {
+					Dgml.withCategories(node, "MainThreadBlocking");
+				}
+
+				pendingTasksElements.put(pendingTask, node);
+			}
+		}
+
+		return pendingTasksElements;
+	}
+
+	@NotNull
+	private static String getAsyncReturnStack(@NotNull SingleExecuteProtector<?> singleExecuteProtector) {
+		Requires.notNull(singleExecuteProtector, "singleExecuteProtector");
+
+		StringBuilder stringBuilder = new StringBuilder();
+		try {
+			for (String frame : singleExecuteProtector.walkAsyncReturnStackFrames()) {
+				stringBuilder.append(frame);
+				stringBuilder.append(System.lineSeparator());
+			}
+		} catch (Exception ex) {
+			// Just eat the exception so we don't crash during a hang report.
+//                Report.fail("GetAsyncReturnStackFrames threw exception: ", ex);
+		}
+
+		return stringBuilder.toString().trim();
+	}
 }

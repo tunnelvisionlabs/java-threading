@@ -4,6 +4,12 @@ package com.tunnelvisionlabs.util.concurrent;
 enum Verify {
 	;
 
+	public static void operation(boolean condition, @NotNull String message) {
+		if (!condition) {
+			failOperation(message);
+		}
+	}
+
 	public static void failOperation(@NotNull String message) {
 		throw new IllegalStateException(message);
 	}

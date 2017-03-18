@@ -7,6 +7,8 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -313,92 +315,66 @@ public class JoinableFuture<T> {
 		return initialDelegate;
 	}
 
-//        /// <summary>
-//        /// Gets a value indicating whether this task has a non-empty queue.
-//        /// FOR DIAGNOSTICS COLLECTION ONLY.
-//        /// </summary>
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-//        internal bool HasNonEmptyQueue
-//        {
-//            get
-//            {
-//                Assumes.True(Monitor.IsEntered(this.owner.Context.SyncContextLock));
-//                return (this.mainThreadQueue != null && this.mainThreadQueue.Count > 0)
-//                    || (this.threadPoolQueue != null && this.threadPoolQueue.Count > 0);
-//            }
-//        }
-//
-//        /// <summary>
-//        /// Gets a snapshot of all joined tasks.
-//        /// FOR DIAGNOSTICS COLLECTION ONLY.
-//        /// </summary>
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-//        internal IEnumerable<JoinableTask> ChildOrJoinedJobs
-//        {
-//            get
-//            {
-//                Assumes.True(Monitor.IsEntered(this.owner.Context.SyncContextLock));
-//                if (this.childOrJoinedJobs == null)
-//                {
-//                    return Enumerable.Empty<JoinableTask>();
-//                }
-//
-//                return this.childOrJoinedJobs.Select(p => p.Key).ToArray();
-//            }
-//        }
-//
-//        /// <summary>
-//        /// Gets a snapshot of all work queued to the main thread.
-//        /// FOR DIAGNOSTICS COLLECTION ONLY.
-//        /// </summary>
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-//        internal IEnumerable<SingleExecuteProtector> MainThreadQueueContents
-//        {
-//            get
-//            {
-//                Assumes.True(Monitor.IsEntered(this.owner.Context.SyncContextLock));
-//                if (this.mainThreadQueue == null)
-//                {
-//                    return Enumerable.Empty<SingleExecuteProtector>();
-//                }
-//
-//                return this.mainThreadQueue.ToArray();
-//            }
-//        }
-//
-//        /// <summary>
-//        /// Gets a snapshot of all work queued to synchronously blocking threadpool thread.
-//        /// FOR DIAGNOSTICS COLLECTION ONLY.
-//        /// </summary>
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-//        internal IEnumerable<SingleExecuteProtector> ThreadPoolQueueContents
-//        {
-//            get
-//            {
-//                Assumes.True(Monitor.IsEntered(this.owner.Context.SyncContextLock));
-//                if (this.threadPoolQueue == null)
-//                {
-//                    return Enumerable.Empty<SingleExecuteProtector>();
-//                }
-//
-//                return this.threadPoolQueue.ToArray();
-//            }
-//        }
-//
-//        /// <summary>
-//        /// Gets the collections this task belongs to.
-//        /// FOR DIAGNOSTICS COLLECTION ONLY.
-//        /// </summary>
-//        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-//        internal IEnumerable<JoinableTaskCollection> ContainingCollections
-//        {
-//            get
-//            {
-//                Assumes.True(Monitor.IsEntered(this.owner.Context.SyncContextLock));
-//                return this.collectionMembership.ToArray();
-//            }
-//        }
-//
+	/**
+	 * Gets a value indicating whether this future has a non-empty queue. FOR DIAGNOSTICS COLLECTION ONLY.
+	 */
+	final boolean hasNonEmptyQueue() {
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		return (mainThreadQueue != null && !mainThreadQueue.isEmpty())
+			|| (threadPoolQueue != null && !threadPoolQueue.isEmpty());
+	}
+
+	/// <summary>
+	/// Gets a snapshot of all joined futures. FOR DIAGNOSTICS COLLECTION ONLY.
+	/// </summary>
+	final Iterable<JoinableFuture<?>> getChildOrJoinedJobs() {
+		owner.getContext().getSyncContextLock();
+		if (childOrJoinedJobs == null) {
+			return Collections.emptyList();
+		}
+
+		return new ArrayList<>(childOrJoinedJobs.keySet());
+	}
+
+	/**
+	 * Gets a snapshot of all work queued to the main thread. FOR DIAGNOSTICS COLLECTION ONLY.
+	 */
+	@NotNull
+	final Iterable<SingleExecuteProtector<?>> getMainThreadQueueContents() {
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		if (mainThreadQueue == null) {
+			return Collections.emptyList();
+		}
+
+		return mainThreadQueue.toList();
+	}
+
+	/**
+	 * Gets a snapshot of all work queued to synchronously blocking thread pool thread. FOR DIAGNOSTICS COLLECTION ONLY.
+	 */
+	final Iterable<SingleExecuteProtector<?>> getThreadPoolQueueContents() {
+		assert owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		if (threadPoolQueue == null) {
+			return Collections.emptyList();
+		}
+
+		return threadPoolQueue.toList();
+	}
+
+	/**
+	 * Gets the collections this task belongs to. FOR DIAGNOSTICS COLLECTION ONLY.
+	 */
+	@NotNull
+	final Collection<JoinableFutureCollection> getContainingCollections() {
+		assert this.owner.getContext().getSyncContextLock().isHeldByCurrentThread();
+		List<JoinableFutureCollection> result = new ArrayList<>();
+		for (JoinableFutureCollection collection : collectionMembership) {
+			result.add(collection);
+		}
+
+		return result;
+	}
+
 //        #endregion
 
 	/**
@@ -426,24 +402,33 @@ public class JoinableFuture<T> {
 			&& this.state.contains(JoinableFutureFlag.STARTED_ON_MAIN_THREAD);
 	}
 
-//        /// <summary>
-//        /// Synchronously blocks the calling thread until the operation has completed.
-//        /// If the caller is on the Main thread (or is executing within a JoinableTask that has access to the main thread)
-//        /// the caller's access to the Main thread propagates to this JoinableTask so that it may also access the main thread.
-//        /// </summary>
-//        /// <param name="cancellationToken">A cancellation token that will exit this method before the task is completed.</param>
-//        public void Join(CancellationToken cancellationToken = default(CancellationToken))
-//        {
-//            // We don't simply call this.CompleteOnCurrentThread because that doesn't take CancellationToken.
-//            // And it really can't be made to, since it sets state flags indicating the JoinableTask is
-//            // blocking till completion.
-//            // So instead, we new up a new JoinableTask to do the blocking. But we preserve the initial delegate
-//            // so that if a hang occurs it blames the original JoinableTask.
-//            this.owner.Run(
-//                () => this.JoinAsync(cancellationToken),
-//                JoinableTaskCreationOptions.None,
-//                this.initialDelegate);
-//        }
+	/**
+	 * Synchronously blocks the calling thread until the operation has completed. If the caller is on the Main thread
+	 * (or is executing within a {@link JoinableFuture} that has access to the main thread) the caller's access to the
+	 * Main thread propagates to this {@link JoinableFuture} so that it may also access the main thread.
+	 */
+	public final void join() {
+		join(null);
+	}
+
+	/**
+	 * Synchronously blocks the calling thread until the operation has completed. If the caller is on the Main thread
+	 * (or is executing within a {@link JoinableFuture} that has access to the main thread) the caller's access to the
+	 * Main thread propagates to this {@link JoinableFuture} so that it may also access the main thread.
+	 *
+	 * @param cancellationFuture A future that will exit this method before the future is completed.
+	 */
+	public final void join(@Nullable CompletableFuture<?> cancellationFuture) {
+		// We don't simply call this.CompleteOnCurrentThread because that doesn't take CancellationToken.
+		// And it really can't be made to, since it sets state flags indicating the JoinableTask is
+		// blocking till completion.
+		// So instead, we new up a new JoinableTask to do the blocking. But we preserve the initial delegate
+		// so that if a hang occurs it blames the original JoinableTask.
+		owner.run(
+			() -> joinAsync(cancellationFuture),
+			EnumSet.noneOf(JoinableFutureCreationOption.class)/*,
+			this.initialDelegate*/);
+	}
 
 	/**
 	 * Shares any access to the main thread the caller may have. Joins any main thread affinity of the caller with the
@@ -472,7 +457,7 @@ public class JoinableFuture<T> {
 
 		return Async.usingAsync(
 			ambientJobJoinsThis(),
-			() -> Async.awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationFuture)));
+			() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationFuture)));
 	}
 
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {
@@ -515,7 +500,7 @@ public class JoinableFuture<T> {
 				try {
 					if (mainThreadAffinitized) {
 						if (mainThreadQueue == null) {
-							mainThreadQueue = new ExecutionQueue();
+							mainThreadQueue = new ExecutionQueue(this);
 						}
 
 						// Try to post the message here, but we'll also post to the underlying sync context
@@ -525,7 +510,7 @@ public class JoinableFuture<T> {
 						mainThreadQueueUpdated = true;
 					} else if (isSynchronouslyBlockingThreadPool()) {
 						if (this.threadPoolQueue == null) {
-							this.threadPoolQueue = new ExecutionQueue();
+							this.threadPoolQueue = new ExecutionQueue(this);
 						}
 
 						backgroundThreadQueueUpdated = this.threadPoolQueue.tryAdd(wrapper);
@@ -1494,54 +1479,52 @@ public class JoinableFuture<T> {
 	 * other means.
 	 */
 	static class ExecutionQueue extends AsyncQueue<SingleExecuteProtector<?>> {
-//            private readonly JoinableTask owningJob;
-//
-//            internal ExecutionQueue(JoinableTask owningJob)
-//            {
-//                Requires.NotNull(owningJob, nameof(owningJob));
-//                this.owningJob = owningJob;
-//            }
-//
-//            protected override int InitialCapacity
-//            {
-//                get { return 1; } // in non-concurrent cases, 1 is sufficient.
-//            }
-//
-//            protected override void OnEnqueued(SingleExecuteProtector value, bool alreadyDispatched)
-//            {
-//                base.OnEnqueued(value, alreadyDispatched);
-//
-//                // We only need to consider scavenging our queue if this item was
-//                // actually added to the queue.
-//                if (!alreadyDispatched)
-//                {
-//                    Requires.NotNull(value, nameof(value));
-//                    value.AddExecutingCallback(this);
-//
-//                    // It's possible this value has already been executed
-//                    // (before our event wire-up was applied). So check and
-//                    // scavenge.
-//                    if (value.HasBeenExecuted)
-//                    {
-//                        this.Scavenge();
-//                    }
-//                }
-//            }
-//
-//            protected override void OnDequeued(SingleExecuteProtector value)
-//            {
-//                Requires.NotNull(value, nameof(value));
-//
-//                base.OnDequeued(value);
-//                value.RemoveExecutingCallback(this);
-//            }
-//
-//            protected override void OnCompleted()
-//            {
-//                base.OnCompleted();
-//
-//                this.owningJob.OnQueueCompleted();
-//            }
+		private final JoinableFuture<?> owningJob;
+
+		ExecutionQueue(@NotNull JoinableFuture<?> owningJob) {
+			Requires.notNull(owningJob, "owningJob");
+			this.owningJob = owningJob;
+		}
+
+		@Override
+		protected int getInitialCapacity() {
+			// in non-concurrent cases, 1 is sufficient.
+			return 1;
+		}
+
+		@Override
+		protected void onAdded(@NotNull SingleExecuteProtector<?> value, boolean alreadyDispatched) {
+			super.onAdded(value, alreadyDispatched);
+
+			// We only need to consider scavenging our queue if this item was
+			// actually added to the queue.
+			if (!alreadyDispatched) {
+				Requires.notNull(value, "value");
+				value.addExecutingCallback(this);
+
+				// It's possible this value has already been executed
+				// (before our event wire-up was applied). So check and
+				// scavenge.
+				if (value.hasBeenExecuted()) {
+					scavenge();
+				}
+			}
+		}
+
+		@Override
+		protected void onPolled(@NotNull SingleExecuteProtector<?> value) {
+			Requires.notNull(value, "value");
+
+			super.onPolled(value);
+			value.removeExecutingCallback(this);
+		}
+
+		@Override
+		protected void onCompleted() {
+			super.onCompleted();
+
+			owningJob.onQueueCompleted();
+		}
 
 		final void onExecuting() {
 			scavenge();

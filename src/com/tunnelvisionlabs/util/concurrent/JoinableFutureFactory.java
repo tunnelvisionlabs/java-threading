@@ -1,9 +1,11 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.concurrent.JoinableFuture.ExecutionQueue;
 import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureSynchronizationContext;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -977,41 +979,38 @@ public class JoinableFutureFactory {
 //                    return this.WalkAsyncReturnStackFrames().First(); // Top frame of the return callstack.
 //                }
 //            }
-//
-//            /// <summary>
-//            /// Registers for a callback when this instance is executed.
-//            /// </summary>
-//            internal void AddExecutingCallback(JoinableTask.ExecutionQueue callbackReceiver)
-//            {
-//                if (!this.HasBeenExecuted)
-//                {
-//                    this.executingCallbacks.Add(callbackReceiver);
-//                }
-//            }
-//
-//            /// <summary>
-//            /// Unregisters a callback for when this instance is executed.
-//            /// </summary>
-//            internal void RemoveExecutingCallback(JoinableTask.ExecutionQueue callbackReceiver)
-//            {
-//                this.executingCallbacks.Remove(callbackReceiver);
-//            }
-//
-//            /// <summary>
-//            /// Walk the continuation objects inside "async state machines" to generate the return callstack.
-//            /// FOR DIAGNOSTIC PURPOSES ONLY.
-//            /// </summary>
-//            internal IEnumerable<string> WalkAsyncReturnStackFrames()
-//            {
-//                // This instance might be a wrapper of another instance of "SingleExecuteProtector".
-//                // If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
-//                var singleExecuteProtector = this;
-//                while (singleExecuteProtector.state is SingleExecuteProtector)
-//                {
-//                    singleExecuteProtector = (SingleExecuteProtector)singleExecuteProtector.state;
-//                }
-//
-//                var invokeDelegate = singleExecuteProtector.invokeDelegate as Delegate;
+
+		/**
+		 * Registers for a callback when this instance is executed.
+		 */
+		final void addExecutingCallback(@NotNull ExecutionQueue callbackReceiver) {
+			if (!hasBeenExecuted()) {
+				executingCallbacks.add(callbackReceiver);
+			}
+		}
+
+		/**
+		 * Unregisters a callback for when this instance is executed.
+		 */
+		final void removeExecutingCallback(@NotNull ExecutionQueue callbackReceiver) {
+			executingCallbacks.remove(callbackReceiver);
+		}
+
+		/**
+		 * Walk the continuation objects inside "async state machines" to generate the return call stack. FOR DIAGNOSTIC PURPOSES ONLY.
+		 */
+            final Iterable<String> walkAsyncReturnStackFrames()
+            {
+                // This instance might be a wrapper of another instance of "SingleExecuteProtector".
+                // If that is true, we need to follow the chain to find the inner instance of "SingleExecuteProtector".
+                SingleExecuteProtector<?> singleExecuteProtector = this;
+                while (singleExecuteProtector.state instanceof SingleExecuteProtector)
+                {
+                    singleExecuteProtector = (SingleExecuteProtector<?>)singleExecuteProtector.state;
+                }
+
+				return Collections.emptyList();
+//                var invokeDelegate = singleExecuteProtector.invokeDelegate as Method;
 //                var stateDelegate = singleExecuteProtector.state as Delegate;
 //
 //                // We are in favor of "state" when "invokeDelegate" is a static method and "state" is the actual delegate.
@@ -1026,7 +1025,7 @@ public class JoinableFutureFactory {
 //                {
 //                    yield return frame;
 //                }
-//            }
+            }
 
             final void raiseTransitioningEvents()
             {

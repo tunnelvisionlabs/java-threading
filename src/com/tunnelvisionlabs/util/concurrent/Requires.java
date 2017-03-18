@@ -12,6 +12,12 @@ enum Requires {
 		return value;
 	}
 
+	public static String notNullOrEmpty(@NotNull String value, String parameterName) {
+		notNull(value, parameterName);
+		argument(!value.isEmpty(), parameterName, "cannot be empty");
+		return value;
+	}
+
 	public static void argument(boolean condition, String parameterName, String message) {
 		if (!condition) {
 			throw new IllegalArgumentException(parameterName + ": " + message);

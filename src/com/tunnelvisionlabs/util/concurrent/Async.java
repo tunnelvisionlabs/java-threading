@@ -88,12 +88,10 @@ public enum Async {
 			return awaiter.thenCompose(result -> continuation.get());
 		}
 
-		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
-		if (syncContext != null) {
-			throw new UnsupportedOperationException("Not implemented");
-		}
-
 		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
+
+		SynchronizationContext syncContext = continueOnCapturedContext ? SynchronizationContext.getCurrent() : null;
+		Executor executor = syncContext != null ? syncContext : ForkJoinPool.commonPool();
 		return awaiter.thenComposeAsync(result -> flowContinuation.get());
 	}
 

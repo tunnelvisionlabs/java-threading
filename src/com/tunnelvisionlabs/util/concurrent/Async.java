@@ -263,26 +263,6 @@ public enum Async {
 	}
 
 	@NotNull
-	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable) {
-		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable));
-	}
-
-	@NotNull
-	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable, @NotNull Executor executor) {
-		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable), executor);
-	}
-
-	@NotNull
-	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
-		return Futures.unwrap(Futures.supply(asyncRunnable));
-	}
-
-	@NotNull
-	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
-		return Futures.unwrap(Futures.supply(asyncRunnable, executor));
-	}
-
-	@NotNull
 	public static CompletableFuture<CompletableFuture<?>> whenAny(@NotNull CompletableFuture<?>... futures) {
 		return CompletableFuture.anyOf(futures).handle(
 			(result, exception) -> {

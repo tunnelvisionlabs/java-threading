@@ -17,7 +17,7 @@ public class SynchronizationContextTest extends TestBase {
 
 		Thread currentThread = Thread.currentThread();
 		SynchronizationContext.setSynchronizationContext(context);
-		CompletableFuture<Void> asyncTest = Async.runAsync(() -> {
+		CompletableFuture<Void> asyncTest = Futures.runAsync(() -> {
 			Assert.assertNotSame(currentThread, Thread.currentThread());
 			Assert.assertNotSame(context, SynchronizationContext.getCurrent());
 		});
@@ -34,7 +34,7 @@ public class SynchronizationContextTest extends TestBase {
 
 		Thread currentThread = Thread.currentThread();
 		SynchronizationContext.setSynchronizationContext(context);
-		CompletableFuture<Void> asyncTest = Async.runAsync(() -> {
+		CompletableFuture<Void> asyncTest = Futures.runAsync(() -> {
 			Assert.assertNotSame(currentThread, Thread.currentThread());
 			Assert.assertNotSame(context, SynchronizationContext.getCurrent());
 			return Futures.completedNull();

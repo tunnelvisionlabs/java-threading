@@ -112,7 +112,7 @@ public class CancellationTokenSource implements Disposable {
 			}
 
 			CompletableFuture<Void> delayedCancel = Async.delayAsync(duration.toMillis(), TimeUnit.MILLISECONDS)
-				.thenRun(() -> Async.runAsync(() -> cancel(false)));
+				.thenRun(() -> Futures.runAsync(() -> cancel(false)));
 			cancelAfterRegistration = register(future -> future.cancel(false), delayedCancel, false);
 		}
 	}

@@ -131,6 +131,26 @@ enum Futures {
 	}
 
 	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable, @NotNull Executor executor) {
+		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable), executor);
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
+		return unwrap(supply(asyncRunnable));
+	}
+
+	@NotNull
+	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
+		return unwrap(supply(asyncRunnable, executor));
+	}
+
+	@NotNull
 	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier) {
 		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier));
 	}

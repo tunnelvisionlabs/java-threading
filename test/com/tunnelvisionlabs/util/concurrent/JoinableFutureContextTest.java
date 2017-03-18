@@ -43,7 +43,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 				() -> {
 					Assert.assertTrue(getContext().isWithinJoinableFuture());
 					return Async.awaitAsync(
-						Async.runAsync(() -> {
+						Futures.runAsync(() -> {
 							Assert.assertTrue(getContext().isWithinJoinableFuture());
 						}));
 				});
@@ -58,7 +58,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getContext().onReportHang = (hangDuration, iterations, id)
 			-> hangQueue.add(new HangDetails(hangDuration, iterations, id, null));
 
-		Async.runAsync(() -> {
+		Futures.runAsync(() -> {
 			CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 			try {
 				StrongBox<Duration> lastDuration = new StrongBox<>(Duration.ZERO);
@@ -576,7 +576,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 
 	@Test
 	public void testIsMainThreadBlockedFalseWhenSyncBlockingOtherThread() {
-		CompletableFuture<Void> task = Async.runAsync(() -> {
+		CompletableFuture<Void> task = Futures.runAsync(() -> {
 			getFactory().run(() -> {
 				Assert.assertFalse(getContext().isMainThreadBlocked());
 				return Async.awaitAsync(
@@ -596,7 +596,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		AsyncManualResetEvent nonBlockingStateObserved = new AsyncManualResetEvent();
 		AsyncManualResetEvent nowBlocking = new AsyncManualResetEvent();
 		StrongBox<JoinableFuture<Void>> joinableTask = new StrongBox<>();
-		Async.runAsync(() -> {
+		Futures.runAsync(() -> {
 			joinableTask.set(getFactory().runAsync(() -> {
 				Assert.assertFalse(getContext().isMainThreadBlocked());
 				nonBlockingStateObserved.set();

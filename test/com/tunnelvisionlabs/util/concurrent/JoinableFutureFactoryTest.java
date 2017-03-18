@@ -30,7 +30,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 					// in the JTF overridden method called into another service, which also had a private lock
 					// but who had issued that private lock to another thread, that was blocked waiting for
 					// JTC.Factory to return.
-					CompletableFuture<Void> otherThread = Async.runAsync(() -> {
+					CompletableFuture<Void> otherThread = Futures.runAsync(() -> {
 						// It so happens as of the time of this writing that the Factory property
 						// always requires a SyncContextLock. If it ever stops needing that,
 						// we'll need to change this delegate to do something else that requires it.
@@ -73,7 +73,7 @@ public class JoinableFutureFactoryTest extends JoinableFutureTestBase {
 					// in the JTF overridden method called into another service, which also had a private lock
 					// but who had issued that private lock to another thread, that was blocked waiting for
 					// JTC.Factory to return.
-					CompletableFuture<Void> otherThread = Async.runAsync(() -> {
+					CompletableFuture<Void> otherThread = Futures.runAsync(() -> {
 						// It so happens as of the time of this writing that the Factory property
 						// always requires a SyncContextLock. If it ever stops needing that,
 						// we'll need to change this delegate to do something else that requires it.

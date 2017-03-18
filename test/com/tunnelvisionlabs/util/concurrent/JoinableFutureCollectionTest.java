@@ -40,7 +40,7 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());
-		Async.runAsync(() -> {
+		Futures.runAsync(() -> {
 			evt.set();
 			return Async.awaitAsync(
 				waiter,
@@ -74,7 +74,7 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());
-		Async.runAsync(() -> {
+		Futures.runAsync(() -> {
 			evt.set();
 			return Async.awaitAsync(
 				waiter,

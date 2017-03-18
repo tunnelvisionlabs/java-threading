@@ -60,12 +60,12 @@ public class AsyncLocalTest extends TestBase {
 		asyncLocal.setValue(value);
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			CompletableFuture.allOf(
-				Async.runAsync(() -> {
+				Futures.runAsync(() -> {
 					Assert.assertSame(value, asyncLocal.getValue());
 					asyncLocal.setValue(null);
 					Assert.assertNull(asyncLocal.getValue());
 				}),
-				Async.runAsync(() -> {
+				Futures.runAsync(() -> {
 					Assert.assertSame(value, asyncLocal.getValue());
 					asyncLocal.setValue(null);
 					Assert.assertNull(asyncLocal.getValue());
@@ -255,7 +255,7 @@ public class AsyncLocalTest extends TestBase {
 		AsyncAutoResetEvent player2 = new AsyncAutoResetEvent();
 		return Async.awaitAsync(
 			CompletableFuture.allOf(
-				Async.runAsync(() -> {
+				Futures.runAsync(() -> {
 					Assert.assertNull(asyncLocal.getValue());
 					T value = newInstance.get();
 					asyncLocal.setValue(value);
@@ -268,7 +268,7 @@ public class AsyncLocalTest extends TestBase {
 							return Futures.completedNull();
 						});
 				}),
-				Async.runAsync(() -> {
+				Futures.runAsync(() -> {
 					return Async.awaitAsync(
 						player1.waitAsync(),
 						() -> {

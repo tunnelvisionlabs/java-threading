@@ -2980,6 +2980,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	//[StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
 	@Test
+	@Ignore("GC test is unstable")
 	public void testSwitchToMainThreadMemoryLeak() {
 		checkGCPressure(
 			() -> {
@@ -2992,6 +2993,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	//[StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
 	@Test
+	@Ignore("GC test is unstable")
 	public void testSwitchToMainThreadMemoryLeakWithCancellationToken() {
 		CancellationTokenSource tokenSource = new CancellationTokenSource();
 		checkGCPressure(
@@ -3063,6 +3065,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	//[StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
 	@Test
+	@Ignore("GC test is unstable")
 	public void testRunSynchronouslyFutureNoYieldGCPressure() {
 		this.checkGCPressure(() -> {
 			asyncPump.run(() -> {
@@ -3087,6 +3090,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	//[StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
 	@Test
+	@Ignore("GC test is unstable")
 	public void testRunSynchronouslyTaskWithYieldGCPressure() {
 		checkGCPressure(() -> {
 			asyncPump.run(() -> {

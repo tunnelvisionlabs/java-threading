@@ -4,6 +4,10 @@
 
 [![Build Status](https://travis-ci.org/tunnelvisionlabs/java-threading.svg?branch=master)](https://travis-ci.org/tunnelvisionlabs/java-threading)
 
+[![Build status](https://ci.appveyor.com/api/projects/status/2p2l9l415aiy4elw/branch/master?svg=true)](https://ci.appveyor.com/project/sharwell/java-threading/branch/master)
+
+[![codecov](https://codecov.io/gh/tunnelvisionlabs/java-threading/branch/master/graph/badge.svg)](https://codecov.io/gh/tunnelvisionlabs/java-threading)
+
 This project is a complete port¹ of the [Microsoft.VisualStudio.Threading][1] assembly to support Java 8 and newer. An
 overview of the API mapping from .NET to Java is available in [API.md][2].
 

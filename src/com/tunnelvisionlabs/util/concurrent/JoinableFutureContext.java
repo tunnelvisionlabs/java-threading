@@ -211,7 +211,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * Conceals any {@link JoinableFuture} the caller is associated with until the returned value is disposed.
 	 *
 	 * <p>In some cases asynchronous work may be spun off inside a delegate supplied to {@code run}, so that the work
-	 * does not have privileges to re-enter the Main thread until the {@link JoinableFutureFactory#run(Function)} call
+	 * does not have privileges to re-enter the Main thread until the {@link JoinableFutureFactory#run(Supplier)} call
 	 * has returned and the UI thread is idle. To prevent the asynchronous work from automatically being allowed to
 	 * re-enter the Main thread, wrap the code that calls the asynchronous future in a {@code true}-with-resources block
 	 * with a call to this method as the expression.</p>

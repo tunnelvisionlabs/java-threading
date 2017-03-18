@@ -19,7 +19,7 @@ class ExecutionContext {
 	}
 
 	public static ExecutionContext capture() {
-		return new ExecutionContext(CallContext.getCurrent(), SynchronizationContext.getCurrent());
+		return new ExecutionContext(CallContext.getCurrent().createCopy(), SynchronizationContext.getCurrent());
 	}
 
 	public static boolean isFlowSuppressed() {

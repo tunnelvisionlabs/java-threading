@@ -73,8 +73,9 @@ public enum Async {
 
 	@NotNull
 	public static <U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
+		final Supplier<? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
 		return Futures.completedNull().thenComposeAsync(
-			ignored -> continuation.get(),
+			ignored -> flowContinuation.get(),
 			executor);
 	}
 
@@ -82,7 +83,11 @@ public enum Async {
 	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
 		CompletableFuture<Void> result = new CompletableFuture<>();
 		ScheduledFuture<?> scheduled = DELAY_SCHEDULER.schedule(
-			() -> ForkJoinPool.commonPool().execute(() -> result.complete(null)),
+			ExecutionContext.wrap(() -> {
+				ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> {
+					result.complete(null);
+				}));
+			}),
 			time,
 			unit);
 

@@ -1480,7 +1480,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		}
 
 		private void scavenge() {
-			while (poll(p -> p.hasBeenExecuted()) != null) {
+			while (poll(SingleExecuteProtector::hasBeenExecuted) != null) {
 			}
 		}
 	}

@@ -224,7 +224,7 @@ public abstract class TestBase {
 				() -> 0,
 				i -> i < iterations,
 				i -> i + 1,
-				() -> scenario.get()),
+				scenario::get),
 			() -> {
 				// This test is rather rough.  So we're willing to try it a few times in order to observe the desired value.
 				AtomicBoolean passingAttemptObserved = new AtomicBoolean(false);
@@ -242,7 +242,7 @@ public abstract class TestBase {
 									() -> 0,
 									i -> i < iterations,
 									i -> i + 1,
-									() -> scenario.get()),
+									scenario::get),
 								() -> {
 									long allocated = (getTotalMemory(false) - initialMemory) / iterations;
 

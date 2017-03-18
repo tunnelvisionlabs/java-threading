@@ -908,7 +908,7 @@ public class JoinableFutureFactory {
 		/**
 		 * Executes the delegate if it has not already executed.
 		 */
-		static final Consumer<SingleExecuteProtector<?>> EXECUTE_ONCE = state -> state.tryExecute();
+		static final Consumer<SingleExecuteProtector<?>> EXECUTE_ONCE = SingleExecuteProtector::tryExecute;
 
 //            /// <summary>
 //            /// Executes the delegate if it has not already executed.

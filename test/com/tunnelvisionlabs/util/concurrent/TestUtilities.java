@@ -111,7 +111,7 @@ enum TestUtilities {
 			}
 
 			CompletableFuture.allOf(tasks.toArray(new CompletableFuture<?>[concurrency])).join();
-			return tasks.stream().map(f -> f.join()).collect(Collectors.toList());
+			return tasks.stream().map(CompletableFuture::join).collect(Collectors.toList());
 	}
 
 //        internal static DebugAssertionRevert DisableAssertionDialog()
@@ -168,7 +168,7 @@ enum TestUtilities {
 		// any threads assigned to them.
 		int workerThreads = ForkJoinPool.getCommonPoolParallelism();
 		for (int i = 0; i < workerThreads * 10; i++) {
-			ForkJoinPool.commonPool().submit(() -> evt.join());
+			ForkJoinPool.commonPool().submit(evt::join);
 		}
 
 		return new ForkJoinPoolStarvation(evt);

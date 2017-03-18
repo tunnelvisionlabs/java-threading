@@ -190,10 +190,8 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	@Category(FailsInCloudTest.class)
 	@Ignore("Entry point isn't handled correctly")
 	public void testOnHangDetected_Run_OffMainThread() {
-		Futures.runAsync(() -> {
-			// Now that we're off the main thread, just call the other test.
-			testOnHangDetected_Run_OnMainThread();
-		}).join();
+		// Now that we're off the main thread, just call the other test.
+		Futures.runAsync(this::testOnHangDetected_Run_OnMainThread).join();
 	}
 
 	@Test
@@ -225,10 +223,8 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	@Test
 	@Ignore("Entry point isn't handled correctly")
 	public void testOnHangDetected_RunAsync_OffMainThread_BlamedMethodIsEntrypointNotBlockingMethod() {
-		Futures.runAsync(() -> {
-			// Now that we're off the main thread, just call the other test.
-			testOnHangDetected_RunAsync_OnMainThread_BlamedMethodIsEntrypointNotBlockingMethod();
-		}).join();
+		// Now that we're off the main thread, just call the other test.
+		Futures.runAsync(this::testOnHangDetected_RunAsync_OnMainThread_BlamedMethodIsEntrypointNotBlockingMethod).join();
 	}
 
 	/**

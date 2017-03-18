@@ -214,7 +214,7 @@ public class AsyncQueueTest extends TestBase {
 		}
 
 		for (int i = 0; i < pollers.size(); i++) {
-			long completedCount = pollers.stream().filter(d -> d.isDone()).count();
+			long completedCount = pollers.stream().filter(CompletableFuture::isDone).count();
 			Assert.assertEquals(i, completedCount);
 			queue.add(new GenericParameterHelper(i));
 		}
@@ -245,7 +245,7 @@ public class AsyncQueueTest extends TestBase {
 			}
 		}
 
-		Assert.assertTrue(pollers.stream().allMatch(d -> d.isDone()));
+		Assert.assertTrue(pollers.stream().allMatch(CompletableFuture::isDone));
 	}
 
 	@Test
@@ -271,7 +271,7 @@ public class AsyncQueueTest extends TestBase {
 			}
 		}
 
-		Assert.assertTrue(pollers.stream().allMatch(d -> d.isDone()));
+		Assert.assertTrue(pollers.stream().allMatch(CompletableFuture::isDone));
 	}
 
 	@Test
@@ -489,7 +489,7 @@ public class AsyncQueueTest extends TestBase {
 	public void testOnCompletedInvoked() {
 		DerivedQueue<GenericParameterHelper> queue = new DerivedQueue<>();
 		AtomicInteger invoked = new AtomicInteger(0);
-		queue.onCompletedHandler = () -> invoked.incrementAndGet();
+		queue.onCompletedHandler = invoked::incrementAndGet;
 		queue.complete();
 		Assert.assertEquals(1, invoked.get());
 

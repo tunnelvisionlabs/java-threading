@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 class CallContext {
-	private static final ThreadLocal<CallContext> CURRENT_CONTEXT = ThreadLocal.withInitial(() -> new CallContext());
+	private static final ThreadLocal<CallContext> CURRENT_CONTEXT = ThreadLocal.withInitial(CallContext::new);
 
 	private final Object lock = new Object();
 	private boolean needCopy;

@@ -36,7 +36,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	@Test
 	public void testRunFuncOfTaskMTA() {
-		Futures.runAsync(() -> runFuncOfTaskHelper()).join();
+		Futures.runAsync(this::runFuncOfTaskHelper).join();
 	}
 
 	@Test
@@ -46,7 +46,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	@Test
 	public void testRunFuncOfTaskOfTMTA() {
-		Futures.runAsync(() -> runFuncOfTaskOfTHelper()).join();
+		Futures.runAsync(this::runFuncOfTaskOfTHelper).join();
 	}
 
 	@Test
@@ -1069,7 +1069,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 								return Async.awaitAsync(
 									Async.usingAsync(
 										collection2.join(),
-										() -> Futures.completedNull()),
+										Futures::completedNull),
 									() -> Async.awaitAsync(dependentFirstWorkCompleted));
 							}),
 						() -> {
@@ -1808,7 +1808,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Test
 	public void testBeginAsyncCompleteSync() {
 		CompletableFuture<? extends Void> task = asyncPump.runAsync(
-			() -> someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync()).getFuture();
+			this::someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync).getFuture();
 		Assert.assertFalse(task.isDone());
 		TestUtilities.completeSynchronously(asyncPump, joinableCollection, task);
 	}
@@ -3067,9 +3067,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Ignore("GC test is unstable")
 	public void testRunSynchronouslyFutureNoYieldGCPressure() {
 		this.checkGCPressure(() -> {
-			asyncPump.run(() -> {
-				return Futures.completedNull();
-			});
+			asyncPump.run(Futures::completedNull);
 		}, /*maxBytesAllocated:*/ 1037); // Note: .NET has this at 573
 	}
 
@@ -3143,7 +3141,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			throw exception;
 		});
 		Assert.assertTrue(joinableTask.isDone());
-		CompletableFuture<Void> asyncTest = AsyncAssert.assertThrowsAsync(sameInstance(exception), () -> joinableTask.getFuture());
+		CompletableFuture<Void> asyncTest = AsyncAssert.assertThrowsAsync(sameInstance(exception), joinableTask::getFuture);
 
 		asyncTest.join();
 
@@ -3228,10 +3226,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		CancellationTokenSource cts = new CancellationTokenSource();
 		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)this.asyncPump;
 		CompletableFuture<Void> transitionedToMainThread = new CompletableFuture<>();
-		factory.PostToUnderlyingSynchronizationContextCallback = () -> {
-			// Pause the background thread after posted the continuation to JoinableFuture.
-			transitionedToMainThread.join();
-		};
+		// Pause the background thread after posted the continuation to JoinableFuture.
+		factory.PostToUnderlyingSynchronizationContextCallback = transitionedToMainThread::join;
 
 		StrongBox<Object> result = new StrongBox<>(new Object());
 		WeakReference<Object> weakResult = new WeakReference<>(result.value);
@@ -3426,11 +3422,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	public void testPostToUnderlyingSynchronizationContextShouldBeAfterSignalJoinableTasks() {
 		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)this.asyncPump;
 		CompletableFuture<?> transitionedToMainThread = new CompletableFuture<>();
-		factory.PostToUnderlyingSynchronizationContextCallback = () -> {
-			// The JoinableTask should be wakened up and the code to set this event should be executed on main thread,
-			// otherwise, this wait will cause test timeout.
-			transitionedToMainThread.join();
-		};
+		// The JoinableTask should be wakened up and the code to set this event should be executed on main thread,
+		// otherwise, this wait will cause test timeout.
+		factory.PostToUnderlyingSynchronizationContextCallback = transitionedToMainThread::join;
 		asyncPump.run(() -> {
 			return Async.awaitAsync(
 				ForkJoinPool.commonPool(),

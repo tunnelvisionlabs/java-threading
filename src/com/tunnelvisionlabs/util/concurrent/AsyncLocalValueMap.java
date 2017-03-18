@@ -21,11 +21,6 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			return false;
-		}
-
-		@Override
 		public Object get(IAsyncLocal key) {
 			return null;
 		}
@@ -56,11 +51,6 @@ enum AsyncLocalValueMap {
 				// Otherwise, there's nothing to add or remove, so just return this map.
 				return key == key1 ? EMPTY : this;
 			}
-		}
-
-		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			return key == key1;
 		}
 
 		@Override
@@ -104,12 +94,6 @@ enum AsyncLocalValueMap {
 					: key == key2 ? new OneElementAsyncLocalValueMap(key1, value1)
 						: (IAsyncLocalValueMap)this;
 			}
-		}
-
-		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			return key == key1
-				|| key == key2;
 		}
 
 		@Override
@@ -174,13 +158,6 @@ enum AsyncLocalValueMap {
 						: key == key3 ? new TwoElementAsyncLocalValueMap(key1, value1, key2, value2)
 							: this;
 			}
-		}
-
-		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			return key == key1
-				|| key == key2
-				|| key == key3;
 		}
 
 		@Override
@@ -284,17 +261,6 @@ enum AsyncLocalValueMap {
 		}
 
 		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			for (int i = 0; i < keys.length; i++) {
-				if (keys[i] == key) {
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		@Override
 		public Object get(IAsyncLocal key) {
 			for (int i = 0; i < keys.length; i++) {
 				if (keys[i] == key) {
@@ -367,11 +333,6 @@ enum AsyncLocalValueMap {
 			// We were storing null, but the key wasn't in the map, so there's nothing to change.
 			// Just return this instance.
 			return this;
-		}
-
-		@Override
-		public boolean containsKey(IAsyncLocal key) {
-			return values.containsKey(key);
 		}
 
 		@Override

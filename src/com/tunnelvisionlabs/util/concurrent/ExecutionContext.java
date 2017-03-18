@@ -149,8 +149,8 @@ class ExecutionContext {
 				for (IAsyncLocal local : current.localChangeNotifications) {
 					// If the local has a value in the previous context, we already fired the event for that local
 					// in the code above.
-					if (!previous.localValues.containsKey(local)) {
-						Object previousValue = null;
+					Object previousValue = previous.localValues.get(local);
+					if (previousValue == null) {
 						Object currentValue = current.localValues.get(local);
 
 						if (previousValue != currentValue) {
@@ -181,8 +181,8 @@ class ExecutionContext {
 			current = DEFAULT;
 		}
 
-		boolean hadPreviousValue = current.localValues.containsKey(local);
 		Object previousValue = current.localValues.get(local);
+		boolean hadPreviousValue = previousValue != null;
 
 		if (previousValue == newValue) {
 			return;

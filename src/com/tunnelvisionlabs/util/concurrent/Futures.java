@@ -92,6 +92,60 @@ enum Futures {
 	}
 
 	@NotNull
+	public static <T> CompletableFuture<T> createPriorityHandler(@NotNull CompletableFuture<T> future, @NotNull StrongBox<CompletableFuture<T>> secondaryHandler) {
+		if (future.isDone()) {
+			secondaryHandler.value = future;
+			return future;
+		}
+
+		secondaryHandler.value = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (future.isCancelled()) {
+					return super.cancel(mayInterruptIfRunning);
+				}
+
+				return future.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		CompletableFuture<T> priorityHandler = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (future.isCancelled()) {
+					return super.cancel(mayInterruptIfRunning);
+				}
+
+				return future.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		future.whenComplete((result, exception) -> {
+			if (future.isCancelled()) {
+				try {
+					priorityHandler.cancel(true);
+				} finally {
+					secondaryHandler.value.cancel(true);
+				}
+			} else if (exception != null) {
+				try {
+					priorityHandler.completeExceptionally(exception);
+				} finally {
+					secondaryHandler.value.completeExceptionally(exception);
+				}
+			} else {
+				try {
+					priorityHandler.complete(result);
+				} finally {
+					secondaryHandler.value.complete(result);
+				}
+			}
+		});
+
+		return priorityHandler;
+	}
+
+	@NotNull
 	public static <T> CompletableFuture<T> unwrap(@NotNull CompletableFuture<? extends CompletableFuture<T>> future) {
 		CompletableFuture<T> result = new CompletableFuture<T>() {
 			@Override

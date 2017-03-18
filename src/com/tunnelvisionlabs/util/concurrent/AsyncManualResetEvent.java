@@ -26,6 +26,9 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	 */
 	private CompletableFutureWithoutInlining<Void> future;
 
+	private CompletableFuture<Void> priorityFuture;
+	private CompletableFuture<Void> secondaryFuture;
+
 	/**
 	 * A flag indicating whether the event is signaled. When this is set to {@code true}, it's possible that
 	 * {@link #future}.isDone() is still {@code false} if the completion has been scheduled asynchronously. Thus, this
@@ -62,6 +65,10 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			// Complete the task immediately.
 			future.complete(null);
 		}
+
+		StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+		this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+		this.secondaryFuture = secondaryHandlerBox.value;
 	}
 
 	/**
@@ -79,7 +86,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@NotNull
 	public final CompletableFuture<Void> waitAsync() {
 		synchronized (this.syncObject) {
-			return Futures.nonCancellationPropagating(future);
+			return Futures.nonCancellationPropagating(priorityFuture);
 		}
 	}
 
@@ -92,10 +99,12 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@Deprecated
 	final CompletableFuture<Void> setAsync() {
 		CompletableFutureWithoutInlining<Void> localFuture;
+		CompletableFuture<Void> secondaryFuture;
 		boolean transitionRequired = false;
 		synchronized (this.syncObject) {
 			transitionRequired = !this.isSet;
 			localFuture = this.future;
+			secondaryFuture = this.secondaryFuture;
 			this.isSet = true;
 		}
 
@@ -103,7 +112,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			localFuture.trySetResultToNull();
 		}
 
-		return localFuture;
+		return secondaryFuture;
 	}
 
 	/**
@@ -120,6 +129,11 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 		synchronized (this.syncObject) {
 			if (this.isSet) {
 				this.future = this.createFuture();
+
+				StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+				this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+				this.secondaryFuture = secondaryHandlerBox.value;
+
 				this.isSet = false;
 			}
 		}
@@ -135,6 +149,7 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 	@Deprecated
 	final CompletableFuture<Void> pulseAllAsync() {
 		CompletableFutureWithoutInlining<Void> localFuture;
+		CompletableFuture<Void> secondaryFuture;
 		synchronized (this.syncObject) {
 			// Atomically replace the future with a new, uncompleted future
 			// while capturing the previous one so we can complete it.
@@ -142,12 +157,19 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			// continue to return completed futures due to a pulse method which should
 			// execute instantaneously.
 			localFuture = this.future;
+			secondaryFuture = this.secondaryFuture;
+
 			this.future = this.createFuture();
+
+			StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+			this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
+			this.secondaryFuture = secondaryHandlerBox.value;
+
 			this.isSet = false;
 		}
 
 		localFuture.trySetResultToNull();
-		return localFuture;
+		return secondaryFuture;
 	}
 
 	/**

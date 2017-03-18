@@ -53,12 +53,29 @@ public class AsyncAutoResetEvent {
 	 */
 	@NotNull
 	public final CompletableFuture<Void> waitAsync() {
+		return waitAsync(null);
+	}
+
+	/**
+	 * Returns a future that may be used to asynchronously acquire the next signal.
+	 *
+	 * @param cancellationFuture A future whose completion removes the caller from the queue of those waiting for the
+	 * event.
+	 *
+	 * @return A future representing the asynchronous operation.
+	 */
+	@NotNull
+	public final CompletableFuture<Void> waitAsync(@Nullable CompletableFuture<?> cancellationFuture) {
+		if (cancellationFuture != null && cancellationFuture.isDone()) {
+			return Futures.completedCancelled();
+		}
+
 		synchronized (this.signalAwaiters) {
 			if (this.signaled) {
 				this.signaled = false;
 				return Futures.completedNull();
 			} else {
-				WaiterCompletableFuture waiter = new WaiterCompletableFuture(this.allowInliningAwaiters);
+				WaiterCompletableFuture waiter = new WaiterCompletableFuture(cancellationFuture, allowInliningAwaiters);
 				this.signalAwaiters.add(waiter);
 				return waiter;
 			}
@@ -88,16 +105,24 @@ public class AsyncAutoResetEvent {
 	 * Tracks someone waiting for a signal from the event.
 	 */
 	private class WaiterCompletableFuture extends CompletableFutureWithoutInlining<Void> {
+		private final CompletableFuture<?> cancellationFuture;
 
 		/**
 		 * Constructs a new instance of the {@link WaiterCompletableFuture} class.
 		 *
-		 * @param owner The event that is initializing this value
+		 * @param cancellationFuture The cancellation future associated with the waiter.
 		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's
 		 * call stack.
 		 */
-		public WaiterCompletableFuture(boolean allowInliningContinuations) {
+		public WaiterCompletableFuture(CompletableFuture<?> cancellationFuture, boolean allowInliningContinuations) {
 			super(allowInliningContinuations);
+
+			this.cancellationFuture = cancellationFuture;
+			if (cancellationFuture != null) {
+				cancellationFuture.whenComplete((result, exception) -> {
+					cancel(true);
+				});
+			}
 		}
 
 		@Override

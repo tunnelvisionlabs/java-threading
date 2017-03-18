@@ -124,21 +124,18 @@ enum TestUtilities {
 //
 //            return default(DebugAssertionRevert);
 //        }
-//
-//        internal static void CompleteSynchronously(this JoinableTaskFactory factory, JoinableTaskCollection collection, Task task)
-//        {
-//            Requires.NotNull(factory, nameof(factory));
-//            Requires.NotNull(collection, nameof(collection));
-//            Requires.NotNull(task, nameof(task));
-//
-//            factory.Run(async delegate
-//            {
-//                using (collection.Join())
-//                {
-//                    await task;
-//                }
-//            });
-//        }
+
+	static void completeSynchronously(@NotNull JoinableFutureFactory factory, @NotNull JoinableFutureCollection collection, CompletableFuture<?> future) {
+		Requires.notNull(factory, "factory");
+		Requires.notNull(collection, "collection");
+		Requires.notNull(future, "future");
+
+		factory.run(() -> {
+			return Async.usingAsync(
+				collection.join(),
+				() -> Async.awaitAsync(future));
+		});
+	}
 
 	/**
 	 * Forces an awaitable to yield, setting signals after the continuation has been pended and when the continuation

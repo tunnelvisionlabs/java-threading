@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -549,571 +550,648 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		joinableTask.join();
 	}
 
-//        [StaFact]
-//        public void RunSynchronouslyNestedNoJoins()
-//        {
-//            bool outerCompleted = false, innerCompleted = false;
-//            this.asyncPump.Run(async delegate
-//            {
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                await Task.Yield();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                await Task.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                });
-//
-//                this.asyncPump.Run(async delegate
-//                {
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                    await Task.Run(async delegate
-//                    {
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    });
-//
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    innerCompleted = true;
-//                });
-//
-//                await Task.Yield();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                outerCompleted = true;
-//            });
-//
-//            Assert.True(innerCompleted, "Nested Run did not complete.");
-//            Assert.True(outerCompleted, "Outer Run did not complete.");
-//        }
-//
-//        [StaFact]
-//        public void RunSynchronouslyNestedWithJoins()
-//        {
-//            bool outerCompleted = false, innerCompleted = false;
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                await Task.Yield();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                await this.TestReentrancyOfUnrelatedDependentWork();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                await Task.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                });
-//
-//                await this.TestReentrancyOfUnrelatedDependentWork();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                this.asyncPump.Run(async delegate
-//                {
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                    await this.TestReentrancyOfUnrelatedDependentWork();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                    await Task.Run(async delegate
-//                    {
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    });
-//
-//                    await this.TestReentrancyOfUnrelatedDependentWork();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    innerCompleted = true;
-//                });
-//
-//                await Task.Yield();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//                outerCompleted = true;
-//            });
-//
-//            Assert.True(innerCompleted, "Nested Run did not complete.");
-//            Assert.True(outerCompleted, "Outer Run did not complete.");
-//        }
-//
-//        [StaFact]
-//        public void RunSynchronouslyOffMainThreadRequiresJoinToReenterMainThreadForSameAsyncPumpInstance()
-//        {
-//            var task = Task.Run(delegate
-//            {
-//                this.asyncPump.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread); //, "We're not on the Main thread!");
-//                });
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                // Even though it's all the same instance of AsyncPump,
-//                // unrelated work (work not spun off from this block) must still be
-//                // Joined in order to execute here.
-//                Assert.NotSame(task, await Task.WhenAny(task, Task.Delay(AsyncDelay / 2))); //, "The unrelated main thread work completed before the Main thread was joined.");
-//                using (this.joinableCollection.Join())
-//                {
-//                    this.PrintActiveTasksReport();
-//                    await task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void RunSynchronouslyOffMainThreadRequiresJoinToReenterMainThreadForDifferentAsyncPumpInstance()
-//        {
-//            var otherCollection = this.context.CreateCollection();
-//            var otherAsyncPump = this.context.CreateFactory(otherCollection);
-//            var task = Task.Run(delegate
-//            {
-//                otherAsyncPump.Run(async delegate
-//                {
-//                    await otherAsyncPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                });
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                Assert.NotSame(task, await Task.WhenAny(task, Task.Delay(AsyncDelay / 2))); //, "The unrelated main thread work completed before the Main thread was joined.");
-//                using (otherCollection.Join())
-//                {
-//                    await task;
-//                }
-//            });
-//        }
-//
-//        /// <summary>
-//        /// Checks that posting to the SynchronizationContext.Current doesn't cause a hang.
-//        /// </summary>
-//        /// <remarks>
-//        /// DevDiv bug 874540 represents a hang that this test repros.
-//        /// </remarks>
-//        [StaFact]
-//        public void RunSwitchesToMainThreadAndPosts()
-//        {
-//            var task = Task.Run(delegate
-//            {
-//                try
-//                {
-//                    this.asyncPump.Run(async delegate
-//                    {
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        SynchronizationContext.Current.Post(s => { }, null);
-//                    });
-//                }
-//                finally
-//                {
-//                    this.testFrame.Continue = false;
-//                }
-//            });
-//
-//            // Now let the request proceed through.
-//            this.PushFrame();
-//            task.Wait(); // rethrow exceptions.
-//        }
-//
-//        /// <summary>
-//        /// Checks that posting to the SynchronizationContext.Current doesn't cause a hang.
-//        /// </summary>
-//        [StaFact]
-//        public void RunSwitchesToMainThreadAndPostsTwice()
-//        {
-//            ((DerivedJoinableTaskFactory)this.asyncPump).AssumeConcurrentUse = true;
-//            var task = Task.Run(delegate
-//            {
-//                try
-//                {
-//                    this.asyncPump.Run(async delegate
-//                    {
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        SynchronizationContext.Current.Post(s => { }, null);
-//                        SynchronizationContext.Current.Post(s => { }, null);
-//                    });
-//                }
-//                finally
-//                {
-//                    this.testFrame.Continue = false;
-//                }
-//            });
-//
-//            // Now let the request proceed through.
-//            this.PushFrame();
-//            task.Wait(); // rethrow exceptions.
-//        }
-//
-//        /// <summary>
-//        /// Checks that posting to the SynchronizationContext.Current doesn't cause a hang.
-//        /// </summary>
-//        [StaFact]
-//        public void RunSwitchesToMainThreadAndPostsTwiceDoesNotImpactJoinableTaskCompletion()
-//        {
-//            ((DerivedJoinableTaskFactory)this.asyncPump).AssumeConcurrentUse = true;
-//            Task task = null;
-//            task = Task.Run(delegate
-//            {
-//                try
-//                {
-//                    this.asyncPump.Run(async delegate
-//                    {
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//
-//                        // Kick off work that should *not* impact the completion of
-//                        // the JoinableTask that lives within this Run delegate.
-//                        // And enforce the assertion by blocking the main thread until
-//                        // the JoinableTask is done, which would deadlock if the
-//                        // JoinableTask were inappropriately blocking on the completion
-//                        // of the posted message.
-//                        SynchronizationContext.Current.Post(s => { task.Wait(); }, null);
-//
-//                        // Post one more time, since an implementation detail may unblock
-//                        // the JoinableTask for the very last posted message for reasons that
-//                        // don't apply for other messages.
-//                        SynchronizationContext.Current.Post(s => { }, null);
-//                    });
-//                }
-//                finally
-//                {
-//                    this.testFrame.Continue = false;
-//                }
-//            });
-//
-//            // Now let the request proceed through.
-//            this.PushFrame();
-//            task.Wait(); // rethrow exceptions.
-//        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadImmediatelyShouldNotHang()
-//        {
-//            ((DerivedJoinableTaskFactory)this.asyncPump).AssumeConcurrentUse = true;
-//
-//            var task1Started = new AsyncManualResetEvent(false);
-//            var task2Started = new AsyncManualResetEvent(false);
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                var child1Task = Task.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().YieldAndNotify(task1Started);
-//                });
-//
-//                var child2Task = Task.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().YieldAndNotify(task2Started);
-//                });
-//
-//                task1Started.WaitAsync().Wait();
-//                task2Started.WaitAsync().Wait();
-//
-//                await child1Task;
-//                await child2Task;
-//            });
-//        }
-//
-//        [StaFact]
-//        public void MultipleSwitchToMainThreadShouldNotHang()
-//        {
-//            ((DerivedJoinableTaskFactory)this.asyncPump).AssumeConcurrentUse = true;
-//
-//            JoinableTask task1 = null, task2 = null;
-//            var taskStarted = new AsyncManualResetEvent();
-//            var testEnded = new AsyncManualResetEvent();
-//            var dependentWork1Queued = new AsyncManualResetEvent();
-//            var dependentWork2Queued = new AsyncManualResetEvent();
-//            var dependentWork1Finished = new AsyncManualResetEvent();
-//            var dependentWork2Finished = new AsyncManualResetEvent();
-//
-//            var separatedTask = Task.Run(async delegate
-//            {
-//                task1 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync()
-//                        .GetAwaiter().YieldAndNotify(dependentWork1Queued);
-//
-//                    dependentWork1Finished.Set();
-//                });
-//
-//                task2 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                    collection.Add(task1);
-//                    collection.Join();
-//
-//                    await this.asyncPump.SwitchToMainThreadAsync()
-//                        .GetAwaiter().YieldAndNotify(dependentWork2Queued);
-//
-//                    dependentWork2Finished.Set();
-//                    await testEnded;
-//                });
-//
-//                taskStarted.Set();
-//                await testEnded;
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                await taskStarted;
-//                await dependentWork1Queued;
-//                await dependentWork2Queued;
-//
-//                var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                collection.Add(task2);
-//                collection.Join();
-//
-//                await dependentWork1Finished;
-//                await dependentWork2Finished;
-//
-//                testEnded.Set();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task1;
-//                    await task2;
-//                    await separatedTask;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadWithDelayedDependencyShouldNotHang()
-//        {
-//            JoinableTask task1 = null, task2 = null;
-//            var taskStarted = new AsyncManualResetEvent();
-//            var testEnded = new AsyncManualResetEvent();
-//            var dependentWorkAllowed = new AsyncManualResetEvent();
-//            var indirectDependencyAllowed = new AsyncManualResetEvent();
-//            var dependentWorkQueued = new AsyncManualResetEvent();
-//            var dependentWorkFinished = new AsyncManualResetEvent();
-//
-//            var separatedTask = Task.Run(async delegate
-//            {
-//                var taskCollection = new JoinableTaskCollection(this.context);
-//                var factory = new JoinableTaskFactory(taskCollection);
-//                task1 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    await dependentWorkAllowed;
-//                    await factory.SwitchToMainThreadAsync()
-//                        .GetAwaiter().YieldAndNotify(dependentWorkQueued);
-//
-//                    dependentWorkFinished.Set();
-//                });
-//
-//                task2 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    await indirectDependencyAllowed;
-//
-//                    var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                    collection.Add(task1);
-//
-//                    await Task.Delay(AsyncDelay);
-//                    collection.Join();
-//
-//                    await testEnded;
-//                });
-//
-//                taskStarted.Set();
-//                await testEnded;
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                await taskStarted;
-//                dependentWorkAllowed.Set();
-//                await dependentWorkQueued;
-//
-//                var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                collection.Add(task2);
-//
-//                collection.Join();
-//                indirectDependencyAllowed.Set();
-//
-//                await dependentWorkFinished;
-//
-//                testEnded.Set();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task1;
-//                    await task2;
-//                    await separatedTask;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void DoubleJoinedTaskDisjoinCorrectly()
-//        {
-//            JoinableTask task1 = null;
-//            var taskStarted = new AsyncManualResetEvent();
-//            var dependentFirstWorkCompleted = new AsyncManualResetEvent();
-//            var dependentSecondWorkAllowed = new AsyncManualResetEvent();
-//            var mainThreadDependentSecondWorkQueued = new AsyncManualResetEvent();
-//            var testEnded = new AsyncManualResetEvent();
-//
-//            var separatedTask = Task.Run(async delegate
-//            {
-//                task1 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    await TaskScheduler.Default;
-//
-//                    dependentFirstWorkCompleted.Set();
-//                    await dependentSecondWorkAllowed;
-//
-//                    await this.asyncPump.SwitchToMainThreadAsync()
-//                        .GetAwaiter().YieldAndNotify(mainThreadDependentSecondWorkQueued);
-//                });
-//
-//                taskStarted.Set();
-//                await testEnded;
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                await taskStarted;
-//
-//                var collection1 = new JoinableTaskCollection(this.joinableCollection.Context);
-//                collection1.Add(task1);
-//                var collection2 = new JoinableTaskCollection(this.joinableCollection.Context);
-//                collection2.Add(task1);
-//
-//                using (collection1.Join())
-//                {
-//                    using (collection2.Join())
-//                    {
-//                    }
-//
-//                    await dependentFirstWorkCompleted;
-//                }
-//
-//                dependentSecondWorkAllowed.Set();
-//                await mainThreadDependentSecondWorkQueued;
-//
-//                await Task.Delay(AsyncDelay);
-//                await Task.Yield();
-//
-//                Assert.False(task1.IsCompleted);
-//
-//                testEnded.Set();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task1;
-//                    await separatedTask;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void DoubleIndirectJoinedTaskDisjoinCorrectly()
-//        {
-//            JoinableTask task1 = null, task2 = null, task3 = null;
-//            var taskStarted = new AsyncManualResetEvent();
-//            var dependentFirstWorkCompleted = new AsyncManualResetEvent();
-//            var dependentSecondWorkAllowed = new AsyncManualResetEvent();
-//            var mainThreadDependentSecondWorkQueued = new AsyncManualResetEvent();
-//            var testEnded = new AsyncManualResetEvent();
-//
-//            var separatedTask = Task.Run(async delegate
-//            {
-//                task1 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    await TaskScheduler.Default;
-//
-//                    dependentFirstWorkCompleted.Set();
-//                    await dependentSecondWorkAllowed;
-//
-//                    await this.asyncPump.SwitchToMainThreadAsync()
-//                        .GetAwaiter().YieldAndNotify(mainThreadDependentSecondWorkQueued);
-//                });
-//
-//                task2 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                    collection.Add(task1);
-//                    using (collection.Join())
-//                    {
-//                        await testEnded;
-//                    }
-//                });
-//
-//                task3 = this.asyncPump.RunAsync(async delegate
-//                {
-//                    var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                    collection.Add(task1);
-//                    using (collection.Join())
-//                    {
-//                        await testEnded;
-//                    }
-//                });
-//
-//                taskStarted.Set();
-//                await testEnded;
-//            });
-//
-//            var waitCountingJTF = new WaitCountingJoinableTaskFactory(this.asyncPump.Context);
-//            waitCountingJTF.Run(async delegate
-//            {
-//                await taskStarted;
-//
-//                var collection = new JoinableTaskCollection(this.joinableCollection.Context);
-//                collection.Add(task2);
-//                collection.Add(task3);
-//
-//                using (collection.Join())
-//                {
-//                    await dependentFirstWorkCompleted;
-//                }
-//
-//                int waitCountBeforeSecondWork = waitCountingJTF.WaitCount;
-//                dependentSecondWorkAllowed.Set();
-//                await Task.Delay(AsyncDelay / 2);
-//                await mainThreadDependentSecondWorkQueued;
-//
-//                await Task.Delay(AsyncDelay / 2);
-//                await Task.Yield();
-//
-//                // we expect 3 switching from two delay one yield call.  We don't want one triggered by Task1.
-//                Assert.True(waitCountingJTF.WaitCount - waitCountBeforeSecondWork <= 3);
-//                Assert.False(task1.IsCompleted);
-//
-//                testEnded.Set();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task1;
-//                    await task2;
-//                    await task3;
-//                    await separatedTask;
-//                }
-//            });
-//        }
-//
+	@Test
+	public void testRunSynchronouslyNestedNoJoins() {
+		AtomicBoolean outerCompleted = new AtomicBoolean();
+		AtomicBoolean innerCompleted = new AtomicBoolean();
+		asyncPump.run(() -> {
+			Assert.assertSame(originalThread, Thread.currentThread());
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					Assert.assertSame(originalThread, Thread.currentThread());
+
+					return Async.awaitAsync(
+						Async.runAsync(() -> Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(),
+							() -> {
+								Assert.assertSame(originalThread, Thread.currentThread());
+								return Futures.completedNull();
+							})),
+						() -> {
+							asyncPump.run(() -> {
+								Assert.assertSame(originalThread, Thread.currentThread());
+								return Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> {
+										Assert.assertSame(originalThread, Thread.currentThread());
+
+										return Async.awaitAsync(
+											Async.runAsync(() -> Async.awaitAsync(
+												asyncPump.switchToMainThreadAsync(),
+												() -> {
+													Assert.assertSame(originalThread, Thread.currentThread());
+													return Futures.completedNull();
+												})),
+											() -> {
+												Assert.assertSame(originalThread, Thread.currentThread());
+												innerCompleted.set(true);
+												return Futures.completedNull();
+											});
+									});
+							});
+
+							return Async.awaitAsync(
+								Async.yieldAsync(),
+								() -> {
+									Assert.assertSame(originalThread, Thread.currentThread());
+									outerCompleted.set(true);
+									return Futures.completedNull();
+								});
+						});
+				});
+		});
+
+		Assert.assertTrue("Nested Run did not complete.", innerCompleted.get());
+		Assert.assertTrue("Outer Run did not complete.", outerCompleted.get());
+	}
+
+	@Test
+	@Ignore("Fails for Java only")
+	public void testRunSynchronouslyNestedWithJoins() {
+		AtomicBoolean outerCompleted = new AtomicBoolean(false);
+		AtomicBoolean innerCompleted = new AtomicBoolean(false);
+
+		asyncPump.run(() -> {
+			Assert.assertSame(originalThread, Thread.currentThread());
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					Assert.assertSame(originalThread, Thread.currentThread());
+
+					return Async.awaitAsync(
+						testReentrancyOfUnrelatedDependentWork(),
+						() -> {
+							Assert.assertSame(originalThread, Thread.currentThread());
+
+							return Async.awaitAsync(
+								Async.runAsync(() -> Async.awaitAsync(
+									asyncPump.switchToMainThreadAsync(),
+									() -> {
+										Assert.assertSame(originalThread, Thread.currentThread());
+										return Futures.completedNull();
+									})),
+								() -> {
+									return Async.awaitAsync(
+										testReentrancyOfUnrelatedDependentWork(),
+										() -> {
+											Assert.assertSame(originalThread, Thread.currentThread());
+
+											asyncPump.run(() -> {
+												Assert.assertSame(originalThread, Thread.currentThread());
+												return Async.awaitAsync(
+													Async.yieldAsync(),
+													() -> {
+														Assert.assertSame(originalThread, Thread.currentThread());
+
+														return Async.awaitAsync(
+															testReentrancyOfUnrelatedDependentWork(),
+															() -> {
+																Assert.assertSame(originalThread, Thread.currentThread());
+
+																return Async.awaitAsync(
+																	Async.runAsync(() -> Async.awaitAsync(
+																		asyncPump.switchToMainThreadAsync(),
+																		() -> {
+																			Assert.assertSame(originalThread, Thread.currentThread());
+																			return Futures.completedNull();
+																		})),
+																	() -> {
+																		return Async.awaitAsync(
+																			testReentrancyOfUnrelatedDependentWork(),
+																			() -> {
+																				Assert.assertSame(originalThread, Thread.currentThread());
+																				innerCompleted.set(true);
+																				return Futures.completedNull();
+																			});
+																	});
+															});
+													});
+											});
+
+											return Async.awaitAsync(
+												Async.yieldAsync(),
+												() -> {
+													Assert.assertSame(originalThread, Thread.currentThread());
+													outerCompleted.set(true);
+													return Futures.completedNull();
+												});
+										});
+								});
+						});
+				});
+		});
+
+		Assert.assertTrue("Nested Run did not complete.", innerCompleted.get());
+		Assert.assertTrue("Outer Run did not complete.", outerCompleted.get());
+	}
+
+	@Test
+	@Ignore("Fails for Java only")
+	public void testRunSynchronouslyOffMainThreadRequiresJoinToReenterMainThreadForSameAsyncPumpInstance() {
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			asyncPump.runAsync(() -> Async.awaitAsync(
+				asyncPump.switchToMainThreadAsync(),
+				() -> {
+					Assert.assertSame("We're not on the Main thread!", originalThread, Thread.currentThread());
+					return Futures.completedNull();
+				}));
+		});
+
+		asyncPump.run(() -> {
+			// Even though it's all the same instance of AsyncPump,
+			// unrelated work (work not spun off from this block) must still be
+			// Joined in order to execute here.
+			return Async.awaitAsync(
+				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				completed -> {
+					Assert.assertNotSame("The unrelated main thread work completed before the Main thread was joined.", task, completed);
+					return Async.usingAsync(
+						joinableCollection.join(),
+						() -> {
+							printActiveFuturesReport();
+							return Async.awaitAsync(task);
+						});
+				});
+		});
+	}
+
+	@Test
+	public void testRunSynchronouslyOffMainThreadRequiresJoinToReenterMainThreadForDifferentAsyncPumpInstance() {
+		JoinableFutureCollection otherCollection = this.context.createCollection();
+		JoinableFutureFactory otherAsyncPump = this.context.createFactory(otherCollection);
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			otherAsyncPump.run(() -> Async.awaitAsync(
+				otherAsyncPump.switchToMainThreadAsync(),
+				() -> {
+					Assert.assertSame(originalThread, Thread.currentThread());
+					return Futures.completedNull();
+				}));
+		});
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(
+				Async.whenAny(task, Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				completed -> {
+					Assert.assertNotSame("The unrelated main thread work completed before the Main thread was joined.", task, completed);
+					return Async.usingAsync(
+						otherCollection.join(),
+						() -> Async.awaitAsync(task));
+				});
+		});
+	}
+
+	/**
+	 * Checks that posting to the {@link SynchronizationContext#getCurrent()} doesn't cause a hang.
+	 */
+	@Test
+	public void testRunSwitchesToMainThreadAndPosts() {
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			try {
+				asyncPump.run(() -> Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> {
+						SynchronizationContext current = SynchronizationContext.getCurrent();
+						Assert.assertNotNull(current);
+						current.post(s -> { }, null);
+						return Futures.completedNull();
+					}));
+			} finally {
+				testFrame.setContinue(false);
+			}
+		});
+
+		// Now let the request proceed through.
+		pushFrame();
+		// rethrow exceptions.
+		task.join();
+	}
+
+	/**
+	 * Checks that posting to {@link SynchronizationContext#getCurrent()} doesn't cause a hang.
+	 */
+	@Test
+	public void testRunSwitchesToMainThreadAndPostsTwice() {
+		((DerivedJoinableFutureFactory)asyncPump).AssumeConcurrentUse = true;
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			try {
+				asyncPump.run(() -> Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> {
+						SynchronizationContext current = SynchronizationContext.getCurrent();
+						Assert.assertNotNull(current);
+						current.post(s -> {
+						}, null);
+						current.post(s -> {
+						}, null);
+						return Futures.completedNull();
+					}));
+			} finally {
+				testFrame.setContinue(false);
+			}
+		});
+
+		// Now let the request proceed through.
+		pushFrame();
+		// rethrow exceptions.
+		task.join();
+	}
+
+	/**
+	 * Checks that posting to {@link SynchronizationContext#getCurrent()} doesn't cause a hang.
+	 */
+	@Test
+	public void testRunSwitchesToMainThreadAndPostsTwiceDoesNotImpactJoinableFutureCompletion() {
+		((DerivedJoinableFutureFactory)this.asyncPump).AssumeConcurrentUse = true;
+		StrongBox<CompletableFuture<Void>> task = new StrongBox<>();
+		task.set(Async.runAsync(() -> {
+			try {
+				asyncPump.run(() -> {
+					return Async.awaitAsync(
+						asyncPump.switchToMainThreadAsync(),
+						() -> {
+							SynchronizationContext current = SynchronizationContext.getCurrent();
+							Assert.assertNotNull(current);
+
+							// Kick off work that should *not* impact the completion of
+							// the JoinableTask that lives within this Run delegate.
+							// And enforce the assertion by blocking the main thread until
+							// the JoinableTask is done, which would deadlock if the
+							// JoinableTask were inappropriately blocking on the completion
+							// of the posted message.
+							current.post(s -> task.get().join(), null);
+
+							// Post one more time, since an implementation detail may unblock
+							// the JoinableTask for the very last posted message for reasons that
+							// don't apply for other messages.
+							current.post(s -> { }, null);
+
+							return Futures.completedNull();
+						});
+				});
+			} finally {
+				testFrame.setContinue(false);
+			}
+		}));
+
+		// Now let the request proceed through.
+		pushFrame();
+		// rethrow exceptions.
+		task.get().join();
+	}
+
+	@Test
+	public void testSwitchToMainThreadImmediatelyShouldNotHang() {
+		((DerivedJoinableFutureFactory)this.asyncPump).AssumeConcurrentUse = true;
+
+		AsyncManualResetEvent task1Started = new AsyncManualResetEvent(false);
+		AsyncManualResetEvent task2Started = new AsyncManualResetEvent(false);
+
+		asyncPump.run(() -> {
+			CompletableFuture<Void> child1Task = Async.runAsync(() -> {
+				return Async.awaitAsync(TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), task1Started, null));
+			});
+
+			CompletableFuture<Void> child2Task = Async.runAsync(() -> {
+				return Async.awaitAsync(TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), task2Started, null));
+			});
+
+			task1Started.waitAsync().join();
+			task2Started.waitAsync().join();
+
+			return Async.awaitAsync(
+				child1Task,
+				() -> Async.awaitAsync(child2Task));
+		});
+	}
+
+	@Test
+	public void testMultipleSwitchToMainThreadShouldNotHang() {
+		((DerivedJoinableFutureFactory)this.asyncPump).AssumeConcurrentUse = true;
+
+		StrongBox<JoinableFuture<Void>> task1 = new StrongBox<>();
+		StrongBox<JoinableFuture<Void>> task2 = new StrongBox<>();
+		AsyncManualResetEvent taskStarted = new AsyncManualResetEvent();
+		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWork1Queued = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWork2Queued = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWork1Finished = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWork2Finished = new AsyncManualResetEvent();
+
+		CompletableFuture<Void> separatedTask = Async.runAsync(() -> {
+			task1.set(asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), dependentWork1Queued, null),
+					() -> {
+						dependentWork1Finished.set();
+						return Futures.completedNull();
+					});
+			}));
+
+			task2.set(asyncPump.runAsync(() -> {
+				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+				collection.add(task1.get());
+				collection.join();
+
+				return Async.awaitAsync(
+					TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), dependentWork2Queued, null),
+					() -> {
+						dependentWork2Finished.set();
+						return Async.awaitAsync(testEnded);
+					});
+			}));
+
+			taskStarted.set();
+			return Async.awaitAsync(testEnded);
+		});
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(
+				taskStarted,
+				() -> Async.awaitAsync(
+					dependentWork1Queued,
+					() -> Async.awaitAsync(
+						dependentWork2Queued,
+						() -> {
+							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+							collection.add(task2.get());
+							collection.join();
+
+							return Async.awaitAsync(
+								dependentWork1Finished,
+								() -> Async.awaitAsync(
+									dependentWork2Finished,
+									() -> {
+										testEnded.set();
+										return Futures.completedNull();
+									}));
+						})));
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> {
+					return Async.awaitAsync(
+						task1.get(),
+						() -> Async.awaitAsync(
+							task2.get(),
+							() -> Async.awaitAsync(separatedTask)));
+				});
+		});
+	}
+
+	@Test
+	public void testSwitchToMainThreadWithDelayedDependencyShouldNotHang() {
+		StrongBox<JoinableFuture<Void>> task1 = new StrongBox<>();
+		StrongBox<JoinableFuture<Void>> task2 = new StrongBox<>();
+		AsyncManualResetEvent taskStarted = new AsyncManualResetEvent();
+		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWorkAllowed = new AsyncManualResetEvent();
+		AsyncManualResetEvent indirectDependencyAllowed = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWorkQueued = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentWorkFinished = new AsyncManualResetEvent();
+
+		CompletableFuture<Void> separatedTask = Async.runAsync(() -> {
+			JoinableFutureCollection taskCollection = new JoinableFutureCollection(context);
+			JoinableFutureFactory factory = new JoinableFutureFactory(taskCollection);
+			task1.set(asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					dependentWorkAllowed,
+					() -> Async.awaitAsync(
+						TestUtilities.yieldAndNotify(factory.switchToMainThreadAsync().getAwaiter(), dependentWorkQueued, null),
+						() -> {
+							dependentWorkFinished.set();
+							return Futures.completedNull();
+						}));
+			}));
+
+			task2.set(asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					indirectDependencyAllowed,
+					() -> {
+						JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+						collection.add(task1.get());
+
+						return Async.awaitAsync(
+							Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+							() -> {
+								collection.join();
+								return Async.awaitAsync(testEnded);
+							});
+					});
+			}));
+
+			taskStarted.set();
+			return Async.awaitAsync(testEnded);
+		});
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(
+				taskStarted,
+				() -> {
+					dependentWorkAllowed.set();
+					return Async.awaitAsync(
+						dependentWorkQueued,
+						() -> {
+							JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+							collection.add(task2.get());
+
+							collection.join();
+							indirectDependencyAllowed.set();
+
+							return Async.awaitAsync(
+								dependentWorkFinished,
+								() -> {
+									testEnded.set();
+									return Futures.completedNull();
+								});
+						});
+				});
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> {
+					return Async.awaitAsync(
+						task1.get(),
+						() -> Async.awaitAsync(
+							task2.get(),
+							() -> Async.awaitAsync(separatedTask)));
+				});
+		});
+	}
+
+	@Test
+	public void testDoubleJoinedFutureDisjoinCorrectly() {
+		StrongBox<JoinableFuture<Void>> task1 = new StrongBox<>();
+		AsyncManualResetEvent taskStarted = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentFirstWorkCompleted = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentSecondWorkAllowed = new AsyncManualResetEvent();
+		AsyncManualResetEvent mainThreadDependentSecondWorkQueued = new AsyncManualResetEvent();
+		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
+
+		CompletableFuture<Void> separatedTask = Async.runAsync(() -> {
+			task1.set(asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> Async.awaitAsync(
+						ForkJoinPool.commonPool(),
+						() -> {
+							dependentFirstWorkCompleted.set();
+							return Async.awaitAsync(
+								dependentSecondWorkAllowed,
+								() -> Async.awaitAsync(TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), mainThreadDependentSecondWorkQueued, null)));
+						}));
+			}));
+
+			taskStarted.set();
+			return Async.awaitAsync(testEnded);
+		});
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(
+				taskStarted,
+				() -> {
+					JoinableFutureCollection collection1 = new JoinableFutureCollection(joinableCollection.getContext());
+					collection1.add(task1.get());
+					JoinableFutureCollection collection2 = new JoinableFutureCollection(joinableCollection.getContext());
+					collection2.add(task1.get());
+
+					return Async.awaitAsync(
+						Async.usingAsync(
+							collection1.join(),
+							() -> {
+								return Async.awaitAsync(
+									Async.usingAsync(
+										collection2.join(),
+										() -> Futures.completedNull()),
+									() -> Async.awaitAsync(dependentFirstWorkCompleted));
+							}),
+						() -> {
+							dependentSecondWorkAllowed.set();
+							return Async.awaitAsync(
+								mainThreadDependentSecondWorkQueued,
+								() -> Async.awaitAsync(
+									Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT),
+									() -> Async.awaitAsync(
+										Async.yieldAsync(),
+										() -> {
+											Assert.assertFalse(task1.get().isDone());
+											testEnded.set();
+											return Futures.completedNull();
+										})));
+						});
+				});
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(
+					task1.get(),
+					() -> Async.awaitAsync(separatedTask)));
+		});
+	}
+
+	@Test
+	public void testDoubleIndirectJoinedFutureDisjoinCorrectly() {
+		StrongBox<JoinableFuture<Void>> task1 = new StrongBox<>();
+		StrongBox<JoinableFuture<Void>> task2 = new StrongBox<>();
+		StrongBox<JoinableFuture<Void>> task3 = new StrongBox<>();
+		AsyncManualResetEvent taskStarted = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentFirstWorkCompleted = new AsyncManualResetEvent();
+		AsyncManualResetEvent dependentSecondWorkAllowed = new AsyncManualResetEvent();
+		AsyncManualResetEvent mainThreadDependentSecondWorkQueued = new AsyncManualResetEvent();
+		AsyncManualResetEvent testEnded = new AsyncManualResetEvent();
+
+		CompletableFuture<Void> separatedTask = Async.runAsync(() -> {
+			task1.set(asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> {
+						return Async.awaitAsync(
+							ForkJoinPool.commonPool(),
+							() -> {
+								dependentFirstWorkCompleted.set();
+								return Async.awaitAsync(
+									dependentSecondWorkAllowed,
+									() -> Async.awaitAsync(
+										TestUtilities.yieldAndNotify(asyncPump.switchToMainThreadAsync().getAwaiter(), mainThreadDependentSecondWorkQueued, null)));
+							});
+					});
+			}));
+
+			task2.set(asyncPump.runAsync(() -> {
+				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+				collection.add(task1.get());
+				return Async.usingAsync(
+					collection.join(),
+					() -> Async.awaitAsync(testEnded));
+			}));
+
+			task3.set(asyncPump.runAsync(() -> {
+				JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+				collection.add(task1.get());
+				return Async.usingAsync(
+					collection.join(),
+					() -> Async.awaitAsync(testEnded));
+			}));
+
+			taskStarted.set();
+			return Async.awaitAsync(testEnded);
+		});
+
+		WaitCountingJoinableFutureFactory waitCountingJTF = new WaitCountingJoinableFutureFactory(asyncPump.getContext());
+		waitCountingJTF.run(() -> {
+			return Async.awaitAsync(
+				taskStarted,
+				() -> {
+					JoinableFutureCollection collection = new JoinableFutureCollection(joinableCollection.getContext());
+					collection.add(task2.get());
+					collection.add(task3.get());
+
+					return Async.awaitAsync(
+						Async.usingAsync(
+							collection.join(),
+							() -> Async.awaitAsync(dependentFirstWorkCompleted)),
+						() -> {
+							int waitCountBeforeSecondWork = waitCountingJTF.getWaitCount();
+							dependentSecondWorkAllowed.set();
+							return Async.awaitAsync(
+								Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+								() -> Async.awaitAsync(
+									mainThreadDependentSecondWorkQueued,
+									() -> Async.awaitAsync(
+										Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT),
+										() -> Async.awaitAsync(
+											Async.yieldAsync(),
+											() -> {
+												// we expect 3 switching from two delay one yield call.  We don't want one triggered by Task1.
+												Assert.assertTrue(waitCountingJTF.getWaitCount() - waitCountBeforeSecondWork <= 3);
+												Assert.assertFalse(task1.get().isDone());
+
+												testEnded.set();
+												return Futures.completedNull();
+											}))));
+						});
+				});
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(
+					task1.get(),
+					() -> Async.awaitAsync(
+						task2.get(),
+						() -> Async.awaitAsync(
+							task3.get(),
+							() -> Async.awaitAsync(separatedTask)))));
+		});
+	}
+
 //        /// <summary>
 //        /// Main -> Task1, Main -> Task2, Task1 &lt;-&gt; Task2 (loop dependency between Task1 and Task2.
 //        /// </summary>
@@ -1435,359 +1513,359 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                }
 //            });
 //        }
-//
-//        [StaFact]
-//        public void SyncContextRestoredAfterRun()
-//        {
-//            var syncContext = SynchronizationContext.Current;
-//            Assert.NotNull(syncContext); // We need a non-null sync context for this test to be useful.
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                await Task.Yield();
-//            });
-//
-//            Assert.Same(syncContext, SynchronizationContext.Current);
-//        }
-//
-//        [StaFact]
-//        public void BackgroundSynchronousTransitionsToUIThreadSynchronous()
-//        {
-//            var task = Task.Run(delegate
-//            {
-//                this.asyncPump.Run(async delegate
-//                {
-//                    Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//
-//                    // The scenario here is that some code calls out, then back in, via a synchronous interface
-//                    this.asyncPump.Run(async delegate
-//                {
-//                    await Task.Yield();
-//                    await this.TestReentrancyOfUnrelatedDependentWork();
-//                });
-//                });
-//            });
-//
-//            // Avoid a deadlock while waiting for test to complete.
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadAwaiterReappliesAsyncLocalSyncContextOnContinuation()
-//        {
-//            var task = Task.Run(delegate
-//            {
-//                this.asyncPump.Run(async delegate
-//                {
-//                    Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//
-//                    // Switching to the main thread here will get us the SynchronizationContext we need,
-//                    // and the awaiter's GetResult() should apply the AsyncLocal sync context as well
-//                    // to avoid deadlocks later.
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//
-//                    await this.TestReentrancyOfUnrelatedDependentWork();
-//
-//                    // The scenario here is that some code calls out, then back in, via a synchronous interface
-//                    this.asyncPump.Run(async delegate
-//                {
-//                    await Task.Yield();
-//                    await this.TestReentrancyOfUnrelatedDependentWork();
-//                });
-//                });
-//            });
-//
-//            // Avoid a deadlock while waiting for test to complete.
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void NestedJoinsDistinctAsyncPumps()
-//        {
-//            const int nestLevels = 3;
-//            MockAsyncService outerService = null;
-//            for (int level = 0; level < nestLevels; level++)
-//            {
-//                outerService = new MockAsyncService(this.asyncPump.Context, outerService);
-//            }
-//
-//            var operationTask = outerService.OperationAsync();
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                await outerService.StopAsync(operationTask);
-//            });
-//
-//            Assert.True(operationTask.IsCompleted);
-//        }
-//
-//        [StaFact]
-//        public void SynchronousTaskStackMaintainedCorrectly()
-//        {
-//            this.asyncPump.Run(async delegate
-//            {
-//                this.asyncPump.Run(() => Task.FromResult<bool>(true));
-//                await Task.Yield();
-//            });
-//        }
-//
-//        [StaFact]
-//        public void SynchronousTaskStackMaintainedCorrectlyWithForkedTask()
-//        {
-//            var innerTaskWaitingSwitching = new AsyncManualResetEvent();
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                Task innerTask = null;
-//                this.asyncPump.Run(delegate
-//                {
-//                    // We need simulate a scenario that the task is completed without any yielding,
-//                    // but the queue of the Joinable task is not empty at that point,
-//                    // so the synchronous JoinableTask doesn't need any blocking time, but it is completed later.
-//                    innerTask = Task.Run(async delegate
-//                {
-//                    await this.asyncPump.SwitchToMainThreadAsync().GetAwaiter().YieldAndNotify(innerTaskWaitingSwitching);
-//                });
-//
-//                    innerTaskWaitingSwitching.WaitAsync().Wait();
-//                    return Task.FromResult(true);
-//                });
-//
-//                await Task.Yield();
-//
-//                // Now, get rid of the innerTask
-//                await innerTask;
-//            });
-//        }
-//
-//        [StaFact(Skip = "ignored")]
-//        public void SynchronousTaskStackMaintainedCorrectlyWithForkedTask2()
-//        {
-//            var innerTaskWaiting = new AsyncManualResetEvent();
-//
-//            // This test simulates that we have an inner task starts to switch to main thread after the joinable task is compeleted.
-//            // Because completed task won't be tracked in the dependent chain, waiting it causes a deadlock.  This could be a potential problem.
-//            this.asyncPump.Run(async delegate
-//            {
-//                Task innerTask = null;
-//                this.asyncPump.Run(delegate
-//                {
-//                    innerTask = Task.Run(async delegate
-//                    {
-//                        await innerTaskWaiting.WaitAsync();
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                    });
-//
-//                    return Task.FromResult(true);
-//                });
-//
-//                innerTaskWaiting.Set();
-//                await Task.Yield();
-//
-//                // Now, get rid of the innerTask
-//                await innerTask;
-//            });
-//        }
-//
-//        [StaFact]
-//        public void RunSynchronouslyKicksOffReturnsThenSyncBlocksStillRequiresJoin()
-//        {
-//            var mainThreadNowBlocking = new AsyncManualResetEvent();
-//            Task task = null;
-//            this.asyncPump.Run(delegate
-//            {
-//                task = Task.Run(async delegate
-//                {
-//                    await mainThreadNowBlocking.WaitAsync();
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                });
-//
-//                return TplExtensions.CompletedTask;
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                mainThreadNowBlocking.Set();
-//                Assert.NotSame(task, await Task.WhenAny(task, Task.Delay(AsyncDelay / 2)));
-//                using (this.joinableCollection.Join())
-//                {
-//                    await task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void KickOffAsyncWorkFromMainThreadThenBlockOnIt()
-//        {
-//            var joinable = this.asyncPump.RunAsync(async delegate
-//            {
-//                await this.SomeOperationThatMayBeOnMainThreadAsync();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await joinable.Task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void KickOffDeepAsyncWorkFromMainThreadThenBlockOnIt()
-//        {
-//            var joinable = this.asyncPump.RunAsync(async delegate
-//            {
-//                await this.SomeOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync();
-//            });
-//
-//            this.asyncPump.Run(async delegate
-//            {
-//                using (this.joinableCollection.Join())
-//                {
-//                    await joinable.Task;
-//                }
-//            });
-//        }
-//
-//        [StaFact]
-//        public void BeginAsyncCompleteSync()
-//        {
-//            Task task = this.asyncPump.RunAsync(
-//                () => this.SomeOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync()).Task;
-//            Assert.False(task.IsCompleted);
-//            this.asyncPump.CompleteSynchronously(this.joinableCollection, task);
-//        }
-//
-//        [StaFact]
-//        public void BeginAsyncYieldsWhenDelegateYieldsOnUIThread()
-//        {
-//            bool afterYieldReached = false;
-//            Task task = this.asyncPump.RunAsync(async delegate
-//            {
-//                await Task.Yield();
-//                afterYieldReached = true;
-//            }).Task;
-//
-//            Assert.False(afterYieldReached);
-//            this.asyncPump.CompleteSynchronously(this.joinableCollection, task);
-//            Assert.True(afterYieldReached);
-//        }
-//
-//        [StaFact]
-//        public void BeginAsyncYieldsWhenDelegateYieldsOffUIThread()
-//        {
-//            bool afterYieldReached = false;
-//            var backgroundThreadWorkDoneEvent = new AsyncManualResetEvent();
-//            Task task = this.asyncPump.RunAsync(async delegate
-//            {
-//                await backgroundThreadWorkDoneEvent;
-//                afterYieldReached = true;
-//            }).Task;
-//
-//            Assert.False(afterYieldReached);
-//            backgroundThreadWorkDoneEvent.Set();
-//            this.asyncPump.CompleteSynchronously(this.joinableCollection, task);
-//            Assert.True(afterYieldReached);
-//        }
-//
-//        [StaFact]
-//        public void BeginAsyncYieldsToAppropriateContext()
-//        {
-//            var backgroundWork = Task.Run<Task>(delegate
-//            {
-//                return this.asyncPump.RunAsync(async delegate
-//                {
-//                    // Verify that we're on a background thread and stay there.
-//                    Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//
-//                    // Now explicitly get on the Main thread, and verify that we stay there.
-//                    await this.asyncPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    await Task.Yield();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                }).Task;
-//            }).Result;
-//
-//            this.asyncPump.CompleteSynchronously(this.joinableCollection, backgroundWork);
-//        }
-//
-//        [StaFact]
-//        public void RunSynchronouslyYieldsToAppropriateContext()
-//        {
-//            for (int i = 0; i < 100; i++)
-//            {
-//                var backgroundWork = Task.Run(delegate
-//                {
-//                    this.asyncPump.Run(async delegate
-//                    {
-//                        // Verify that we're on a background thread and stay there.
-//                        Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//                        await Task.Yield();
-//                        Assert.NotSame(this.originalThread, Thread.CurrentThread);
-//
-//                        // Now explicitly get on the Main thread, and verify that we stay there.
-//                        await this.asyncPump.SwitchToMainThreadAsync();
-//                        Assert.Same(this.originalThread, Thread.CurrentThread);
-//                        await Task.Yield();
-//                        Assert.Same(this.originalThread, Thread.CurrentThread);
-//                    });
-//                });
-//
-//                this.asyncPump.CompleteSynchronously(this.joinableCollection, backgroundWork);
-//            }
-//        }
-//
-//        [StaFact]
-//        public void BeginAsyncOnMTAKicksOffOtherAsyncPumpWorkCanCompleteSynchronouslySwitchFirst()
-//        {
-//            var otherCollection = this.asyncPump.Context.CreateCollection();
-//            var otherPump = this.asyncPump.Context.CreateFactory(otherCollection);
-//            bool taskFinished = false;
-//            var switchPended = new ManualResetEventSlim();
-//
-//            // Kick off the BeginAsync work from a background thread that has no special
-//            // affinity to the main thread.
-//            var joinable = Task.Run(delegate
-//            {
-//                return this.asyncPump.RunAsync(async delegate
-//                {
-//                    await Task.Yield();
-//                    var awaiter = otherPump.SwitchToMainThreadAsync().GetAwaiter();
-//                    Assert.False(awaiter.IsCompleted);
-//                    var continuationFinished = new AsyncManualResetEvent();
-//                    awaiter.OnCompleted(delegate
-//                    {
-//                        taskFinished = true;
-//                        continuationFinished.Set();
-//                    });
-//                    switchPended.Set();
-//                    await continuationFinished;
-//                });
-//            }).Result;
-//
-//            Assert.False(joinable.Task.IsCompleted);
-//            switchPended.Wait();
-//            joinable.Join();
-//            Assert.True(taskFinished);
-//            Assert.True(joinable.Task.IsCompleted);
-//        }
-//
+
+	@Test
+	public void testSyncContextRestoredAfterRun() {
+		SynchronizationContext syncContext = SynchronizationContext.getCurrent();
+		Assert.assertNotNull("We need a non-null sync context for this test to be useful.", syncContext);
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(Async.yieldAsync());
+		});
+
+		Assert.assertSame(syncContext, SynchronizationContext.getCurrent());
+	}
+
+	@Test
+	public void testBackgroundSynchronousTransitionsToUIThreadSynchronous() {
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			asyncPump.run(() -> {
+				Assert.assertNotSame(originalThread, Thread.currentThread());
+				return Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> {
+						// The scenario here is that some code calls out, then back in, via a synchronous interface
+						asyncPump.run(() -> {
+							return Async.awaitAsync(
+								Async.yieldAsync(),
+								() -> Async.awaitAsync(testReentrancyOfUnrelatedDependentWork()));
+						});
+
+						return Futures.completedNull();
+					});
+			});
+		});
+
+		// Avoid a deadlock while waiting for test to complete.
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(task));
+		});
+	}
+
+	@Test
+	public void testSwitchToMainThreadAwaiterReappliesAsyncLocalSyncContextOnContinuation() {
+		CompletableFuture<Void> task = Async.runAsync(() -> {
+			asyncPump.run(() -> {
+				Assert.assertNotSame(originalThread, Thread.currentThread());
+
+				// Switching to the main thread here will get us the SynchronizationContext we need,
+				// and the awaiter's GetResult() should apply the AsyncLocal sync context as well
+				// to avoid deadlocks later.
+				return Async.awaitAsync(
+					asyncPump.switchToMainThreadAsync(),
+					() -> Async.awaitAsync(
+						testReentrancyOfUnrelatedDependentWork(),
+						() -> {
+							// The scenario here is that some code calls out, then back in, via a synchronous interface
+							asyncPump.run(() -> {
+								return Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> Async.awaitAsync(testReentrancyOfUnrelatedDependentWork()));
+							});
+							return Futures.completedNull();
+						}));
+			});
+		});
+
+		// Avoid a deadlock while waiting for test to complete.
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(task));
+		});
+	}
+
+	@Test
+	@Ignore("Fails for Java only")
+	public void testNestedJoinsDistinctAsyncPumps() {
+		final int nestLevels = 3;
+		StrongBox<MockAsyncService> outerService = new StrongBox<>();
+		for (int level = 0; level < nestLevels; level++) {
+			outerService.set(new MockAsyncService(asyncPump.getContext(), outerService.get()));
+		}
+
+		CompletableFuture<Void> operationTask = outerService.get().operationAsync();
+
+		asyncPump.run(() -> {
+			return Async.awaitAsync(outerService.get().stopAsync(operationTask));
+		});
+
+		Assert.assertTrue(operationTask.isDone());
+	}
+
+	@Test
+	public void testSynchronousFutureStackMaintainedCorrectly() {
+		asyncPump.run(() -> {
+			asyncPump.run(() -> CompletableFuture.completedFuture(true));
+			return Async.awaitAsync(Async.yieldAsync());
+		});
+	}
+
+	@Test
+	public void testSynchronousFutureStackMaintainedCorrectlyWithForkedTask() {
+		AsyncManualResetEvent innerTaskWaitingSwitching = new AsyncManualResetEvent();
+
+		asyncPump.run(() -> {
+			StrongBox<CompletableFuture<Void>> innerTask = new StrongBox<>();
+			asyncPump.run(() -> {
+				// We need simulate a scenario that the task is completed without any yielding,
+				// but the queue of the Joinable task is not empty at that point,
+				// so the synchronous JoinableTask doesn't need any blocking time, but it is completed later.
+				innerTask.set(Async.runAsync(() -> {
+					return Async.awaitAsync(
+						TestUtilities.yieldAndNotify(
+							asyncPump.switchToMainThreadAsync().getAwaiter(),
+							innerTaskWaitingSwitching,
+							null));
+				}));
+
+				innerTaskWaitingSwitching.waitAsync().join();
+				return Futures.completedNull();
+			});
+
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					// Now, get rid of the innerTask
+					return Async.awaitAsync(innerTask.get());
+				});
+		});
+	}
+
+	@Test
+	@Ignore("ignored")
+	public void testSynchronousFutureStackMaintainedCorrectlyWithForkedFuture2() {
+		AsyncManualResetEvent innerTaskWaiting = new AsyncManualResetEvent();
+
+		// This test simulates that we have an inner task starts to switch to main thread after the joinable task is compeleted.
+		// Because completed task won't be tracked in the dependent chain, waiting it causes a deadlock.  This could be a potential problem.
+		asyncPump.run(() -> {
+			StrongBox<CompletableFuture<Void>> innerTask = new StrongBox<>();
+			asyncPump.run(() -> {
+				innerTask.set(Async.runAsync(() -> {
+					return Async.awaitAsync(
+						innerTaskWaiting.waitAsync(),
+						() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync()));
+				}));
+
+				return Futures.completedNull();
+			});
+
+			innerTaskWaiting.set();
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					// Now, get rid of the innerTask
+					return Async.awaitAsync(innerTask.get());
+				});
+		});
+	}
+
+	@Test
+	public void testRunSynchronouslyKicksOffReturnsThenSyncBlocksStillRequiresJoin() {
+		AsyncManualResetEvent mainThreadNowBlocking = new AsyncManualResetEvent();
+		StrongBox<CompletableFuture<Void>> task = new StrongBox<>();
+		asyncPump.run(() -> {
+			task.set(Async.runAsync(() -> {
+				return Async.awaitAsync(
+					mainThreadNowBlocking.waitAsync(),
+					() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync()));
+			}));
+
+			return Futures.completedNull();
+		});
+
+		asyncPump.run(() -> {
+			mainThreadNowBlocking.set();
+			return Async.awaitAsync(
+				Async.whenAny(task.get(), Async.delayAsync(ASYNC_DELAY / 2, ASYNC_DELAY_UNIT)),
+				completed -> {
+					Assert.assertNotSame(task, completed);
+					return Async.usingAsync(
+						joinableCollection.join(),
+						() -> Async.awaitAsync(task.get()));
+				});
+		});
+	}
+
+	@Test
+	public void testKickOffAsyncWorkFromMainThreadThenBlockOnIt() {
+		JoinableFuture<Void> joinable = asyncPump.runAsync(() -> {
+			return Async.awaitAsync(someOperationThatMayBeOnMainThreadAsync());
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(joinable.getFuture()));
+		});
+	}
+
+	@Test
+	public void testKickOffDeepAsyncWorkFromMainThreadThenBlockOnIt() {
+		JoinableFuture<Void> joinable = asyncPump.runAsync(() -> {
+			return Async.awaitAsync(someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync());
+		});
+
+		asyncPump.run(() -> {
+			return Async.usingAsync(
+				joinableCollection.join(),
+				() -> Async.awaitAsync(joinable.getFuture()));
+		});
+	}
+
+	@Test
+	public void testBeginAsyncCompleteSync() {
+		CompletableFuture<? extends Void> task = asyncPump.runAsync(
+			() -> someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync()).getFuture();
+		Assert.assertFalse(task.isDone());
+		TestUtilities.completeSynchronously(asyncPump, joinableCollection, task);
+	}
+
+	@Test
+	public void testBeginAsyncYieldsWhenDelegateYieldsOnUIThread() {
+		AtomicBoolean afterYieldReached = new AtomicBoolean(false);
+		CompletableFuture<? extends Void> task = asyncPump.runAsync(() -> {
+			return Async.awaitAsync(
+				Async.yieldAsync(),
+				() -> {
+					afterYieldReached.set(true);
+					return Futures.<Void>completedNull();
+				});
+		}).getFuture();
+
+		Assert.assertFalse(afterYieldReached.get());
+		TestUtilities.completeSynchronously(asyncPump, joinableCollection, task);
+		Assert.assertTrue(afterYieldReached.get());
+	}
+
+	@Test
+	public void testBeginAsyncYieldsWhenDelegateYieldsOffUIThread() {
+		AtomicBoolean afterYieldReached = new AtomicBoolean(false);
+		AsyncManualResetEvent backgroundThreadWorkDoneEvent = new AsyncManualResetEvent();
+		CompletableFuture<? extends Void> task = asyncPump.runAsync(() -> {
+			return Async.awaitAsync(
+				backgroundThreadWorkDoneEvent,
+				() -> {
+					afterYieldReached.set(true);
+					return Futures.<Void>completedNull();
+				});
+		}).getFuture();
+
+		Assert.assertFalse(afterYieldReached.get());
+		backgroundThreadWorkDoneEvent.set();
+		TestUtilities.completeSynchronously(asyncPump, joinableCollection, task);
+		Assert.assertTrue(afterYieldReached.get());
+	}
+
+	@Test
+	public void testBeginAsyncYieldsToAppropriateContext() throws Exception {
+		CompletableFuture<? extends Void> backgroundWork = Async.supply(() -> {
+			return asyncPump.runAsync(() -> {
+				// Verify that we're on a background thread and stay there.
+				Assert.assertNotSame(originalThread, Thread.currentThread());
+				return Async.awaitAsync(
+					Async.yieldAsync(),
+					() -> {
+						Assert.assertNotSame(originalThread, Thread.currentThread());
+
+						// Now explicitly get on the Main thread, and verify that we stay there.
+						return Async.awaitAsync(
+							asyncPump.switchToMainThreadAsync(),
+							() -> {
+								Assert.assertSame(originalThread, Thread.currentThread());
+								return Async.awaitAsync(
+									Async.yieldAsync(),
+									() -> {
+										Assert.assertSame(originalThread, Thread.currentThread());
+										return Futures.<Void>completedNull();
+									});
+							});
+					});
+			}).getFuture();
+		}).get();
+
+		TestUtilities.completeSynchronously(asyncPump, joinableCollection, backgroundWork);
+	}
+
+	@Test
+	public void testRunSynchronouslyYieldsToAppropriateContext() {
+		for (int i = 0; i < 100; i++) {
+			CompletableFuture<Void> backgroundWork = Async.runAsync(() -> {
+				asyncPump.run(() -> {
+					// Verify that we're on a background thread and stay there.
+					Assert.assertNotSame(originalThread, Thread.currentThread());
+					return Async.awaitAsync(
+						Async.yieldAsync(),
+						() -> {
+							Assert.assertNotSame(originalThread, Thread.currentThread());
+
+							// Now explicitly get on the Main thread, and verify that we stay there.
+							return Async.awaitAsync(
+								asyncPump.switchToMainThreadAsync(),
+								() -> {
+									Assert.assertSame(originalThread, Thread.currentThread());
+									return Async.awaitAsync(
+										Async.yieldAsync(),
+										() -> {
+											Assert.assertSame(originalThread, Thread.currentThread());
+											return Futures.completedNull();
+										});
+								});
+						});
+				});
+			});
+
+			TestUtilities.completeSynchronously(asyncPump, joinableCollection, backgroundWork);
+		}
+	}
+
+	@Test
+	public void testBeginAsyncOnMTAKicksOffOtherAsyncPumpWorkCanCompleteSynchronouslySwitchFirst() {
+		JoinableFutureCollection otherCollection = asyncPump.getContext().createCollection();
+		JoinableFutureFactory otherPump = asyncPump.getContext().createFactory(otherCollection);
+		AtomicBoolean taskFinished = new AtomicBoolean(false);
+		CompletableFuture<Void> switchPended = new CompletableFuture<>();
+
+		// Kick off the BeginAsync work from a background thread that has no special
+		// affinity to the main thread.
+		JoinableFuture<Void> joinable = Async.supply(() -> {
+			return asyncPump.runAsync(() -> {
+				return Async.awaitAsync(
+					Async.yieldAsync(),
+					() -> {
+						Awaiter<Void> awaiter = otherPump.switchToMainThreadAsync().getAwaiter();
+						Assert.assertFalse(awaiter.isDone());
+						AsyncManualResetEvent continuationFinished = new AsyncManualResetEvent();
+						awaiter.onCompleted(() -> {
+							taskFinished.set(true);
+							continuationFinished.set();
+						});
+						switchPended.complete(null);
+						return Async.awaitAsync(continuationFinished);
+					});
+			});
+		}).join();
+
+		Assert.assertFalse(joinable.getFuture().isDone());
+		switchPended.join();
+		joinable.join();
+		Assert.assertTrue(taskFinished.get());
+		Assert.assertTrue(joinable.getFuture().isDone());
+	}
+
 //        [StaFact]
 //        public void BeginAsyncOnMTAKicksOffOtherAsyncPumpWorkCanCompleteSynchronouslyJoinFirst()
 //        {
@@ -3252,7 +3330,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 			() -> Async.awaitAsync(Async.yieldAsync()));
 	}
 
-	private CompletableFuture<?> someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync() {
+	private CompletableFuture<Void> someOperationThatUsesMainThreadViaItsOwnAsyncPumpAsync() {
 		JoinableFutureCollection otherCollection = this.context.createCollection();
 		JoinableFutureFactory privateAsyncPump = this.context.createFactory(otherCollection);
 		return Async.runAsync(() -> {
@@ -3341,19 +3419,26 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		Assert.assertSame(expectedResult, actualResult);
 	}
 
-//        /// <summary>
-//        /// Writes out a DGML graph of pending tasks and collections to the test context.
-//        /// </summary>
-//        /// <param name="context">A specific context to collect data from; <c>null</c> will use this.context</param>
-//        private void PrintActiveTasksReport(JoinableTaskContext context = null)
-//        {
-//            context = context ?? this.context;
-//            IHangReportContributor contributor = context;
-//            var report = contributor.GetHangReport();
-//            this.Logger.WriteLine("DGML task graph");
-//            this.Logger.WriteLine(report.Content);
-//        }
-//
+	/**
+	 * Writes out a DGML graph of pending futures and collections to the test context.
+	 */
+	private void printActiveFuturesReport() {
+		printActiveFuturesReport(null);
+	}
+
+	/**
+	 * Writes out a DGML graph of pending futures and collections to the test context.
+	 *
+	 * @param context A specific context to collect data from; {@code null} will use this context.
+	 */
+	private void printActiveFuturesReport(@Nullable JoinableFutureContext context) {
+		context = context != null ? context : this.context;
+		HangReportContributor contributor = context;
+		HangReportContribution report = contributor.getHangReport();
+		System.out.println("DGML task graph");
+		System.out.println(report.getContent());
+	}
+
 //        /// <summary>
 //        /// Simulates COM message pump reentrancy causing some unrelated work to "pump in" on top of a synchronously blocking wait.
 //        /// </summary>
@@ -3388,27 +3473,25 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                base.WaitSynchronously(task);
 //            }
 //        }
-//
-//        private class WaitCountingJoinableTaskFactory : JoinableTaskFactory
-//        {
-//            private int waitCount;
-//
-//            internal WaitCountingJoinableTaskFactory(JoinableTaskContext owner)
-//                : base(owner)
-//            {
-//            }
-//
-//            internal int WaitCount
-//            {
-//                get { return this.waitCount; }
-//            }
-//
-//            protected override void WaitSynchronously(Task task)
-//            {
-//                Interlocked.Increment(ref this.waitCount);
-//                base.WaitSynchronously(task);
-//            }
-//        }
+
+	private class WaitCountingJoinableFutureFactory extends JoinableFutureFactory {
+
+		private final AtomicInteger waitCount = new AtomicInteger();
+
+		WaitCountingJoinableFutureFactory(JoinableFutureContext owner) {
+			super(owner);
+		}
+
+		final int getWaitCount() {
+			return waitCount.get();
+		}
+
+		@Override
+		protected void waitSynchronously(CompletableFuture<?> future) {
+			waitCount.incrementAndGet();
+			super.waitSynchronously(future);
+		}
+	}
 
 	private static class DerivedJoinableFutureContext extends JoinableFutureContext {
 		@NotNull
@@ -3557,49 +3640,67 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                base.PostToUnderlyingSynchronizationContext(callback, state);
 //            }
 //        }
-//
-//        private class MockAsyncService
-//        {
-//            private JoinableTaskCollection joinableCollection;
-//            private JoinableTaskFactory pump;
-//            private AsyncManualResetEvent stopRequested = new AsyncManualResetEvent();
-//            private Thread originalThread = Thread.CurrentThread;
-//            private Task dependentTask;
-//            private MockAsyncService dependentService;
-//
-//            internal MockAsyncService(JoinableTaskContext context, MockAsyncService dependentService = null)
-//            {
-//                this.joinableCollection = context.CreateCollection();
-//                this.pump = context.CreateFactory(this.joinableCollection);
-//                this.dependentService = dependentService;
-//            }
-//
-//            internal async Task OperationAsync()
-//            {
-//                await this.pump.SwitchToMainThreadAsync();
-//                if (this.dependentService != null)
-//                {
-//                    await (this.dependentTask = this.dependentService.OperationAsync());
-//                }
-//
-//                await this.stopRequested.WaitAsync();
-//                await Task.Yield();
-//                Assert.Same(this.originalThread, Thread.CurrentThread);
-//            }
-//
-//            internal async Task StopAsync(Task operation)
-//            {
-//                Requires.NotNull(operation, nameof(operation));
-//                if (this.dependentService != null)
-//                {
-//                    await this.dependentService.StopAsync(this.dependentTask);
-//                }
-//
-//                this.stopRequested.Set();
-//                using (this.joinableCollection.Join())
-//                {
-//                    await operation;
-//                }
-//            }
-//        }
+
+	private static class MockAsyncService {
+
+		private JoinableFutureCollection joinableCollection;
+		private JoinableFutureFactory pump;
+		private AsyncManualResetEvent stopRequested = new AsyncManualResetEvent();
+		private Thread originalThread = Thread.currentThread();
+		private CompletableFuture<Void> dependentTask;
+		private MockAsyncService dependentService;
+
+		MockAsyncService(JoinableFutureContext context) {
+			this(context, null);
+		}
+
+		MockAsyncService(@NotNull JoinableFutureContext context, @Nullable MockAsyncService dependentService) {
+			this.joinableCollection = context.createCollection();
+			this.pump = context.createFactory(joinableCollection);
+			this.dependentService = dependentService;
+		}
+
+		@NotNull
+		final CompletableFuture<Void> operationAsync() {
+			return Async.awaitAsync(
+				pump.switchToMainThreadAsync(),
+				() -> {
+					CompletableFuture<Void> dependentOperation = Futures.completedNull();
+					if (this.dependentService != null) {
+						this.dependentTask = this.dependentService.operationAsync();
+						dependentOperation = dependentTask;
+					}
+
+					return Async.awaitAsync(
+						dependentOperation,
+						() -> Async.awaitAsync(
+							stopRequested.waitAsync(),
+							() -> Async.awaitAsync(
+								Async.yieldAsync(),
+								() -> {
+									Assert.assertSame(originalThread, Thread.currentThread());
+									return Futures.completedNull();
+								})));
+				});
+		}
+
+		@NotNull
+		final CompletableFuture<Void> stopAsync(@NotNull CompletableFuture<Void> operation) {
+			Requires.notNull(operation, "operation");
+
+			CompletableFuture<Void> dependentOperation = Futures.completedNull();
+			if (dependentService != null) {
+				dependentOperation = dependentService.stopAsync(dependentTask);
+			}
+
+			return Async.awaitAsync(
+				dependentOperation,
+				() -> {
+					stopRequested.set();
+					return Async.usingAsync(
+						joinableCollection.join(),
+						() -> Async.awaitAsync(operation));
+				});
+		}
+	}
 }

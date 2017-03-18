@@ -109,12 +109,12 @@ public enum Async {
 
 	@NotNull
 	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit) {
-		return delayAsync(time, unit, null);
+		return delayAsync(time, unit, CancellationToken.none());
 	}
 
 	@NotNull
-	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit, @Nullable CompletableFuture<?> cancellationFuture) {
-		if (cancellationFuture != null && cancellationFuture.isDone()) {
+	public static CompletableFuture<Void> delayAsync(long time, @NotNull TimeUnit unit, @NotNull CancellationToken cancellationToken) {
+		if (cancellationToken.isCancellationRequested()) {
 			return Futures.completedCancelled();
 		}
 
@@ -139,8 +139,9 @@ public enum Async {
 			}
 		});
 
-		if (cancellationFuture != null) {
-			cancellationFuture.whenComplete((ignored, exception) -> result.cancel(true));
+		if (cancellationToken.canBeCancelled()) {
+			CancellationTokenRegistration registration = cancellationToken.register(f -> f.cancel(true), result);
+			result.whenComplete((ignored, exception) -> registration.close());
 		}
 
 		return result;

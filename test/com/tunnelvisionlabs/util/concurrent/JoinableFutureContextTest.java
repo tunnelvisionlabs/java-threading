@@ -311,10 +311,10 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getFactory().setHangDetectionTimeout(Duration.ofMillis(10));
 		AtomicBoolean hangReported = new AtomicBoolean(false);
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangReported.set(true);
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
 		JoinableFuture<?> task = getFactory().runAsync(
-			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS, cancellationFuture)),
+			() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS, cancellationTokenSource.getToken())),
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		JoinableFutureCollection taskCollection = new JoinableFutureCollection(getFactory().getContext());
@@ -323,7 +323,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		getFactory().run(() -> Async.usingAsync(
 			taskCollection.join(),
 			tempJoin -> {
-				cancellationFuture.cancel(true);
+				cancellationTokenSource.cancel();
 				return Async.awaitAsync(
 					TplExtensions.noThrowAwaitable(task.joinAsync()),
 					() -> Async.awaitAsync(Async.delayAsync(40, TimeUnit.MILLISECONDS)));

@@ -37,4 +37,20 @@ enum Futures {
 		CompletableFuture<T> result = (CompletableFuture<T>)COMPLETED_NULL;
 		return result;
 	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> nonCancellationPropagating(@NotNull CompletableFuture<T> future) {
+		CompletableFuture<T> wrapper = new CompletableFuture<>();
+		future.whenComplete((result, exception) -> {
+			if (future.isCancelled()) {
+				wrapper.cancel(true);
+			} else if (exception != null) {
+				wrapper.completeExceptionally(exception);
+			} else {
+				wrapper.complete(result);
+			}
+		});
+
+		return wrapper;
+	}
 }

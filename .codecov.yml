@@ -9,13 +9,9 @@ codecov:
 coverage:
   status:
     project:
-      default:
-        # only report project commit status for pull requests
-        only_pulls: true
+      default: false
     patch:
-      default:
-        # only report patch commit status for pull requests
-        only_pulls: true
+      default: false
 
 flags:
   production:

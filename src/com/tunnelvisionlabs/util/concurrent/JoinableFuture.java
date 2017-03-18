@@ -408,8 +408,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * (or is executing within a {@link JoinableFuture} that has access to the main thread) the caller's access to the
 	 * Main thread propagates to this {@link JoinableFuture} so that it may also access the main thread.
 	 */
-	public final void join() {
-		join(null);
+	public final T join() {
+		return join(null);
 	}
 
 	/**
@@ -419,7 +419,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 *
 	 * @param cancellationFuture A future that will exit this method before the future is completed.
 	 */
-	public final void join(@Nullable CompletableFuture<?> cancellationFuture) {
+	public final T join(@Nullable CompletableFuture<?> cancellationFuture) {
 		// We don't simply call this.CompleteOnCurrentThread because that doesn't take CancellationToken.
 		// And it really can't be made to, since it sets state flags indicating the JoinableTask is
 		// blocking till completion.
@@ -429,6 +429,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			() -> joinAsync(cancellationFuture),
 			EnumSet.noneOf(JoinableFutureCreationOption.class)/*,
 			this.initialDelegate*/);
+		assert getFuture().isDone();
+		return getFuture().join();
 	}
 
 	/**

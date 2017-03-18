@@ -208,6 +208,16 @@ public enum Async {
 	}
 
 	@NotNull
+	public static <T> CompletableFuture<Void> forAsync(@NotNull Supplier<? extends T> initializer, @NotNull Predicate<? super T> condition, @NotNull Function<? super T, ? extends T> increment, @NotNull Supplier<? extends CompletableFuture<?>> body) {
+		AtomicReference<T> value = new AtomicReference<>();
+		return forAsync(
+			initializer,
+			condition,
+			increment,
+			ignored -> body.get());
+	}
+
+	@NotNull
 	public static CompletableFuture<Void> whileAsync(@NotNull Supplier<? extends Boolean> predicate, @NotNull Supplier<? extends CompletableFuture<?>> body) {
 		try {
 			if (!predicate.get()) {

@@ -55,12 +55,12 @@ public abstract class TestBase {
 	protected static final long UNEXPECTED_TIMEOUT = 5000;
 	protected static final TimeUnit UNEXPECTED_TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
 
-//        /// <summary>
-//        /// The maximum length of time to wait for something that we do not expect will happen
-//        /// within the timeout.
-//        /// </summary>
-//        protected static readonly TimeSpan ExpectedTimeout = TimeSpan.FromSeconds(2);
-//
+	/**
+	 * The maximum length of time to wait for something that we do not expect will happen within the timeout.
+	 */
+	protected static final long EXPECTED_TIMEOUT = 2;
+	protected static final TimeUnit EXPECTED_TIMEOUT_UNIT = TimeUnit.SECONDS;
+
 //        private const int GCAllocationAttempts = 10;
 //
 //        protected TestBase(ITestOutputHelper logger)

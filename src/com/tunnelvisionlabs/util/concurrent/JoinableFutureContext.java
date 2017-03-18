@@ -444,7 +444,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * A class that clears {@link CallContext} and {@link SynchronizationContext} async/thread statics and restores
 	 * those values when this structure is disposed.
 	 */
-	public final class RevertRelevance implements AutoCloseable {
+	public final class RevertRelevance implements Disposable {
 		private final SpecializedSyncContext temporarySyncContext;
 		private final JoinableFuture<?> oldJoinable;
 

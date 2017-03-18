@@ -6,7 +6,7 @@ package com.tunnelvisionlabs.util.concurrent;
  *
  * <p>Copied from Microsoft/vs-threading@14f77875.</p>
  */
-public final class SpecializedSyncContext implements AutoCloseable {
+public final class SpecializedSyncContext implements Disposable {
 	/**
 	 * The {@link SynchronizationContext} to restore when {@link #close()} is invoked.
 	 */

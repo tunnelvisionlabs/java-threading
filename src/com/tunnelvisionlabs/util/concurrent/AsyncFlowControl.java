@@ -1,7 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
-class AsyncFlowControl implements AutoCloseable {
+class AsyncFlowControl implements Disposable {
 	private final Thread thread;
 	private boolean closed;
 

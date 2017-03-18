@@ -51,8 +51,9 @@ class ExecutionContext {
 		}
 	}
 
+	@NotNull
 	public ExecutionContext createCopy() {
-		throw new UnsupportedOperationException("Not implemented");
+		return new ExecutionContext(callContext.createCopy());
 	}
 
 	@NotNull

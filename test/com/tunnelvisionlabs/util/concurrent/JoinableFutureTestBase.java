@@ -8,10 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
+import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -46,6 +50,11 @@ public abstract class JoinableFutureTestBase extends TestBase {
 
 //            // Suppress the assert dialog that appears and causes test runs to hang.
 //            Trace.Listeners.OfType<DefaultTraceListener>().Single().AssertUiEnabled = false;
+	}
+
+	@After
+	public final void teardown() {
+		Assert.assertTrue(ForkJoinPool.commonPool().awaitQuiescence(TEST_TIMEOUT, TEST_TIMEOUT_UNIT));
 	}
 
 	@NotNull

@@ -105,8 +105,7 @@ public class AsyncLazyTest extends TestBase {
 	 * Verifies that multiple sequential calls to {@link AsyncLazy#getValueAsync} do not result in multiple invocations
 	 * of the value factory.
 	 */
-//        [Theory, CombinatorialData]
-	public void testValueFactoryExecutedOnlyOnceSequential(boolean specifyJtf) {
+	private void testValueFactoryExecutedOnlyOnceSequential(boolean specifyJtf) {
 		// use our own so we don't get main thread deadlocks, which isn't the point of this test.
 		JoinableFutureFactory jtf = specifyJtf ? new JoinableFutureContext().getFactory() : null;
 		AtomicBoolean valueFactoryExecuted = new AtomicBoolean(false);
@@ -399,7 +398,7 @@ public class AsyncLazyTest extends TestBase {
 		testGetValueAsyncWithCancellationFuture(future -> future.completeExceptionally(new IllegalArgumentException()));
 	}
 
-	public void testGetValueAsyncWithCancellationFuture(@NotNull Consumer<? super CompletableFuture<?>> cancelAction) {
+	private void testGetValueAsyncWithCancellationFuture(@NotNull Consumer<? super CompletableFuture<?>> cancelAction) {
 		AsyncManualResetEvent evt = new AsyncManualResetEvent();
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() ->
 			Async.awaitAsync(

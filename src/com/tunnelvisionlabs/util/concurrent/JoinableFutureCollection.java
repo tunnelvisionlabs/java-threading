@@ -251,7 +251,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 
 			return Async.usingAsync(
 				join(),
-				() -> Async.awaitAsync(emptyEvent.get().waitAsync(), false));
+				() -> Async.awaitAsync(Async.configureAwait(emptyEvent.get().waitAsync(), false)));
 		});
 	}
 

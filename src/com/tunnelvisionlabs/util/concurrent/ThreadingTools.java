@@ -132,7 +132,7 @@ public enum ThreadingTools {
 				cancellationToken.register(f -> f.cancel(false), cancellationFuture),
 				() -> {
 					return Async.awaitAsync(
-						Async.whenAny(future, cancellationFuture),
+						Async.configureAwait(Async.whenAny(future, cancellationFuture), false),
 						completedFuture -> {
 							if (future != completedFuture) {
 								if (cancellationFuture.isDone()) {
@@ -143,9 +143,8 @@ public enum ThreadingTools {
 							// Rethrow any fault/cancellation exception, even if we awaited above.
 							// But if we skipped the above if branch, this will actually yield
 							// on an incompleted future.
-							return Async.awaitAsync(future, false);
-						},
-						false);
+							return Async.awaitAsync(Async.configureAwait(future, false));
+						});
 				});
 		});
 	}

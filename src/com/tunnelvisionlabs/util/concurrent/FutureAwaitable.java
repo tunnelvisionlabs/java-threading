@@ -6,14 +6,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
 public final class FutureAwaitable<T> implements Awaitable<T> {
-	private final CompletableFuture<T> future;
+	private final CompletableFuture<? extends T> future;
 	private final boolean continueOnCapturedContext;
 
-	public FutureAwaitable(@NotNull CompletableFuture<T> future) {
+	public FutureAwaitable(@NotNull CompletableFuture<? extends T> future) {
 		this(future, true);
 	}
 
-	public FutureAwaitable(@NotNull CompletableFuture<T> future, boolean continueOnCapturedContext) {
+	public FutureAwaitable(@NotNull CompletableFuture<? extends T> future, boolean continueOnCapturedContext) {
 		this.future = future;
 		this.continueOnCapturedContext = continueOnCapturedContext;
 	}

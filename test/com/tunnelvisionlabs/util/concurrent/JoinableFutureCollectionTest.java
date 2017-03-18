@@ -56,7 +56,7 @@ public class JoinableFutureCollectionTest extends JoinableFutureTestBase {
 	@Test
 	public void testJoinUntilEmptyUsesConfigureAwaitFalse() throws Exception {
 		AsyncManualResetEvent evt = new AsyncManualResetEvent();
-		JoinableFuture<Void> joinable = getJoinableFactory().runAsync(() -> Async.awaitAsync(evt.waitAsync(), false));
+		JoinableFuture<Void> joinable = getJoinableFactory().runAsync(() -> Async.awaitAsync(Async.configureAwait(evt.waitAsync(), false)));
 
 		CompletableFuture<Void> waiter = joinableCollection.joinUntilEmptyAsync();
 		Assert.assertFalse(waiter.isDone());

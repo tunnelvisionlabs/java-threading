@@ -61,45 +61,30 @@ public enum Async {
 
 	@NotNull
 	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> future) {
-		return awaitAsync(future, AsyncFunctions.identity(), true);
-	}
-
-	@NotNull
-	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> future, boolean continueOnCapturedContext) {
-		return awaitAsync(future, AsyncFunctions.identity(), continueOnCapturedContext);
+		return awaitAsync(future, AsyncFunctions.identity());
 	}
 
 	@NotNull
 	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> future, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation) {
-		return awaitAsync(future, continuation, true);
-	}
-
-	@NotNull
-	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<? extends T> future, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
 		if (future.isDone()) {
 			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
 			// properly handled.
 			return future.thenCompose(continuation);
 		}
 
-		Awaitable<? extends T> awaitable = new FutureAwaitable<>(future, continueOnCapturedContext);
+		Awaitable<? extends T> awaitable = new FutureAwaitable<>(future, true);
 		return awaitAsync(awaitable, continuation);
 	}
 
 	@NotNull
 	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> future, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
-		return awaitAsync(future, continuation, true);
-	}
-
-	@NotNull
-	public static <U> CompletableFuture<U> awaitAsync(@NotNull CompletableFuture<?> future, @NotNull Supplier<? extends CompletableFuture<U>> continuation, boolean continueOnCapturedContext) {
 		if (future.isDone()) {
 			// When the antecedent is already complete, we don't need to use unwrap in order for cancellation to be
 			// properly handled.
 			return future.thenCompose(result -> continuation.get());
 		}
 
-		return awaitAsync(new FutureAwaitable<>(future, continueOnCapturedContext), continuation);
+		return awaitAsync(new FutureAwaitable<>(future, true), continuation);
 	}
 
 	@NotNull
@@ -111,6 +96,11 @@ public enum Async {
 	public static <U> CompletableFuture<U> awaitAsync(@NotNull Executor executor, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
 		Function<Void, CompletableFuture<U>> function = ignored -> continuation.get();
 		return awaitAsync(AwaitExtensions.switchTo(executor), function);
+	}
+
+	@NotNull
+	public static <T> Awaitable<T> configureAwait(@NotNull CompletableFuture<? extends T> future, boolean continueOnCapturedContext) {
+		return new FutureAwaitable<>(future, continueOnCapturedContext);
 	}
 
 	@NotNull

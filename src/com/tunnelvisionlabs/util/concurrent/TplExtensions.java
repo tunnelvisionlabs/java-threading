@@ -68,7 +68,7 @@ public enum TplExtensions {
 
 			CompletableFuture<Void> timeoutTask = Async.delayAsync(timeout, unit);
 			return Async.awaitAsync(
-				Async.whenAny(future, timeoutTask),
+				Async.configureAwait(Async.whenAny(future, timeoutTask), false),
 				completedFuture -> {
 					if (completedFuture == timeoutTask) {
 						return Futures.completedCancelled();
@@ -77,9 +77,8 @@ public enum TplExtensions {
 					// The timeout did not elapse, so cancel the timer to recover system resources.
 					timeoutTask.cancel(false);
 
-					return Async.awaitAsync(future, false);
-				},
-				false);
+					return Async.awaitAsync(Async.configureAwait(future, false));
+				});
 		});
 	}
 

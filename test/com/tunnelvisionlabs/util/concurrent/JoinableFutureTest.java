@@ -1520,7 +1520,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 					Assert.assertSame(originalThread, Thread.currentThread());
 					dependentWorkCompleted.set();
 					return Async.awaitAsync(
-						joinReverted.waitAsync(),
+						Async.configureAwait(joinReverted.waitAsync(), false),
 						() -> {
 							// STEP 6
 							Assert.assertNotSame(originalThread, Thread.currentThread());
@@ -1531,8 +1531,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 									Assert.assertSame(originalThread, Thread.currentThread());
 									return Futures.completedNull();
 								});
-						},
-						false);
+						});
 				});
 		});
 

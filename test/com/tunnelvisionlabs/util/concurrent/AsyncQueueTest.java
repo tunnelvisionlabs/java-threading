@@ -497,18 +497,16 @@ public class AsyncQueueTest extends TestBase {
 		Assert.assertEquals(1, invoked.get());
 	}
 
-//        [Fact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
-//        public void UnusedQueueGCPressure()
-//        {
-//            this.CheckGCPressure(
-//                delegate
-//                {
-//                    var queue = new AsyncQueue<GenericParameterHelper>();
-//                    queue.Complete();
-//                    Assert.True(queue.IsCompleted);
-//                },
-//                maxBytesAllocated: 81);
-//        }
+	//[Fact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
+	@Test
+	public void testUnusedQueueGCPressure() {
+		checkGCPressure(() -> {
+			AsyncQueue<GenericParameterHelper> queue = new AsyncQueue<>();
+			queue.complete();
+			Assert.assertTrue(queue.isCompleted());
+		},
+			/*maxBytesAllocated:*/ 80); // NOTE: .NET has this at 81
+	}
 
 	private static class DerivedQueue<T> extends AsyncQueue<T> {
 

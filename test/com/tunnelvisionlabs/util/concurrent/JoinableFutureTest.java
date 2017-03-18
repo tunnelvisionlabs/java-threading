@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureContext.RevertRelevance;
+import java.lang.ref.WeakReference;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,6 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -2690,38 +2692,36 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		Assert.assertTrue(outer.isDone());
 	}
 
-//        [SkippableFact]
-//        public void NestedFactoriesCanBeCollected()
-//        {
-//            var outerFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//            var innerFactory = new ModalPumpingJoinableTaskFactory(this.context);
-//
-//            JoinableTask inner = null;
-//            var outer = outerFactory.RunAsync(async delegate
-//            {
-//                inner = innerFactory.RunAsync(async delegate
-//                {
-//                    await Task.Yield();
-//                });
-//                await inner;
-//            });
-//
-//            outerFactory.DoModalLoopTillEmpty();
-//            Skip.IfNot(outer.IsCompleted, "this is a product defect, but this test assumes this works to test something else.");
-//
-//            // Allow the dispatcher to drain all messages that may be holding references.
-//            SynchronizationContext.Current.Post(s => this.testFrame.Continue = false, null);
-//            this.PushFrame();
-//
-//            // Now we verify that while 'inner' is non-null that it doesn't hold outerFactory in memory
-//            // once 'inner' has completed.
-//            var weakOuterFactory = new WeakReference(outerFactory);
-//            outer = null;
-//            outerFactory = null;
-//            GC.Collect();
-//            Assert.False(weakOuterFactory.IsAlive);
-//        }
-//
+	@Test
+	public void testNestedFactoriesCanBeCollected() {
+		ModalPumpingJoinableFutureFactory outerFactory = new ModalPumpingJoinableFutureFactory(context);
+		ModalPumpingJoinableFutureFactory innerFactory = new ModalPumpingJoinableFutureFactory(context);
+
+		StrongBox<JoinableFuture<Void>> inner = new StrongBox<>();
+		JoinableFuture<Void> outer = outerFactory.runAsync(() -> {
+			inner.set(innerFactory.runAsync(() -> {
+				return Async.awaitAsync(Async.yieldAsync());
+			}));
+
+			return Async.awaitAsync(inner.get());
+		});
+
+		outerFactory.doModalLoopUntilEmpty();
+		Assume.assumeTrue("this is a product defect, but this test assumes this works to test something else.", outer.isDone());
+
+		// Allow the dispatcher to drain all messages that may be holding references.
+		SynchronizationContext.getCurrent().post(s -> testFrame.setContinue(false), null);
+		pushFrame();
+
+		// Now we verify that while 'inner' is non-null that it doesn't hold outerFactory in memory
+		// once 'inner' has completed.
+		WeakReference<ModalPumpingJoinableFutureFactory> weakOuterFactory = new WeakReference<>(outerFactory);
+		outer = null;
+		outerFactory = null;
+		Runtime.getRuntime().gc();
+		Assert.assertNull(weakOuterFactory.get());
+	}
+
 //        // This is a known issue and we haven't a fix yet
 //        [StaFact(Skip = "Ignored")]
 //        public void CallContextWasOverwrittenByReentrance()
@@ -2978,68 +2978,68 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //            assertDialogListener.AssertUiEnabled = true;
 	}
 
-//        [StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
-//        public void SwitchToMainThreadMemoryLeak()
-//        {
-//            this.CheckGCPressure(
-//                async delegate
-//                {
-//                    await TaskScheduler.Default;
-//                    await this.asyncPump.SwitchToMainThreadAsync(CancellationToken.None);
-//                },
-//                2615);
-//        }
-//
-//        [StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
-//        public void SwitchToMainThreadMemoryLeakWithCancellationToken()
-//        {
-//            CancellationTokenSource tokenSource = new CancellationTokenSource();
-//            this.CheckGCPressure(
-//                async delegate
-//                {
-//                    await TaskScheduler.Default;
-//                    await this.asyncPump.SwitchToMainThreadAsync(tokenSource.Token);
-//                },
-//                2800);
-//        }
-//
-//        [StaFact]
-//        public void SwitchToMainThreadSucceedsWhenConstructedUnderMTAOperation()
-//        {
-//            var task = Task.Run(async delegate
-//            {
-//                try
-//                {
-//                    var otherCollection = this.context.CreateCollection();
-//                    var otherPump = this.context.CreateFactory(otherCollection);
-//                    await otherPump.SwitchToMainThreadAsync();
-//                    Assert.Same(this.originalThread, Thread.CurrentThread);
-//                }
-//                finally
-//                {
-//                    this.testFrame.Continue = false;
-//                }
-//            });
-//
-//            this.PushFrame();
-//            task.GetAwaiter().GetResult(); // rethrow any failures
-//        }
-//
-//        [StaFact, Trait("GC", "true")]
-//        public void JoinableTaskReleasedBySyncContextAfterCompletion()
-//        {
-//            SynchronizationContext syncContext = null;
-//            var job = new WeakReference(this.asyncPump.RunAsync(() =>
-//            {
-//                syncContext = SynchronizationContext.Current; // simulate someone who has captured the sync context.
-//                return TplExtensions.CompletedTask;
-//            }));
-//
-//            // We intentionally still have a reference to the SyncContext that represents the task.
-//            // We want to make sure that even with that, the JoinableTask itself can be collected.
-//            GC.Collect();
-//            Assert.False(job.IsAlive);
-//        }
+	//[StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
+	@Test
+	public void testSwitchToMainThreadMemoryLeak() {
+		checkGCPressure(
+			() -> {
+				return Async.awaitAsync(
+					ForkJoinPool.commonPool(),
+					() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(CancellationToken.none())));
+			},
+			7223); // NOTE: .NET has this at 2615
+	}
+
+	//[StaFact, Trait("Stress", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
+	@Test
+	public void testSwitchToMainThreadMemoryLeakWithCancellationToken() {
+		CancellationTokenSource tokenSource = new CancellationTokenSource();
+		checkGCPressure(
+			() -> {
+				return Async.awaitAsync(
+					ForkJoinPool.commonPool(),
+					() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(tokenSource.getToken())));
+			},
+			7807); // NOTE: .NET has this at 2800
+	}
+
+	@Test
+	public void testSwitchToMainThreadSucceedsWhenConstructedUnderMTAOperation() {
+		CompletableFuture<Void> task = Futures.runAsync(() -> {
+			JoinableFutureCollection otherCollection = context.createCollection();
+			JoinableFutureFactory otherPump = context.createFactory(otherCollection);
+			return Async.finallyAsync(
+				Async.awaitAsync(
+					otherPump.switchToMainThreadAsync(),
+					() -> {
+						Assert.assertSame(originalThread, Thread.currentThread());
+						return Futures.completedNull();
+					}),
+				() -> {
+					testFrame.setContinue(false);
+				});
+		});
+
+		pushFrame();
+		// rethrow any failures
+		task.join();
+	}
+
+	//[StaFact, Trait("GC", "true")]
+	@Test
+	public void testJoinableFutureReleasedBySyncContextAfterCompletion() {
+		StrongBox<SynchronizationContext> syncContext = new StrongBox<>();
+		WeakReference<JoinableFuture<Void>> job = new WeakReference<>(asyncPump.runAsync(() -> {
+			// simulate someone who has captured the sync context.
+			syncContext.set(SynchronizationContext.getCurrent());
+			return Futures.completedNull();
+		}));
+
+		// We intentionally still have a reference to the SyncContext that represents the task.
+		// We want to make sure that even with that, the JoinableTask itself can be collected.
+		Runtime.getRuntime().gc();
+		Assert.assertNull(job.get());
+	}
 
 	@Test
 	public void testJoinTwice() {
@@ -3061,18 +3061,16 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		outerJoinable.join();
 	}
 
-//        [StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
-//        public void RunSynchronouslyTaskNoYieldGCPressure()
-//        {
-//            this.CheckGCPressure(delegate
-//            {
-//                this.asyncPump.Run(delegate
-//                {
-//                    return TplExtensions.CompletedTask;
-//                });
-//            }, maxBytesAllocated: 573);
-//        }
-//
+	//[StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
+	@Test
+	public void testRunSynchronouslyFutureNoYieldGCPressure() {
+		this.checkGCPressure(() -> {
+			asyncPump.run(() -> {
+				return Futures.completedNull();
+			});
+		}, /*maxBytesAllocated:*/ 1037); // Note: .NET has this at 573
+	}
+
 //        [StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest")]
 //        public void RunSynchronouslyTaskOfTNoYieldGCPressure()
 //        {
@@ -3086,19 +3084,17 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 //                });
 //            }, maxBytesAllocated: 572);
 //        }
-//
-//        [StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
-//        public void RunSynchronouslyTaskWithYieldGCPressure()
-//        {
-//            this.CheckGCPressure(delegate
-//            {
-//                this.asyncPump.Run(async delegate
-//                {
-//                    await Task.Yield();
-//                });
-//            }, maxBytesAllocated: 1800);
-//        }
-//
+
+	//[StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
+	@Test
+	public void testRunSynchronouslyTaskWithYieldGCPressure() {
+		checkGCPressure(() -> {
+			asyncPump.run(() -> {
+				return Async.awaitAsync(Async.yieldAsync());
+			});
+		}, /*maxBytesAllocated:*/ 2867); // Note: .NET has this at 1800
+	}
+
 //        [StaFact, Trait("GC", "true"), Trait("TestCategory", "FailsInCloudTest"), Trait("FailsInLocalBatch", "true")]
 //        public void RunSynchronouslyTaskOfTWithYieldGCPressure()
 //        {

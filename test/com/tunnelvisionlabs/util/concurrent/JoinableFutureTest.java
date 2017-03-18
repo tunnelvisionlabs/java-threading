@@ -3327,7 +3327,6 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	 * https://devdiv.visualstudio.com/web/wi.aspx?pcguid=011b8bdf-6d56-4f87-be0d-0092136884d9&id=245563</p>
 	 */
 	@Test
-	@Ignore("Fails for Java")
 	public void testUnawaitedBackgroundWorkShouldComplete() {
 		AtomicBoolean unawaitedWorkCompleted = new AtomicBoolean(false);
 		Supplier<CompletableFuture<Void>> otherAsyncMethod = () -> {
@@ -3368,7 +3367,6 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Failing for Java only")
 	public void testUnawaitedBackgroundWorkShouldCompleteWithoutSyncBlock() throws Exception {
 		CompletableFuture<Void> unawaitedWorkCompleted = new CompletableFuture<>();
 		Supplier<CompletableFuture<Void>> otherAsyncMethod = ExecutionContext.wrap(() -> {
@@ -3400,7 +3398,6 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Fails for Java")
 	public void testUnawaitedBackgroundWorkShouldCompleteAndNotCrashWhenThrown() {
 		Supplier<CompletableFuture<Void>> otherAsyncMethod = () -> {
 			return Async.awaitAsync(

@@ -778,8 +778,12 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			// that was queued but evidently not required to complete this task
 			// back to the threadpool so it still gets done.
 			if (threadPoolQueue != null && !threadPoolQueue.isEmpty()) {
-				SingleExecuteProtector<?> executor = threadPoolQueue.poll();
-				while (executor != null) {
+				while (true) {
+					SingleExecuteProtector<?> executor = threadPoolQueue.poll();
+					if (executor == null) {
+						break;
+					}
+
 					ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(executor)));
 				}
 			}

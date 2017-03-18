@@ -128,41 +128,39 @@ public class JoinableFutureFactory {
 		return getContext().getUnderlyingSynchronizationContext();
 	}
 
-        /// <summary>
-        /// Gets an awaitable whose continuations execute on the synchronization context that this instance was initialized with,
-        /// in such a way as to mitigate both deadlocks and reentrancy.
-        /// </summary>
-        /// <param name="cancellationToken">
-        /// A token whose cancellation will immediately schedule the continuation
-        /// on a threadpool thread.
-        /// </param>
-        /// <returns>An awaitable.</returns>
-        /// <remarks>
-        /// <example>
-        /// <code>
-        /// private async Task SomeOperationAsync() {
-        ///     // on the caller's thread.
-        ///     await DoAsync();
-        ///
-        ///     // Now switch to a threadpool thread explicitly.
-        ///     await TaskScheduler.Default;
-        ///
-        ///     // Now switch to the Main thread to talk to some STA object.
-        ///     await this.JobContext.SwitchToMainThreadAsync();
-        ///     STAService.DoSomething();
-        /// }
-        /// </code>
-        /// </example>
-        /// </remarks>
-        public MainThreadAwaitable switchToMainThreadAsync()
-        {
-            return switchToMainThreadAsync(null);
-        }
+	/// <summary>
+	/// Gets an awaitable whose continuations execute on the synchronization context that this instance was initialized with,
+	/// in such a way as to mitigate both deadlocks and reentrancy.
+	/// </summary>
+	/// <param name="cancellationToken">
+	/// A token whose cancellation will immediately schedule the continuation
+	/// on a threadpool thread.
+	/// </param>
+	/// <returns>An awaitable.</returns>
+	/// <remarks>
+	/// <example>
+	/// <code>
+	/// private async Task SomeOperationAsync() {
+	///     // on the caller's thread.
+	///     await DoAsync();
+	///
+	///     // Now switch to a threadpool thread explicitly.
+	///     await TaskScheduler.Default;
+	///
+	///     // Now switch to the Main thread to talk to some STA object.
+	///     await this.JobContext.SwitchToMainThreadAsync();
+	///     STAService.DoSomething();
+	/// }
+	/// </code>
+	/// </example>
+	/// </remarks>
+	public MainThreadAwaitable switchToMainThreadAsync() {
+		return switchToMainThreadAsync(null);
+	}
 
-		public MainThreadAwaitable switchToMainThreadAsync(CompletableFuture<?> cancellationFuture)
-        {
-            return new MainThreadAwaitable(this, getContext().getAmbientFuture(), cancellationFuture);
-        }
+	public MainThreadAwaitable switchToMainThreadAsync(CompletableFuture<?> cancellationFuture) {
+		return new MainThreadAwaitable(this, getContext().getAmbientFuture(), cancellationFuture);
+	}
 
 	/**
 	 * Responds to calls to {@link JoinableFutureFactory.MainThreadAwaiter#onCompleted} by scheduling a continuation to
@@ -525,48 +523,46 @@ public class JoinableFutureFactory {
 //            }
 //        }
 
-        /// <summary>
-        /// Invokes an async delegate on the caller's thread, and yields back to the caller when the async method yields.
-        /// The async delegate is invoked in such a way as to mitigate deadlocks in the event that the async method
-        /// requires the main thread while the main thread is blocked waiting for the async method's completion.
-        /// </summary>
-        /// <typeparam name="T">The type of value returned by the asynchronous operation.</typeparam>
-        /// <param name="asyncMethod">The method that, when executed, will begin the async operation.</param>
-        /// <returns>
-        /// An object that tracks the completion of the async operation, and allows for later synchronous blocking of the main thread for completion if necessary.
-        /// </returns>
-        /// <remarks>
-        /// <para>Exceptions thrown by the delegate are captured by the returned <see cref="JoinableTask" />.</para>
-        /// <para>When the delegate resumes from a yielding await, the default behavior is to resume in its original context
-        /// as an ordinary async method execution would. For example, if the caller was on the main thread, execution
-        /// resumes after an await on the main thread; but if it started on a threadpool thread it resumes on a threadpool thread.</para>
-        /// </remarks>
-        public final <T> JoinableFuture<T> runAsync(Supplier<? extends CompletableFuture<? extends T>> asyncMethod)
-        {
-            return runAsync(asyncMethod, /*synchronouslyBlocking:*/ false, /*creationOptions:*/ EnumSet.noneOf(JoinableFutureCreationOption.class));
-        }
+	/// <summary>
+	/// Invokes an async delegate on the caller's thread, and yields back to the caller when the async method yields.
+	/// The async delegate is invoked in such a way as to mitigate deadlocks in the event that the async method
+	/// requires the main thread while the main thread is blocked waiting for the async method's completion.
+	/// </summary>
+	/// <typeparam name="T">The type of value returned by the asynchronous operation.</typeparam>
+	/// <param name="asyncMethod">The method that, when executed, will begin the async operation.</param>
+	/// <returns>
+	/// An object that tracks the completion of the async operation, and allows for later synchronous blocking of the main thread for completion if necessary.
+	/// </returns>
+	/// <remarks>
+	/// <para>Exceptions thrown by the delegate are captured by the returned <see cref="JoinableTask" />.</para>
+	/// <para>When the delegate resumes from a yielding await, the default behavior is to resume in its original context
+	/// as an ordinary async method execution would. For example, if the caller was on the main thread, execution
+	/// resumes after an await on the main thread; but if it started on a threadpool thread it resumes on a threadpool thread.</para>
+	/// </remarks>
+	public final <T> JoinableFuture<T> runAsync(Supplier<? extends CompletableFuture<? extends T>> asyncMethod) {
+		return runAsync(asyncMethod, /*synchronouslyBlocking:*/ false, /*creationOptions:*/ EnumSet.noneOf(JoinableFutureCreationOption.class));
+	}
 
-//        /// <summary>
-//        /// Invokes an async delegate on the caller's thread, and yields back to the caller when the async method yields.
-//        /// The async delegate is invoked in such a way as to mitigate deadlocks in the event that the async method
-//        /// requires the main thread while the main thread is blocked waiting for the async method's completion.
-//        /// </summary>
-//        /// <typeparam name="T">The type of value returned by the asynchronous operation.</typeparam>
-//        /// <param name="asyncMethod">The method that, when executed, will begin the async operation.</param>
-//        /// <param name="creationOptions">The <see cref="JoinableTaskCreationOptions"/> used to customize the task's behavior.</param>
-//        /// <returns>
-//        /// An object that tracks the completion of the async operation, and allows for later synchronous blocking of the main thread for completion if necessary.
-//        /// </returns>
-//        /// <remarks>
-//        /// <para>Exceptions thrown by the delegate are captured by the returned <see cref="JoinableTask" />.</para>
-//        /// <para>When the delegate resumes from a yielding await, the default behavior is to resume in its original context
-//        /// as an ordinary async method execution would. For example, if the caller was on the main thread, execution
-//        /// resumes after an await on the main thread; but if it started on a threadpool thread it resumes on a threadpool thread.</para>
-//        /// </remarks>
-//        public JoinableTask<T> RunAsync<T>(Func<Task<T>> asyncMethod, JoinableTaskCreationOptions creationOptions)
-//        {
-//            return this.RunAsync(asyncMethod, synchronouslyBlocking: false, creationOptions: creationOptions);
-//        }
+	/// <summary>
+	/// Invokes an async delegate on the caller's thread, and yields back to the caller when the async method yields.
+	/// The async delegate is invoked in such a way as to mitigate deadlocks in the event that the async method
+	/// requires the main thread while the main thread is blocked waiting for the async method's completion.
+	/// </summary>
+	/// <typeparam name="T">The type of value returned by the asynchronous operation.</typeparam>
+	/// <param name="asyncMethod">The method that, when executed, will begin the async operation.</param>
+	/// <param name="creationOptions">The <see cref="JoinableTaskCreationOptions"/> used to customize the task's behavior.</param>
+	/// <returns>
+	/// An object that tracks the completion of the async operation, and allows for later synchronous blocking of the main thread for completion if necessary.
+	/// </returns>
+	/// <remarks>
+	/// <para>Exceptions thrown by the delegate are captured by the returned <see cref="JoinableTask" />.</para>
+	/// <para>When the delegate resumes from a yielding await, the default behavior is to resume in its original context
+	/// as an ordinary async method execution would. For example, if the caller was on the main thread, execution
+	/// resumes after an await on the main thread; but if it started on a threadpool thread it resumes on a threadpool thread.</para>
+	/// </remarks>
+	public final <T> JoinableFuture<T> runAsync(Supplier<? extends CompletableFuture<? extends T>> asyncMethod, Set<JoinableFutureCreationOption> creationOptions) {
+		return runAsync(asyncMethod, /*synchronouslyBlocking:*/ false, creationOptions);
+	}
 
 	final <T> void post(@NotNull Consumer<T> callback, T state, boolean mainThreadAffinitized) {
 		Requires.notNull(callback, "callback");

@@ -27,7 +27,7 @@ import java.util.function.Consumer;
  *
  * <p>Copied from Microsoft/vs-threading@14f77875.</p>
  */
-public class JoinableFuture<T> {
+public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Stores the top-most {@link JoinableFuture} that is completing on the current thread, if any.
 	 */
@@ -574,15 +574,16 @@ public class JoinableFuture<T> {
 		}
 	}
 
-//        /// <summary>
-//        /// Gets an awaiter that is equivalent to calling <see cref="JoinAsync"/>.
-//        /// </summary>
-//        /// <returns>A task whose result is the result of the asynchronous operation.</returns>
-//        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-//        public TaskAwaiter GetAwaiter()
-//        {
-//            return this.JoinAsync().GetAwaiter();
-//        }
+	/**
+	 * Gets an awaiter that is equivalent to calling {@link #joinAsync}.
+	 *
+	 * @return An awaiter whose result is the result of the asynchronous operation.
+	 */
+	@NotNull
+	@Override
+	public final FutureAwaiter<T> getAwaiter() {
+		return new FutureAwaiter<>(joinAsync());
+	}
 
 	final void setWrappedFuture(@NotNull CompletableFuture<? extends T> wrappedFuture) {
 		Requires.notNull(wrappedFuture, "wrappedFuture");
@@ -1607,49 +1608,31 @@ public class JoinableFuture<T> {
 		 */
 		@Override
 		public <T> void send(Consumer<T> callback, T state) {
-			throw new UnsupportedOperationException("Not implemented");
-//                Requires.NotNull(d, nameof(d));
-//
-//                // Some folks unfortunately capture the SynchronizationContext from the UI thread
-//                // while this one is active.  So forward it to the underlying sync context to not break those folks.
-//                // Ideally this method would throw because synchronously crossing threads is a bad idea.
-//                if (this.mainThreadAffinitized)
-//                {
-//                    if (this.jobFactory.Context.IsOnMainThread)
-//                    {
-//                        d(state);
-//                    }
-//                    else
-//                    {
-//                        this.jobFactory.Context.UnderlyingSynchronizationContext.Send(d, state);
-//                    }
-//                }
-//                else
-//                {
+			Requires.notNull(callback, "callback");
+
+			// Some folks unfortunately capture the SynchronizationContext from the UI thread
+			// while this one is active.  So forward it to the underlying sync context to not break those folks.
+			// Ideally this method would throw because synchronously crossing threads is a bad idea.
+			if (mainThreadAffinitized) {
+				if (jobFactory.getContext().isOnMainThread()) {
+					callback.accept(state);
+				} else {
+					jobFactory.getContext().getUnderlyingSynchronizationContext().send(callback, state);
+				}
+			} else {
 //#if DESKTOP
 //                    bool isThreadPoolThread = Thread.CurrentThread.IsThreadPoolThread;
 //#else
 //                    // On portable profile this is the best estimation we can do.
 //                    bool isThreadPoolThread = !this.jobFactory.Context.IsOnMainThread;
 //#endif
-//                    if (isThreadPoolThread)
-//                    {
-//                        d(state);
-//                    }
-//                    else
-//                    {
-//                        Task.Factory.StartNew(
-//                            s =>
-//                            {
-//                                var tuple = (Tuple<SendOrPostCallback, object>)s;
-//                                tuple.Item1(tuple.Item2);
-//                            },
-//                            Tuple.Create<SendOrPostCallback, object>(d, state),
-//                            CancellationToken.None,
-//                            TaskCreationOptions.None,
-//                            TaskScheduler.Default).Wait();
-//                    }
-//                }
+				boolean isThreadPoolThread = !jobFactory.getContext().isOnMainThread();
+				if (isThreadPoolThread) {
+					callback.accept(state);
+				} else {
+					CompletableFuture.runAsync(() -> callback.accept(state), ThreadPool.commonPool()).join();
+				}
+			}
 		}
 
 		/**

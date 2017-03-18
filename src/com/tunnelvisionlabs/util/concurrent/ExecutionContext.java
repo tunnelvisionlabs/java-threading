@@ -60,7 +60,7 @@ class ExecutionContext {
 	public static Runnable wrap(@NotNull Runnable runnable) {
 		ExecutionContext executionContext = capture();
 		return () -> {
-			run(executionContext, state -> runnable.run(), null);
+			run(executionContext, Runnable::run, runnable);
 		};
 	}
 
@@ -68,9 +68,9 @@ class ExecutionContext {
 	public static <T, U> Function<T, U> wrap(@NotNull Function<T, U> function) {
 		ExecutionContext executionContext = capture();
 		return t -> {
-			List<U> result = new ArrayList<>();
-			run(executionContext, state -> result.add(function.apply(t)), null);
-			return result.get(0);
+			StrongBox<U> result = new StrongBox<>();
+			run(executionContext, state -> result.value = function.apply(t), null);
+			return result.value;
 		};
 	}
 
@@ -78,9 +78,9 @@ class ExecutionContext {
 	public static <T> Supplier<T> wrap(@NotNull Supplier<T> supplier) {
 		ExecutionContext executionContext = capture();
 		return () -> {
-			List<T> result = new ArrayList<>();
-			run(executionContext, state -> result.add(supplier.get()), null);
-			return result.get(0);
+			StrongBox<T> result = new StrongBox<>();
+			run(executionContext, state -> result.value = supplier.get(), null);
+			return result.value;
 		};
 	}
 

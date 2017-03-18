@@ -1851,7 +1851,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	@Test
 	public void testBeginAsyncYieldsToAppropriateContext() throws Exception {
-		CompletableFuture<? extends Void> backgroundWork = Async.supply(() -> {
+		CompletableFuture<? extends Void> backgroundWork = Futures.supply(() -> {
 			return asyncPump.runAsync(() -> {
 				// Verify that we're on a background thread and stay there.
 				Assert.assertNotSame(originalThread, Thread.currentThread());
@@ -1920,7 +1920,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		// Kick off the BeginAsync work from a background thread that has no special
 		// affinity to the main thread.
-		JoinableFuture<Void> joinable = Async.supply(() -> {
+		JoinableFuture<Void> joinable = Futures.supply(() -> {
 			return asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					Async.yieldAsync(),
@@ -1954,7 +1954,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		// Kick off the BeginAsync work from a background thread that has no special
 		// affinity to the main thread.
-		JoinableFuture<Void> joinable = Async.supply(() -> {
+		JoinableFuture<Void> joinable = Futures.supply(() -> {
 			return asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					joinedEvent,
@@ -1985,7 +1985,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 		// Kick off the BeginAsync work from a background thread that has no special
 		// affinity to the main thread.
-		JoinableFuture<Integer> joinable = Async.supply(() -> {
+		JoinableFuture<Integer> joinable = Futures.supply(() -> {
 			return asyncPump.runAsync(() -> {
 				return Async.awaitAsync(
 					Async.yieldAsync(),
@@ -2350,7 +2350,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Test
 	public void testJoinWorkStealingRetainsThreadAffinityBackground() {
 		AtomicBoolean synchronousCompletionStarting = new AtomicBoolean(false);
-		CompletableFuture<JoinableFuture<Void>> asyncTask = Async.supply(() -> {
+		CompletableFuture<JoinableFuture<Void>> asyncTask = Futures.supply(() -> {
 			return asyncPump.runAsync(() -> {
 				AtomicInteger iterationsRemaining = new AtomicInteger(20);
 				return Async.awaitAsync(

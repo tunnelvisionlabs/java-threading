@@ -45,7 +45,7 @@ public enum Async {
 		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
 
 		Executor executor = command -> awaiter.onCompleted(command);
-		return supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);
+		return Futures.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor);
 	}
 
 	@NotNull
@@ -274,32 +274,12 @@ public enum Async {
 
 	@NotNull
 	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
-		return Futures.unwrap(supply(asyncRunnable));
+		return Futures.unwrap(Futures.supply(asyncRunnable));
 	}
 
 	@NotNull
 	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
-		return Futures.unwrap(supply(asyncRunnable, executor));
-	}
-
-	@NotNull
-	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier) {
-		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier));
-	}
-
-	@NotNull
-	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier, @NotNull Executor executor) {
-		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier), executor);
-	}
-
-	@NotNull
-	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
-		return Futures.unwrap(supply(supplier));
-	}
-
-	@NotNull
-	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier, @NotNull Executor executor) {
-		return Futures.unwrap(supply(supplier, executor));
+		return Futures.unwrap(Futures.supply(asyncRunnable, executor));
 	}
 
 	@NotNull

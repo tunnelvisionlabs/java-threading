@@ -564,7 +564,7 @@ public class AsyncLazyTest extends TestBase {
 			// mix it up to exercise all the code paths in the ctor.
 			passJtfToLazyCtor ? asyncPump : null);
 
-		CompletableFuture<?> backgroundRequest = Async.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
+		CompletableFuture<?> backgroundRequest = Futures.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call GetValueAsync(), but it doesn't yield (when the test was written).
 		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));
@@ -606,7 +606,7 @@ public class AsyncLazyTest extends TestBase {
 			},
 			asyncPump);
 
-		CompletableFuture<?> backgroundRequest = Async.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
+		CompletableFuture<?> backgroundRequest = Futures.supplyAsync(() -> Async.awaitAsync(lazy.getValueAsync()));
 
 		// Give the background thread time to call getValueAsync(), but it doesn't yield (when the test was written).
 		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));

@@ -98,7 +98,7 @@ enum TestUtilities {
 		CyclicBarrier barrier = new CyclicBarrier(concurrency);
 			List<CompletableFuture<T>> tasks = new ArrayList<>();
 			for (int i = 0; i < concurrency; i++) {
-				tasks.add(Async.supplyAsync(() -> {
+				tasks.add(Futures.supplyAsync(() -> {
 					try {
 						barrier.await();
 						return CompletableFuture.completedFuture(action.get());

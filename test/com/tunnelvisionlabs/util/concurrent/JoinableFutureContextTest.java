@@ -123,7 +123,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		AsyncQueue<Duration> hangQueue = new AsyncQueue<>();
 		getContext().onReportHang = (hangDuration, iterations, id) -> hangQueue.add(hangDuration);
 
-		TplExtensions.forget(Async.supplyAsync(() -> {
+		TplExtensions.forget(Futures.supplyAsync(() -> {
 			CancellationTokenSource ct = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 			return Async.awaitAsync(
 				Futures.completedNull(),
@@ -433,7 +433,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 		thrown.expect(CancellationException.class);
 		getFactory().run(() -> Async.usingAsync(
 			getContext().suppressRelevance(),
-			ignored -> Async.supply(() -> Async.awaitAsync(
+			ignored -> Futures.supply(() -> Async.awaitAsync(
 				getFactory().runAsync(
 					() -> Async.awaitAsync(getFactory().switchToMainThreadAsync(endTestCancellationSource.getToken())))))));
 	}

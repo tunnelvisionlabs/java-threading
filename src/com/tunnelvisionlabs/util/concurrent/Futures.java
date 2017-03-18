@@ -3,6 +3,8 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 enum Futures {
 	;
@@ -126,5 +128,25 @@ enum Futures {
 		});
 
 		return result;
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supply(@NotNull Supplier<T> supplier, @NotNull Executor executor) {
+		return CompletableFuture.supplyAsync(ExecutionContext.wrap(supplier), executor);
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
+		return unwrap(supply(supplier));
+	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier, @NotNull Executor executor) {
+		return unwrap(supply(supplier, executor));
 	}
 }

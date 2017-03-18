@@ -53,20 +53,20 @@ public class AsyncAutoResetEvent {
 	 */
 	@NotNull
 	public final CompletableFuture<Void> waitAsync() {
-		return waitAsync(null);
+		return waitAsync(CancellationToken.none());
 	}
 
 	/**
 	 * Returns a future that may be used to asynchronously acquire the next signal.
 	 *
-	 * @param cancellationFuture A future whose completion removes the caller from the queue of those waiting for the
+	 * @param cancellationFuture A token whose cancellation removes the caller from the queue of those waiting for the
 	 * event.
 	 *
 	 * @return A future representing the asynchronous operation.
 	 */
 	@NotNull
-	public final CompletableFuture<Void> waitAsync(@Nullable CompletableFuture<?> cancellationFuture) {
-		if (cancellationFuture != null && cancellationFuture.isDone()) {
+	public final CompletableFuture<Void> waitAsync(@NotNull CancellationToken cancellationToken) {
+		if (cancellationToken.isCancellationRequested()) {
 			return Futures.completedCancelled();
 		}
 
@@ -75,7 +75,7 @@ public class AsyncAutoResetEvent {
 				this.signaled = false;
 				return Futures.completedNull();
 			} else {
-				WaiterCompletableFuture waiter = new WaiterCompletableFuture(cancellationFuture, allowInliningAwaiters);
+				WaiterCompletableFuture waiter = new WaiterCompletableFuture(cancellationToken, allowInliningAwaiters);
 				this.signalAwaiters.add(waiter);
 				return waiter;
 			}
@@ -105,7 +105,8 @@ public class AsyncAutoResetEvent {
 	 * Tracks someone waiting for a signal from the event.
 	 */
 	private class WaiterCompletableFuture extends CompletableFutureWithoutInlining<Void> {
-		private final CompletableFuture<?> cancellationFuture;
+		private final CancellationToken cancellationToken;
+		private final CancellationTokenRegistration registration;
 
 		/**
 		 * Constructs a new instance of the {@link WaiterCompletableFuture} class.
@@ -114,15 +115,11 @@ public class AsyncAutoResetEvent {
 		 * @param allowInliningContinuations {@code true} to allow continuations to be inlined upon the completer's
 		 * call stack.
 		 */
-		public WaiterCompletableFuture(CompletableFuture<?> cancellationFuture, boolean allowInliningContinuations) {
+		public WaiterCompletableFuture(CancellationToken cancellationToken, boolean allowInliningContinuations) {
 			super(allowInliningContinuations);
 
-			this.cancellationFuture = cancellationFuture;
-			if (cancellationFuture != null) {
-				cancellationFuture.whenComplete((result, exception) -> {
-					cancel(true);
-				});
-			}
+			this.cancellationToken = cancellationToken;
+			this.registration = cancellationToken.register(waiter -> waiter.cancel(false), this);
 		}
 
 		@Override

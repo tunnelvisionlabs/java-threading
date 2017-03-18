@@ -9,7 +9,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -139,29 +138,14 @@ public class AsyncAutoResetEventTest extends TestBase {
 	}
 
 	@Test
-	public void testWaitAsync_WithCancellationFuture_DoesNotClaimSignal_Completed() {
-		testWaitAsync_WithCancellationFuture_DoesNotClaimSignal(future -> future.complete(null));
-	}
+	public void testWaitAsync_WithCancellationToken_DoesNotClaimSignal() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-	@Test
-	public void testWaitAsync_WithCancellationFuture_DoesNotClaimSignal_Cancelled() {
-		testWaitAsync_WithCancellationFuture_DoesNotClaimSignal(future -> future.cancel(true));
-	}
-
-	@Test
-	public void testWaitAsync_WithCancellationFuture_DoesNotClaimSignal_Failed() {
-		testWaitAsync_WithCancellationFuture_DoesNotClaimSignal(future -> future.completeExceptionally(new IllegalArgumentException()));
-	}
-
-	private void testWaitAsync_WithCancellationFuture_DoesNotClaimSignal(@NotNull Consumer<CompletableFuture<?>> cancelAction) {
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
-
-		CompletableFuture<Void> waitFuture = event.waitAsync(cancellationFuture);
+		CompletableFuture<Void> waitFuture = event.waitAsync(cancellationTokenSource.getToken());
 		Assert.assertFalse(waitFuture.isDone());
 
 		// Cancel the request and ensure that it propagates to the task.
-		cancelAction.accept(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+		cancellationTokenSource.cancel();
 
 		try {
 			waitFuture.join();
@@ -177,25 +161,14 @@ public class AsyncAutoResetEventTest extends TestBase {
 	}
 
 	@Test
-	public void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal_Completed() {
-		testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal(Futures.completedNull());
-	}
+	public void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
 
-	@Test
-	public void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal_Cancelled() {
-		testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal(Futures.completedCancelled());
-	}
-
-	@Test
-	public void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal_Failed() {
-		testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal(Futures.completedFailed(new IllegalArgumentException()));
-	}
-
-	private void testWaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal(@NotNull CompletableFuture<?> cancellationFuture) {
 		// Verify that a pre-set signal is not reset by a canceled wait request.
 		this.event.set();
 		try {
-			event.waitAsync(cancellationFuture).join();
+			event.waitAsync(cancellationTokenSource.getToken()).join();
 			Assert.fail("Future was expected to transition to a canceled state.");
 		} catch (CancellationException ex) {
 		}

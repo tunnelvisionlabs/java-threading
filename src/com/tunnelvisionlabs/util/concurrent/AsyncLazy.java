@@ -3,7 +3,6 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 /**
@@ -22,7 +21,7 @@ public class AsyncLazy<T> {
 	/**
 	 * The object to lock to provide thread-safety.
 	 */
-	private final ReentrantLock syncObject = new ReentrantLock();
+	private final Object syncObject = new Object();
 
 	/**
 	 * The unique instance identifier.
@@ -104,15 +103,14 @@ public class AsyncLazy<T> {
 		}
 
 		if (this.value == null) {
-			if (this.syncObject.isHeldByCurrentThread()) {
+			if (Thread.holdsLock(syncObject)) {
 				// PERF: we check the condition and *then* retrieve the string resource only on failure
 				// because the string retrieval has shown up as significant on ETL traces.
 				Verify.failOperation("ValueFactoryReentrancy");
 			}
 
 			final StrongBox<InlineResumable> resumableAwaiter = new StrongBox<>();
-			syncObject.lock();
-			try {
+			synchronized (syncObject) {
 				// Note that if multiple threads hit getValueAsync() before
 				// the valueFactory has completed its synchronous execution,
 				// then only one thread will execute the valueFactory while the
@@ -149,8 +147,6 @@ public class AsyncLazy<T> {
 						this.recursiveFactoryCheck.setValue(null);
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 
 			// Allow the original value factory to actually run.

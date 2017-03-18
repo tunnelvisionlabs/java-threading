@@ -15,9 +15,4 @@ enum AsyncFunctions {
 		Function<T, CompletableFuture<T>> result = (Function<T, CompletableFuture<T>>)(Object)IDENTITY;
 		return result;
 	}
-
-	@NotNull
-	public static <T extends CompletableFuture<?>> Function<T, T> unwrap() {
-		return Functions.identity();
-	}
 }

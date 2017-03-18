@@ -15,7 +15,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -343,13 +342,9 @@ public class JoinableFutureFactory {
 
 			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(NoMessagePumpSyncContext.getDefault())) {
 				Set<JoinableFuture<?>> allJoinedJobs = new HashSet<>();
-				ReentrantLock syncObject = getContext().getSyncContextLock();
-				syncObject.lock();
-				try {
+				synchronized (getContext().getSyncContextLock()) {
 					currentBlockingTask.addSelfAndDescendentOrJoinedJobs(allJoinedJobs);
 					return allJoinedJobs.stream().anyMatch(t -> t.getCreationOptions().contains(JoinableFutureCreationOption.LONG_RUNNING));
-				} finally {
-					syncObject.unlock();
 				}
 			}
 		}

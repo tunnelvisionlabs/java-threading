@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A collection of joinable futures.
@@ -112,9 +111,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 		}
 
 		if (!joinableFuture.isDone()) {
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				Integer refCount = joinables.get(joinableFuture);
 				if (refCount == null || refCountAddedJobs) {
 					if (refCount == null) {
@@ -138,8 +135,6 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 				if (emptyEvent.get() != null) {
 					emptyEvent.get().reset();
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -154,9 +149,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 		Requires.notNull(joinableFuture, "joinableFuture");
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				Integer refCount = joinables.get(joinableFuture);
 				if (refCount != null) {
 					if (refCount == 1 || joinableFuture.isDone()) {
@@ -180,8 +173,6 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 						joinables.put(joinableFuture, refCount - 1);
 					}
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -202,9 +193,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 		}
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				Integer count = joiners.get(ambientJob);
 				if (count == null) {
 					count = 0;
@@ -220,8 +209,6 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 				}
 
 				return new JoinRelease(this, ambientJob);
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -237,14 +224,10 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 				// We need a read lock to protect against the emptiness of this collection changing
 				// while we're setting the initial set state of the new event.
 				try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-					ReentrantLock syncObject = getContext().getSyncContextLock();
-					syncObject.lock();
-					try {
+					synchronized (getContext().getSyncContextLock()) {
 						// We use interlocked here to mitigate race conditions in lazily initializing this field.
 						// We *could* take a write lock above, but that would needlessly increase lock contention.
 						emptyEvent.compareAndSet(null, new AsyncManualResetEvent(joinables.isEmpty()));
-					} finally {
-						syncObject.unlock();
 					}
 				}
 			}
@@ -262,12 +245,8 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 		Requires.notNull(joinableFuture, "joinableFuture");
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				return joinables.containsKey(joinableFuture);
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}
@@ -279,12 +258,8 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 	public final Iterator<JoinableFuture<?>> iterator() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
 			List<JoinableFuture<?>> joinablesList;
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				joinablesList = new ArrayList<>(joinables.keySet());
-			} finally {
-				syncObject.unlock();
 			}
 
 			return joinablesList.iterator();
@@ -301,9 +276,7 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 		Requires.notNull(joinableFuture, "joinableFuture");
 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getContext().getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getContext().getSyncContextLock();
-			syncObject.lock();
-			try {
+			synchronized (getContext().getSyncContextLock()) {
 				Integer count = joiners.get(joinableFuture);
 				if (count == null) {
 					count = 0;
@@ -319,8 +292,6 @@ public class JoinableFutureCollection implements Iterable<JoinableFuture<?>> {
 				} else {
 					joiners.put(joinableFuture, count - 1);
 				}
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}

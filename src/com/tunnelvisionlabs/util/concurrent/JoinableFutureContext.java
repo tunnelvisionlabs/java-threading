@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.Transformer;
@@ -46,7 +45,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	 * in this file has a very similar problem, so we use a similar solution. Except that our lock is only as global as
 	 * the {@link JoinableFutureContext}. It isn't static.</p>
 	 */
-	private final ReentrantLock syncContextLock = new ReentrantLock();
+	private final Object syncContextLock = new Object();
 
 	/**
 	 * An {@link AsyncLocal} value that carries the joinable instance associated with an async operation.
@@ -125,15 +124,12 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	@NotNull
 	public final JoinableFutureFactory getFactory() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-			getSyncContextLock().lock();
-			try {
+			synchronized (getSyncContextLock()) {
 				if (nonJoinableFactory == null) {
 					nonJoinableFactory = createDefaultFactory();
 				}
 
 				return nonJoinableFactory;
-			} finally {
-				getSyncContextLock().unlock();
 			}
 		}
 	}
@@ -174,7 +170,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	/**
 	 * Gets the context-wide synchronization lock.
 	 */
-	final ReentrantLock getSyncContextLock() {
+	final Object getSyncContextLock() {
 		return syncContextLock;
 	}
 
@@ -255,8 +251,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			// In that case, we still need to follow the descendent of the task in the initialization stage.
 			// We hope the dependency tree is relatively small in that stage.
 			try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-				getSyncContextLock().lock();
-				try {
+				synchronized (getSyncContextLock()) {
 					Set<JoinableFuture<?>> allJoinedJobs = new HashSet<>();
 					synchronized (initializingSynchronouslyMainThreadTasks) {
 						// our read lock doesn't cover this collection
@@ -274,8 +269,6 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 							}
 						}
 					}
-				} finally {
-					getSyncContextLock().unlock();
 				}
 			}
 		}
@@ -595,56 +588,54 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 	@Override
 	public HangReportContribution getHangReport() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
-			ReentrantLock syncObject = getSyncContextLock();
-			syncObject.lock();
-			try {
-				StrongBox<Element> nodes = new StrongBox<>();
-				StrongBox<Element> links = new StrongBox<>();
-				Document dgml = createTemplateDgml(nodes, links);
+			synchronized (getSyncContextLock()) {
+				try {
+					StrongBox<Element> nodes = new StrongBox<>();
+					StrongBox<Element> links = new StrongBox<>();
+					Document dgml = createTemplateDgml(nodes, links);
 
-				Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
-				List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
-				Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
-				for (Element child : pendingTasksElements.values()) {
-					nodes.value.appendChild(child);
+					Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
+					List<Map.Entry<Element, Element>> taskLabels = createNodeLabels(dgml, pendingTasksElements);
+					Map<JoinableFutureCollection, Element> pendingTaskCollections = createNodesForJoinableFutureCollections(dgml, pendingTasksElements.keySet());
+					for (Element child : pendingTasksElements.values()) {
+						nodes.value.appendChild(child);
+					}
+
+					for (Element child : pendingTaskCollections.values()) {
+						nodes.value.appendChild(child);
+					}
+
+					for (Map.Entry<Element, Element> pair : taskLabels) {
+						nodes.value.appendChild(pair.getKey());
+					}
+
+					for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
+						links.value.appendChild(element);
+					}
+
+					for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
+						links.value.appendChild(element);
+					}
+
+					for (Map.Entry<Element, Element> pair : taskLabels) {
+						links.value.appendChild(pair.getValue());
+					}
+
+					TransformerFactory transformerFactory = TransformerFactory.newInstance();
+					Transformer transformer = transformerFactory.newTransformer();
+					DOMSource source = new DOMSource(dgml);
+
+					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+					StreamResult result = new StreamResult(outputStream);
+					transformer.transform(source, result);
+
+					return new HangReportContribution(
+						new String(outputStream.toByteArray(), "UTF-8"),
+						"application/xml",
+						"JoinableTaskContext.dgml");
+				} catch (ParserConfigurationException | UnsupportedEncodingException | TransformerException ex) {
+					throw new CompletionException(ex);
 				}
-
-				for (Element child : pendingTaskCollections.values()) {
-					nodes.value.appendChild(child);
-				}
-
-				for (Map.Entry<Element, Element> pair : taskLabels) {
-					nodes.value.appendChild(pair.getKey());
-				}
-
-				for (Element element : createsLinksBetweenNodes(pendingTasksElements)) {
-					links.value.appendChild(element);
-				}
-
-				for (Element element : createCollectionContainingFutureLinks(pendingTasksElements, pendingTaskCollections)) {
-					links.value.appendChild(element);
-				}
-
-				for (Map.Entry<Element, Element> pair : taskLabels) {
-					links.value.appendChild(pair.getValue());
-				}
-
-				TransformerFactory transformerFactory = TransformerFactory.newInstance();
-				Transformer transformer = transformerFactory.newTransformer();
-				DOMSource source = new DOMSource(dgml);
-
-				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-				StreamResult result = new StreamResult(outputStream);
-				transformer.transform(source, result);
-
-				return new HangReportContribution(
-					new String(outputStream.toByteArray(), "UTF-8"),
-					"application/xml",
-					"JoinableTaskContext.dgml");
-			} catch (ParserConfigurationException | UnsupportedEncodingException | TransformerException ex) {
-				throw new CompletionException(ex);
-			} finally {
-				syncObject.unlock();
 			}
 		}
 	}

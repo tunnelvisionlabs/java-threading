@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.validation.NotNull;
 import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Report;
 
 /**
  * A class that applies and reverts changes to the {@link SynchronizationContext}.
@@ -63,7 +64,7 @@ public final class SpecializedSyncContext implements Disposable {
 	 */
 	@Override
 	public void close() {
-//                Report.If(this.checkForChangesOnRevert && SynchronizationContext.getCurrent() != this.appliedContext);
+		Report.reportIf(checkForChangesOnRevert && SynchronizationContext.getCurrent() != this.appliedContext);
 		SynchronizationContext.setSynchronizationContext(this.prior);
 	}
 }

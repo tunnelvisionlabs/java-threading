@@ -6,6 +6,7 @@ import com.tunnelvisionlabs.util.concurrent.JoinableFuture.JoinableFutureSynchro
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureFactory.SingleExecuteProtector;
 import com.tunnelvisionlabs.util.validation.NotNull;
 import com.tunnelvisionlabs.util.validation.Nullable;
+import com.tunnelvisionlabs.util.validation.Report;
 import com.tunnelvisionlabs.util.validation.Requires;
 import com.tunnelvisionlabs.util.validation.Verify;
 import java.io.ByteArrayOutputStream;
@@ -329,7 +330,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			} catch (Throwable ex) {
 				// Report it in CHK, but don't throw. In a hang situation, we don't want the product
 				// to fail for another reason, thus hiding the hang issue.
-//                    Report.Fail("Exception thrown from OnHangDetected listener. {0}", ex);
+				Report.fail("Exception thrown from OnHangDetected listener. %s", ex);
 			}
 		}
 	}
@@ -350,7 +351,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			} catch (Throwable ex) {
 				// Report it in CHK, but don't throw. In a hang situation, we don't want the product
 				// to fail for another reason, thus hiding the hang issue.
-//                    Report.Fail("Exception thrown from OnHangDetected listener. {0}", ex);
+				Report.fail("Exception thrown from OnHangDetected listener. %s", ex);
 			}
 		}
 	}
@@ -799,7 +800,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 			}
 		} catch (Exception ex) {
 			// Just eat the exception so we don't crash during a hang report.
-//                Report.fail("GetAsyncReturnStackFrames threw exception: ", ex);
+			Report.fail("GetAsyncReturnStackFrames threw exception: %s", ex);
 		}
 
 		return stringBuilder.toString().trim();

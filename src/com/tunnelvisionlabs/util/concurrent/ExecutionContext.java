@@ -9,6 +9,22 @@ import java.util.function.Supplier;
 
 class ExecutionContext {
 	private static final ThreadLocal<Object> SUPPRESS_FLOW = new ThreadLocal<>();
+	private static final SynchronizationContext INHERIT = new SynchronizationContext() {
+		@Override
+		public SynchronizationContext createCopy() {
+			return this;
+		}
+
+		@Override
+		public <T> void post(Consumer<T> callback, T state) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public <T> void send(Consumer<T> callback, T state) {
+			throw new UnsupportedOperationException();
+		}
+	};
 
 	private final CallContext callContext;
 	private final SynchronizationContext synchronizationContext;
@@ -20,6 +36,10 @@ class ExecutionContext {
 
 	public static ExecutionContext capture() {
 		return new ExecutionContext(CallContext.getCurrent().createCopy(), SynchronizationContext.getCurrent());
+	}
+
+	private static ExecutionContext capture(boolean captureSynchronizationContext) {
+		return new ExecutionContext(CallContext.getCurrent().createCopy(), captureSynchronizationContext ? SynchronizationContext.getCurrent() : INHERIT);
 	}
 
 	public static boolean isFlowSuppressed() {
@@ -49,7 +69,9 @@ class ExecutionContext {
 			CallContext.setCallContext(executionContext.callContext);
 			SynchronizationContext originalSynchronizationContext = SynchronizationContext.getCurrent();
 			try {
-				SynchronizationContext.setSynchronizationContext(executionContext.synchronizationContext);
+				if (executionContext.synchronizationContext != INHERIT) {
+					SynchronizationContext.setSynchronizationContext(executionContext.synchronizationContext);
+				}
 
 				callback.accept(state);
 			} finally {
@@ -66,7 +88,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static Runnable wrap(@NotNull Runnable runnable) {
-		ExecutionContext executionContext = capture();
+		ExecutionContext executionContext = capture(false);
 		return () -> {
 			run(executionContext, state -> runnable.run(), null);
 		};
@@ -74,7 +96,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static <T, U> Function<T, U> wrap(@NotNull Function<T, U> function) {
-		ExecutionContext executionContext = capture();
+		ExecutionContext executionContext = capture(false);
 		return t -> {
 			List<U> result = new ArrayList<>();
 			run(executionContext, state -> result.add(function.apply(t)), null);
@@ -84,7 +106,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static <T> Supplier<T> wrap(@NotNull Supplier<T> supplier) {
-		ExecutionContext executionContext = capture();
+		ExecutionContext executionContext = capture(false);
 		return () -> {
 			List<T> result = new ArrayList<>();
 			run(executionContext, state -> result.add(supplier.get()), null);

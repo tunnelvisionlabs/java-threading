@@ -59,7 +59,7 @@ public class AsyncBarrierTest extends TestBase {
 			() -> 1,
 			i -> i <= steps,
 			i -> i + 1,
-			i -> Async.unwrap(Async
+			i -> Futures.unwrap(Async
 				.whileAsync(
 					// Wait until all actors report having completed this step.
 					() -> !all(currentStepForActors, step -> Objects.equals(step, i)),

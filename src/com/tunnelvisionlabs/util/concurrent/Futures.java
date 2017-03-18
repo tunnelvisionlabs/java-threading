@@ -83,4 +83,48 @@ enum Futures {
 
 		return wrapper;
 	}
+
+	@NotNull
+	public static <T> CompletableFuture<T> unwrap(@NotNull CompletableFuture<? extends CompletableFuture<T>> future) {
+		CompletableFuture<T> result = new CompletableFuture<T>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				if (!future.cancel(mayInterruptIfRunning)) {
+					if (!future.isDone() || future.isCompletedExceptionally()) {
+						return false;
+					}
+
+					if (!future.join().cancel(mayInterruptIfRunning)) {
+						return false;
+					}
+				}
+
+				return super.cancel(mayInterruptIfRunning);
+			}
+		};
+
+		future.whenComplete((outerResult, exception) -> {
+			if (exception != null) {
+				if (future.isCancelled()) {
+					result.cancel(false);
+				} else {
+					result.completeExceptionally(exception);
+				}
+			} else {
+				outerResult.whenComplete((innerResult, innerException) -> {
+					if (innerException != null) {
+						if (outerResult.isCancelled()) {
+							result.cancel(false);
+						} else {
+							result.completeExceptionally(innerException);
+						}
+					} else {
+						result.complete(innerResult);
+					}
+				});
+			}
+		});
+
+		return result;
+	}
 }

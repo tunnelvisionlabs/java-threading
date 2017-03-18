@@ -151,7 +151,7 @@ public enum Async {
 		// When both future and runnable throw an exception, the semantics of a finally block give precedence to the
 		// exception thrown by the finally block. However, the implementation of CompletableFuture.whenComplete gives
 		// precedence to the future.
-		return unwrap(
+		return Futures.unwrap(
 			future.handle((result, exception) -> {
 				runnable.run();
 				return future;
@@ -263,50 +263,6 @@ public enum Async {
 	}
 
 	@NotNull
-	public static <T> CompletableFuture<T> unwrap(@NotNull CompletableFuture<? extends CompletableFuture<T>> future) {
-		CompletableFuture<T> result = new CompletableFuture<T>() {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				if (!future.cancel(mayInterruptIfRunning)) {
-					if (!future.isDone() || future.isCompletedExceptionally()) {
-						return false;
-					}
-
-					if (!future.join().cancel(mayInterruptIfRunning)) {
-						return false;
-					}
-				}
-
-				return super.cancel(mayInterruptIfRunning);
-			}
-		};
-
-		future.whenComplete((outerResult, exception) -> {
-			if (exception != null) {
-				if (future.isCancelled()) {
-					result.cancel(false);
-				} else {
-					result.completeExceptionally(exception);
-				}
-			} else {
-				outerResult.whenComplete((innerResult, innerException) -> {
-					if (innerException != null) {
-						if (outerResult.isCancelled()) {
-							result.cancel(false);
-						} else {
-							result.completeExceptionally(innerException);
-						}
-					} else {
-						result.complete(innerResult);
-					}
-				});
-			}
-		});
-
-		return result;
-	}
-
-	@NotNull
 	public static CompletableFuture<Void> runAsync(@NotNull Runnable runnable) {
 		return CompletableFuture.runAsync(ExecutionContext.wrap(runnable));
 	}
@@ -318,12 +274,12 @@ public enum Async {
 
 	@NotNull
 	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable) {
-		return unwrap(supply(asyncRunnable));
+		return Futures.unwrap(supply(asyncRunnable));
 	}
 
 	@NotNull
 	public static CompletableFuture<Void> runAsync(@NotNull Supplier<? extends CompletableFuture<Void>> asyncRunnable, @NotNull Executor executor) {
-		return unwrap(supply(asyncRunnable, executor));
+		return Futures.unwrap(supply(asyncRunnable, executor));
 	}
 
 	@NotNull
@@ -338,12 +294,12 @@ public enum Async {
 
 	@NotNull
 	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier) {
-		return unwrap(supply(supplier));
+		return Futures.unwrap(supply(supplier));
 	}
 
 	@NotNull
 	public static <T> CompletableFuture<T> supplyAsync(@NotNull Supplier<? extends CompletableFuture<T>> supplier, @NotNull Executor executor) {
-		return unwrap(supply(supplier, executor));
+		return Futures.unwrap(supply(supplier, executor));
 	}
 
 	@NotNull

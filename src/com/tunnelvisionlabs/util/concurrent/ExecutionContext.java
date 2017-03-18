@@ -9,37 +9,15 @@ import java.util.function.Supplier;
 
 class ExecutionContext {
 	private static final ThreadLocal<Object> SUPPRESS_FLOW = new ThreadLocal<>();
-	private static final SynchronizationContext INHERIT = new SynchronizationContext() {
-		@Override
-		public SynchronizationContext createCopy() {
-			return this;
-		}
-
-		@Override
-		public <T> void post(Consumer<T> callback, T state) {
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public <T> void send(Consumer<T> callback, T state) {
-			throw new UnsupportedOperationException();
-		}
-	};
 
 	private final CallContext callContext;
-	private final SynchronizationContext synchronizationContext;
 
-	public ExecutionContext(CallContext callContext, SynchronizationContext synchronizationContext) {
+	public ExecutionContext(CallContext callContext) {
 		this.callContext = callContext;
-		this.synchronizationContext = synchronizationContext;
 	}
 
 	public static ExecutionContext capture() {
-		return new ExecutionContext(CallContext.getCurrent().createCopy(), SynchronizationContext.getCurrent());
-	}
-
-	private static ExecutionContext capture(boolean captureSynchronizationContext) {
-		return new ExecutionContext(CallContext.getCurrent().createCopy(), captureSynchronizationContext ? SynchronizationContext.getCurrent() : INHERIT);
+		return new ExecutionContext(CallContext.getCurrent().createCopy());
 	}
 
 	public static boolean isFlowSuppressed() {
@@ -67,16 +45,7 @@ class ExecutionContext {
 		CallContext originalCallContext = CallContext.getCurrent();
 		try {
 			CallContext.setCallContext(executionContext.callContext);
-			SynchronizationContext originalSynchronizationContext = SynchronizationContext.getCurrent();
-			try {
-				if (executionContext.synchronizationContext != INHERIT) {
-					SynchronizationContext.setSynchronizationContext(executionContext.synchronizationContext);
-				}
-
-				callback.accept(state);
-			} finally {
-				SynchronizationContext.setSynchronizationContext(originalSynchronizationContext);
-			}
+			callback.accept(state);
 		} finally {
 			CallContext.setCallContext(originalCallContext);
 		}
@@ -88,7 +57,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static Runnable wrap(@NotNull Runnable runnable) {
-		ExecutionContext executionContext = capture(false);
+		ExecutionContext executionContext = capture();
 		return () -> {
 			run(executionContext, state -> runnable.run(), null);
 		};
@@ -96,7 +65,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static <T, U> Function<T, U> wrap(@NotNull Function<T, U> function) {
-		ExecutionContext executionContext = capture(false);
+		ExecutionContext executionContext = capture();
 		return t -> {
 			List<U> result = new ArrayList<>();
 			run(executionContext, state -> result.add(function.apply(t)), null);
@@ -106,7 +75,7 @@ class ExecutionContext {
 
 	@NotNull
 	public static <T> Supplier<T> wrap(@NotNull Supplier<T> supplier) {
-		ExecutionContext executionContext = capture(false);
+		ExecutionContext executionContext = capture();
 		return () -> {
 			List<T> result = new ArrayList<>();
 			run(executionContext, state -> result.add(supplier.get()), null);

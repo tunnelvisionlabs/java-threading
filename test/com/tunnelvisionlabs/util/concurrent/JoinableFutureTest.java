@@ -690,10 +690,9 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
-	@Ignore("Fails for Java only")
 	public void testRunSynchronouslyOffMainThreadRequiresJoinToReenterMainThreadForSameAsyncPumpInstance() {
 		CompletableFuture<Void> task = Futures.runAsync(() -> {
-			asyncPump.runAsync(() -> Async.awaitAsync(
+			asyncPump.run(() -> Async.awaitAsync(
 				asyncPump.switchToMainThreadAsync(),
 				() -> {
 					Assert.assertSame("We're not on the Main thread!", originalThread, Thread.currentThread());

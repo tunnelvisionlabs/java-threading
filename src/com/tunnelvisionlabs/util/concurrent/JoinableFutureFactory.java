@@ -11,11 +11,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -156,11 +154,11 @@ public class JoinableFutureFactory {
 	/// </example>
 	/// </remarks>
 	public MainThreadAwaitable switchToMainThreadAsync() {
-		return switchToMainThreadAsync(null);
+		return switchToMainThreadAsync(CancellationToken.none());
 	}
 
-	public MainThreadAwaitable switchToMainThreadAsync(CompletableFuture<?> cancellationFuture) {
-		return new MainThreadAwaitable(this, getContext().getAmbientFuture(), cancellationFuture);
+	public MainThreadAwaitable switchToMainThreadAsync(@NotNull CancellationToken cancellationToken) {
+		return new MainThreadAwaitable(this, getContext().getAmbientFuture(), cancellationToken);
 	}
 
 	/**
@@ -648,23 +646,23 @@ public class JoinableFutureFactory {
 
 		private final JoinableFuture<?> job;
 
-		private final CompletableFuture<?> cancellationFuture;
+		private final CancellationToken cancellationToken;
 
 		private final boolean alwaysYield;
 
 		/**
 		 * Constructs a new instance of the {@link MainThreadAwaitable} class.
 		 */
-		MainThreadAwaitable(@NotNull JoinableFutureFactory jobFactory, JoinableFuture<?> job, CompletableFuture<?> cancellationFuture) {
-			this(jobFactory, job, cancellationFuture, false);
+		MainThreadAwaitable(@NotNull JoinableFutureFactory jobFactory, JoinableFuture<?> job, CancellationToken cancellationToken) {
+			this(jobFactory, job, cancellationToken, false);
 		}
 
-		MainThreadAwaitable(@NotNull JoinableFutureFactory jobFactory, JoinableFuture<?> job, CompletableFuture<?> cancellationFuture, boolean alwaysYield) {
+		MainThreadAwaitable(@NotNull JoinableFutureFactory jobFactory, JoinableFuture<?> job, CancellationToken cancellationToken, boolean alwaysYield) {
 			Requires.notNull(jobFactory, "jobFactory");
 
 			this.jobFactory = jobFactory;
 			this.job = job;
-			this.cancellationFuture = cancellationFuture;
+			this.cancellationToken = cancellationToken;
 			this.alwaysYield = alwaysYield;
 		}
 
@@ -672,8 +670,9 @@ public class JoinableFutureFactory {
 		 * Gets the awaiter.
 		 */
 		@NotNull
+		@Override
 		public MainThreadAwaiter getAwaiter() {
-			return new MainThreadAwaiter(this.jobFactory, this.job, this.cancellationFuture, this.alwaysYield);
+			return new MainThreadAwaiter(this.jobFactory, this.job, this.cancellationToken, this.alwaysYield);
 		}
 	}
 
@@ -684,7 +683,7 @@ public class JoinableFutureFactory {
 
 		private final JoinableFutureFactory jobFactory;
 
-		private final CompletableFuture<?> cancellationFuture;
+		private final CancellationToken cancellationToken;
 
 		private final boolean alwaysYield;
 
@@ -705,19 +704,19 @@ public class JoinableFutureFactory {
 		/// then this will hold a default value of <see cref="CancellationTokenRegistration"/>, and <see cref="OnCompleted(Action)"/>
 		/// would not touch it.
 		/// </remarks>
-		private final StrongBox<AtomicBoolean> cancellationRegistrationPtr;
+		private final StrongBox<CancellationTokenRegistration> cancellationRegistrationPtr;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="MainThreadAwaiter"/> struct.
 		/// </summary>
-		MainThreadAwaiter(JoinableFutureFactory jobFactory, JoinableFuture<?> job, CompletableFuture<?> cancellationFuture, boolean alwaysYield) {
+		MainThreadAwaiter(JoinableFutureFactory jobFactory, JoinableFuture<?> job, CancellationToken cancellationToken, boolean alwaysYield) {
 			this.jobFactory = jobFactory;
 			this.job = job;
-			this.cancellationFuture = cancellationFuture;
+			this.cancellationToken = cancellationToken;
 			this.alwaysYield = alwaysYield;
 
 			// Don't allocate the pointer if the cancellation future can't be canceled:
-			this.cancellationRegistrationPtr = cancellationFuture != null
+			this.cancellationRegistrationPtr = cancellationToken.canBeCancelled()
 				? new StrongBox<>()
 				: null;
 		}
@@ -757,16 +756,10 @@ public class JoinableFutureFactory {
 					// Store the cancellation token registration in the struct pointer. This way,
 					// if the awaiter has been copied (since it's a struct), each copy of the awaiter
 					// points to the same registration. Without this we can have a memory leak.
-					final AtomicBoolean registered = new AtomicBoolean(true);
-					CompletableFuture<?> registration = cancellationFuture.whenComplete((result, exception) -> {
-						if (registered.get()) {
-							ForkJoinPool.commonPool().execute(ExecutionContext.wrap(() -> SingleExecuteProtector.EXECUTE_ONCE.accept(wrapper)));
-						}
-					});
-//                        var registration = this.cancellationToken.Register(
-//                            state => ThreadPool.QueueUserWorkItem(SingleExecuteProtector.ExecuteOnceWaitCallback, state),
-//                            wrapper,
-//                            useSynchronizationContext: false);
+					CancellationTokenRegistration registration = cancellationToken.register(
+						SingleExecuteProtector.EXECUTE_ONCE,
+						wrapper,
+						/*useSynchronizationContext:*/ false);
 
 					// Needs a lock to avoid a race condition between this method and GetResult().
 					// This method is called on a background thread. After "this.jobFactory.RequestSwitchToMainThread()" returns,
@@ -777,14 +770,14 @@ public class JoinableFutureFactory {
 					boolean disposeThisRegistration = false;
 					synchronized (this.cancellationRegistrationPtr) {
 						if (this.cancellationRegistrationPtr.get() == null) {
-							this.cancellationRegistrationPtr.set(registered);
+							this.cancellationRegistrationPtr.set(registration);
 						} else {
 							disposeThisRegistration = true;
 						}
 					}
 
 					if (disposeThisRegistration) {
-						registered.set(false);
+						registration.close();
 					}
 				}
 			} catch (Throwable ex) {
@@ -802,13 +795,13 @@ public class JoinableFutureFactory {
 		public Void getResult() {
 			assert this.jobFactory != null;
 
-			if (!(this.jobFactory.getContext().isOnMainThread() || this.jobFactory.getContext().getUnderlyingSynchronizationContext() == null || (cancellationFuture != null && cancellationFuture.isDone()))) {
+			if (!(this.jobFactory.getContext().isOnMainThread() || this.jobFactory.getContext().getUnderlyingSynchronizationContext() == null || cancellationToken.isCancellationRequested())) {
 				throw new JoinableFutureContextException("SwitchToMainThreadFailedToReachExpectedThread");
 			}
 
 			// Release memory associated with the cancellation request.
 			if (this.cancellationRegistrationPtr != null) {
-				AtomicBoolean registration = null;
+				CancellationTokenRegistration registration = null;
 				synchronized (this.cancellationRegistrationPtr) {
 					if (this.cancellationRegistrationPtr.get() != null) {
 						registration = this.cancellationRegistrationPtr.get();
@@ -829,14 +822,14 @@ public class JoinableFutureFactory {
 				}
 
 				// Intentionally deferring disposal till we exit the lock to avoid executing outside code within the lock.
-				registration.set(false);
+				if (registration != null) {
+					registration.close();
+				}
 			}
 
 			// Only throw a cancellation exception if we didn't end up completing what the caller asked us to do (arrive at the main thread).
 			if (!this.jobFactory.getContext().isOnMainThread()) {
-				if (cancellationFuture != null && cancellationFuture.isDone()) {
-					throw new CancellationException();
-				}
+				cancellationToken.throwIfCancellationRequested();
 			}
 
 			// If this method is called in a continuation after an actual yield, then SingleExecuteProtector.TryExecute

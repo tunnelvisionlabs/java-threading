@@ -48,27 +48,27 @@ public enum ThreadingTools {
 //        }
 
 	/**
-	 * Wraps a future with one that will complete as cancelled based on a cancellation future, allowing someone to await
-	 * a task but be able to break out early by cancelling the future.
+	 * Wraps a future with one that will complete as canceled based on a cancellation token, allowing someone to await
+	 * a task but be able to break out early by canceling the token.
 	 *
 	 * @param <T> The type of value returned by the future.
 	 * @param future The future to wrap.
-	 * @param cancellationFuture The future that can be completed to break out of the await.
+	 * @param cancellationToken The token that can be canceled to break out of the await.
 	 * @return The wrapping future.
 	 */
 	@NotNull
-	public static <T> CompletableFuture<T> withCancellation(@NotNull CompletableFuture<T> future, @Nullable CompletableFuture<?> cancellationFuture) {
+	public static <T> CompletableFuture<T> withCancellation(@NotNull CompletableFuture<T> future, @NotNull CancellationToken cancellationToken) {
 		Requires.notNull(future, "task");
 
-		if (cancellationFuture == null || future.isDone()) {
+		if (!cancellationToken.canBeCancelled() || future.isDone()) {
 			return future;
 		}
 
-		if (cancellationFuture.isDone()) {
+		if (cancellationToken.isCancellationRequested()) {
 			return Futures.completedCancelled();
 		}
 
-		return withCancellationSlow(future, cancellationFuture);
+		return withCancellationSlow(future, cancellationToken);
 	}
 
 //        /// <summary>
@@ -113,33 +113,38 @@ public enum ThreadingTools {
 //        }
 
 	/**
-	 * Wraps a future with one that will complete as cancelled based on a cancellation future, allowing someone to await
-	 * a task but be able to break out early by cancelling the future.
+	 * Wraps a future with one that will complete as cancelled based on a cancellation token, allowing someone to await
+	 * a task but be able to break out early by cancelling the token.
 	 *
 	 * @param <T> The type of value returned by the future.
 	 * @param future The future to wrap.
-	 * @param cancellationFuture The future that can be completed to break out of the await.
+	 * @param cancellationFuture The token that can be cancelled to break out of the await.
 	 * @return The wrapping future.
 	 */
 	@NotNull
-	private static <T> CompletableFuture<T> withCancellationSlow(@NotNull CompletableFuture<T> future, @NotNull CompletableFuture<?> cancellationFuture) {
+	private static <T> CompletableFuture<T> withCancellationSlow(@NotNull CompletableFuture<T> future, @NotNull CancellationToken cancellationToken) {
 		assert future != null;
-		assert cancellationFuture != null;
+		assert cancellationToken != null;
 
-		return Async.awaitAsync(
-			Async.whenAny(future, cancellationFuture),
-			completedFuture -> {
-				if (future != completedFuture) {
-					if (cancellationFuture.isDone()) {
-						return Futures.completedCancelled();
-					}
-				}
+		CompletableFuture<T> cancellationFuture = new CompletableFuture<>();
+		return Async.usingAsync(
+			cancellationToken.register(f -> f.cancel(false), cancellationFuture),
+			() -> {
+				return Async.awaitAsync(
+					Async.whenAny(future, cancellationFuture),
+					completedFuture -> {
+						if (future != completedFuture) {
+							if (cancellationFuture.isDone()) {
+								return Futures.completedCancelled();
+							}
+						}
 
-				// Rethrow any fault/cancellation exception, even if we awaited above.
-				// But if we skipped the above if branch, this will actually yield
-				// on an incompleted future.
-				return Async.awaitAsync(future, false);
-			},
-			false);
+						// Rethrow any fault/cancellation exception, even if we awaited above.
+						// But if we skipped the above if branch, this will actually yield
+						// on an incompleted future.
+						return Async.awaitAsync(future, false);
+					},
+					false);
+			});
 	}
 }

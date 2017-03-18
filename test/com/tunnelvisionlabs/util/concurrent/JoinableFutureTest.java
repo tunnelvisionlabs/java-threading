@@ -2,6 +2,7 @@
 package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.concurrent.JoinableFutureContext.RevertRelevance;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -264,8 +265,8 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	@Test
 	public void testSwitchToMainThreadCancellable() throws Exception {
 		CompletableFuture<Void> task = Async.runAsync(() -> {
-			CompletableFuture<Void> cts = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
-			return AsyncAssert.cancelsIncorrectlyAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(cts)));
+			CancellationTokenSource cts = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY)));
+			return AsyncAssert.cancelsIncorrectlyAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(cts.getToken())));
 		});
 
 		task.get(TEST_TIMEOUT * 3, TEST_TIMEOUT_UNIT);
@@ -273,14 +274,14 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 
 	@Test
 	public void testSwitchToMainThreadCancellableWithinRun() {
-		CompletableFuture<Void> endTestFuture = Async.delayAsync(ASYNC_DELAY, ASYNC_DELAY_UNIT);
+		CancellationTokenSource endTestTokenSource = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY)));
 
 		// If we find a way to fix unwrap's handling of cancellation, this will change.
 		thrown.expect(CompletionException.class);
 		thrown.expectCause(isA(CancellationException.class));
 		asyncPump.run(() -> Async.usingAsync(
 			context.suppressRelevance(),
-			() -> Async.runAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(endTestFuture)))));
+			() -> Async.runAsync(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(endTestTokenSource.getToken())))));
 	}
 
 	/**
@@ -2017,12 +2018,12 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 		});
 
 		Assert.assertFalse(joinable.getFuture().isDone());
-		CompletableFuture<Void> cancellationFuture = Async.delayAsync(ASYNC_DELAY / 4, ASYNC_DELAY_UNIT);
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY / 4)));
 
 		// This isn't the cancellation behavior we want...
 		thrown.expect(CompletionException.class);
 		thrown.expectCause(isA(CancellationException.class));
-		joinable.join(cancellationFuture);
+		joinable.join(cancellationTokenSource.getToken());
 	}
 
 	@Test

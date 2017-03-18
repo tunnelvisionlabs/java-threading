@@ -7,7 +7,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -354,7 +353,7 @@ public class AsyncLazyTest extends TestBase {
 	}
 
 	@Test
-	public void testGetValueAsyncWithCancellationToken() {
+	public void testGetValueAsyncWithCancellation() {
 		AsyncManualResetEvent evt = new AsyncManualResetEvent();
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() ->
 			Async.awaitAsync(
@@ -383,32 +382,17 @@ public class AsyncLazyTest extends TestBase {
 	}
 
 	@Test
-	public void testGetValueAsyncWithCancellationFuture_Completed() {
-		testGetValueAsyncWithCancellationFuture(future -> future.complete(null));
-	}
-
-	@Test
-	public void testGetValueAsyncWithCancellationFuture_Cancelled() {
-		testGetValueAsyncWithCancellationFuture(future -> future.cancel(true));
-	}
-
-	@Test
-	public void testGetValueAsyncWithCancellationFuture_Failed() {
-		testGetValueAsyncWithCancellationFuture(future -> future.completeExceptionally(new IllegalArgumentException()));
-	}
-
-	private void testGetValueAsyncWithCancellationFuture(@NotNull Consumer<? super CompletableFuture<?>> cancelAction) {
+	public void testGetValueAsyncWithCancellationToken() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 		AsyncManualResetEvent evt = new AsyncManualResetEvent();
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() ->
 			Async.awaitAsync(
 				evt,
 				() -> CompletableFuture.completedFuture(new GenericParameterHelper(5))));
 
-		CompletableFuture<?> cancellationFuture = new CompletableFuture<>();
-		CompletableFuture<? extends GenericParameterHelper> task1 = lazy.getValueAsync(cancellationFuture);
+		CompletableFuture<? extends GenericParameterHelper> task1 = lazy.getValueAsync(cancellationTokenSource.getToken());
 		CompletableFuture<? extends GenericParameterHelper> task2 = lazy.getValueAsync();
-		cancelAction.accept(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+		cancellationTokenSource.cancel();
 
 		// Verify that the future returned from the canceled request actually completes before the value factory does.
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
@@ -430,27 +414,13 @@ public class AsyncLazyTest extends TestBase {
 	}
 
 	@Test
-	public void testGetValueAsyncWithCancellationFuturePreCanceled_Completed() {
-		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedNull());
-	}
-
-	@Test
-	public void testGetValueAsyncWithCancellationFuturePreCanceled_Cancelled() {
-		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedCancelled());
-	}
-
-	@Test
-	public void testGetValueAsyncWithCancellationFuturePreCanceled_Failed() {
-		testGetValueAsyncWithCancellationFuturePreCanceled(Futures.completedFailed(new IllegalArgumentException()));
-	}
-
-	private void testGetValueAsyncWithCancellationFuturePreCanceled(@NotNull CompletableFuture<?> cancellationFuture) {
-		Assert.assertNotNull(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+	public void testGetValueAsyncWithCancellationTokenPreCanceled() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
 
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
-			AsyncAssert.cancelsAsync(() -> lazy.getValueAsync(cancellationFuture)),
+			AsyncAssert.cancelsAsync(() -> lazy.getValueAsync(cancellationTokenSource.getToken())),
 			() -> {
 				Assert.assertFalse("Value factory should not have been invoked for a pre-canceled token.", lazy.isValueCreated());
 				return Futures.completedNull();
@@ -460,30 +430,16 @@ public class AsyncLazyTest extends TestBase {
 	}
 
 	@Test
-	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Completed() {
-		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedNull());
-	}
-
-	@Test
-	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Cancelled() {
-		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedCancelled());
-	}
-
-	@Test
-	public void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled_Failed() {
-		testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(Futures.completedFailed(new IllegalArgumentException()));
-	}
-
-	private void testGetValueAsyncAlreadyCompletedWithCancellationFuturePreCanceled(@NotNull CompletableFuture<?> cancellationFuture) {
-		Assert.assertNotNull(cancellationFuture);
-		Assert.assertTrue(cancellationFuture.isDone());
+	public void testGetValueAsyncAlreadyCompletedWithCancellationTokenPreCanceled() {
+		CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
+		cancellationTokenSource.cancel();
 
 		AsyncLazy<GenericParameterHelper> lazy = new AsyncLazy<>(() -> CompletableFuture.completedFuture(new GenericParameterHelper(5)));
 		CompletableFuture<Void> asyncTest = Async.awaitAsync(
 			lazy.getValueAsync(),
 			() -> Async.awaitAsync(
 				// this shouldn't throw canceled because it was already done.
-				lazy.getValueAsync(cancellationFuture),
+				lazy.getValueAsync(cancellationTokenSource.getToken()),
 				result -> {
 					Assert.assertEquals(5, result.getData());
 					Assert.assertTrue(lazy.isValueCreated());
@@ -600,7 +556,7 @@ public class AsyncLazyTest extends TestBase {
 				// It is important that no await appear before this JFF.run call, since
 				// we're testing that the value factory is not invoked while the AsyncLazy
 				// holds a private lock that would deadlock when called from another thread.
-				asyncPump.run(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(getTimeoutFuture())));
+				asyncPump.run(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(getTimeoutToken())));
 				return Async.awaitAsync(
 					Async.yieldAsync(),
 					() -> CompletableFuture.completedFuture(new Object()));
@@ -643,7 +599,7 @@ public class AsyncLazyTest extends TestBase {
 				// It is important that no await appear before this JTF.Run call, since
 				// we're testing that the value factory is not invoked while the AsyncLazy
 				// holds a private lock that would deadlock when called from another thread.
-				asyncPump.run(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(getTimeoutFuture())));
+				asyncPump.run(() -> Async.awaitAsync(asyncPump.switchToMainThreadAsync(getTimeoutToken())));
 				return Async.awaitAsync(
 					Async.yieldAsync(),
 					() -> CompletableFuture.completedFuture(new Object()));
@@ -655,7 +611,7 @@ public class AsyncLazyTest extends TestBase {
 		// Give the background thread time to call getValueAsync(), but it doesn't yield (when the test was written).
 		Thread.sleep(ASYNC_DELAY_UNIT.toMillis(ASYNC_DELAY));
 		asyncPump.run(() -> Async.awaitAsync(
-			lazy.getValueAsync(getTimeoutFuture()),
+			lazy.getValueAsync(getTimeoutToken()),
 			foregroundValue -> Async.awaitAsync(
 				backgroundRequest,
 				backgroundValue -> {

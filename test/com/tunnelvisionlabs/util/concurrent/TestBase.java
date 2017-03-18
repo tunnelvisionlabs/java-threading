@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -25,7 +26,7 @@ public abstract class TestBase {
 	protected static final int TEST_TIMEOUT = 1000;
 	protected static final TimeUnit TEST_TIMEOUT_UNIT = DEBUG ? TimeUnit.MINUTES : TimeUnit.MILLISECONDS;
 
-	private CompletableFuture<?> timeoutFutureSource = Async.delayAsync(TEST_TIMEOUT, TEST_TIMEOUT_UNIT);
+	private CancellationTokenSource timeoutTokenSource = new CancellationTokenSource(Duration.ofMillis(TEST_TIMEOUT_UNIT.toMillis(TEST_TIMEOUT)));
 
 	@Rule
 	public final ExpectedException thrown = ExpectedException.none();
@@ -72,26 +73,24 @@ public abstract class TestBase {
 	 * Gets the source of {@link #getTimeoutFuture()} that influences when tests consider themselves to be timed out.
 	 */
 	@NotNull
-	protected final CompletableFuture<?> getTimeoutFutureSource() {
-		return timeoutFutureSource;
+	protected final CancellationTokenSource getTimeoutTokenSource() {
+		return timeoutTokenSource;
 	}
 
 	/**
 	 * Sets the source of {@link #getTimeoutFuture()} that influences when tests consider themselves to be timed out.
 	 */
-	protected final void setTimeoutFutureSource(@NotNull CompletableFuture<?> value) {
-		timeoutFutureSource = value;
+	protected final void setTimeoutTokenSource(@NotNull CancellationTokenSource value) {
+		timeoutTokenSource = value;
 	}
 
 	/**
-	 * Gets a {@link CompletableFuture} that is canceled when the test times out, per the policy set by
-	 * {@link #getTimeoutFutureSource()}.
+	 * Gets a {@link CancellationToken} that is canceled when the test times out, per the policy set by
+	 * {@link #getTimeoutTokenSource()}.
 	 */
 	@NotNull
-	protected final CompletableFuture<?> getTimeoutFuture() {
-		CompletableFuture<Object> timeoutFuture = new CompletableFuture<>();
-		getTimeoutFutureSource().handle((result, exception) -> timeoutFuture.cancel(true));
-		return timeoutFuture;
+	protected final CancellationToken getTimeoutToken() {
+		return getTimeoutTokenSource().getToken();
 	}
 
 //        /// <summary>

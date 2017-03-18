@@ -4,13 +4,16 @@ package com.tunnelvisionlabs.util.concurrent;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 public class CancellationTokenSource implements Disposable {
 	private final CancellationToken token = new CancellationToken(this);
 	private final List<CancellationTokenRegistration> registrations = new ArrayList<>();
 
+	private CancellationTokenRegistration cancelAfterRegistration;
 	private boolean cancellationRequested;
 	private boolean closed;
 
@@ -95,7 +98,23 @@ public class CancellationTokenSource implements Disposable {
 	}
 
 	public final void cancelAfter(Duration duration) {
-		throw new UnsupportedOperationException("Not implemented");
+		synchronized (registrations) {
+			if (isClosed()) {
+				throw new IllegalStateException("The source is disposed");
+			}
+
+			if (isCancellationRequested()) {
+				return;
+			}
+
+			if (cancelAfterRegistration != null) {
+				cancelAfterRegistration.close();
+			}
+
+			CompletableFuture<Void> delayedCancel = Async.delayAsync(duration.toMillis(), TimeUnit.MILLISECONDS)
+				.thenRun(() -> Async.runAsync(() -> cancel(false)));
+			cancelAfterRegistration = register(future -> future.cancel(false), delayedCancel, false);
+		}
 	}
 
 	@Override

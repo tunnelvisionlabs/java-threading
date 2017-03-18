@@ -271,9 +271,9 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 			EnumSet.of(JoinableFutureCreationOption.LONG_RUNNING));
 
 		getFactory().run(() -> {
-			CompletableFuture<?> cancellationSource = new CompletableFuture<>();
-			CompletableFuture<Void> joinTask = task.joinAsync(cancellationSource);
-			cancellationSource.cancel(true);
+			CancellationTokenSource cancellationSource = new CancellationTokenSource();
+			CompletableFuture<Void> joinTask = task.joinAsync(cancellationSource.getToken());
+			cancellationSource.cancel();
 			return Async.awaitAsync(
 				TplExtensions.noThrowAwaitable(joinTask),
 				() -> Async.awaitAsync(Async.delayAsync(20, TimeUnit.MILLISECONDS)));
@@ -418,13 +418,13 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 	@Test
 	@Ignore("https://github.com/Microsoft/vs-threading/issues/82")
 	public void testGetHangReportWithActualHang() {
-		CompletableFuture<?> endTestCancellationFuture = new CompletableFuture<>();
+		CancellationTokenSource endTestCancellationSource = new CancellationTokenSource();
 		getContext().onReportHang = (hangDuration, iterations, id) -> {
 			HangReportContributor contributor = getContext();
 			HangReportContribution report = contributor.getHangReport();
 			Assert.assertNotNull(report);
 			System.out.println(report.getContent());
-			endTestCancellationFuture.cancel(true);
+			endTestCancellationSource.cancel();
 			getContext().onReportHang = null;
 		};
 
@@ -435,7 +435,7 @@ public class JoinableFutureContextTest extends JoinableFutureTestBase {
 			getContext().suppressRelevance(),
 			ignored -> Async.supply(() -> Async.awaitAsync(
 				getFactory().runAsync(
-					() -> Async.awaitAsync(getFactory().switchToMainThreadAsync(endTestCancellationFuture)))))));
+					() -> Async.awaitAsync(getFactory().switchToMainThreadAsync(endTestCancellationSource.getToken())))))));
 	}
 
 	@Test

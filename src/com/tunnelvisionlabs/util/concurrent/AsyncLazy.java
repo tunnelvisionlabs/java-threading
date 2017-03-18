@@ -87,7 +87,7 @@ public class AsyncLazy<T> {
 
 	@NotNull
 	public final CompletableFuture<? extends T> getValueAsync() {
-		return getValueAsync(null);
+		return getValueAsync(CancellationToken.none());
 	}
 
 	/**
@@ -96,7 +96,7 @@ public class AsyncLazy<T> {
 	 * @return A future whose result is the lazily constructed value.
 	 * @exception IllegalStateException If the value factory calls {@link #getValueAsync()} on this instance.
 	 */
-	public final CompletableFuture<? extends T> getValueAsync(@Nullable CompletableFuture<?> cancellationFuture) {
+	public final CompletableFuture<? extends T> getValueAsync(@NotNull CancellationToken cancellationToken) {
 		if (!((this.value != null && this.value.isDone()) || this.recursiveFactoryCheck.getValue() == null)) {
 			// PERF: we check the condition and *then* retrieve the string resource only on failure
 			// because the string retrieval has shown up as significant on ETL traces.
@@ -119,7 +119,7 @@ public class AsyncLazy<T> {
 				// other threads synchronously block till the synchronous portion
 				// has completed.
 				if (this.value == null) {
-					if (cancellationFuture != null && cancellationFuture.isDone()) {
+					if (cancellationToken.isCancellationRequested()) {
 						return Futures.completedCancelled();
 					}
 
@@ -162,11 +162,11 @@ public class AsyncLazy<T> {
 		if (!value.isDone()) {
 			JoinableFuture<?> future = this.joinableTask;
 			if (future != null) {
-				TplExtensions.forget(future.joinAsync(cancellationFuture));
+				TplExtensions.forget(future.joinAsync(cancellationToken));
 			}
 		}
 
-		return ThreadingTools.withCancellation(Futures.nonCancellationPropagating(this.value), cancellationFuture);
+		return ThreadingTools.withCancellation(Futures.nonCancellationPropagating(this.value), cancellationToken);
 	}
 
 	/**

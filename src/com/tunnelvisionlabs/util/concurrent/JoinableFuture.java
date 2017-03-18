@@ -409,7 +409,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * Main thread propagates to this {@link JoinableFuture} so that it may also access the main thread.
 	 */
 	public final T join() {
-		return join(null);
+		return join(CancellationToken.none());
 	}
 
 	/**
@@ -417,16 +417,16 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * (or is executing within a {@link JoinableFuture} that has access to the main thread) the caller's access to the
 	 * Main thread propagates to this {@link JoinableFuture} so that it may also access the main thread.
 	 *
-	 * @param cancellationFuture A future that will exit this method before the future is completed.
+	 * @param cancellationToken A token that will exit this method before the future is completed.
 	 */
-	public final T join(@Nullable CompletableFuture<?> cancellationFuture) {
+	public final T join(@NotNull CancellationToken cancellationToken) {
 		// We don't simply call this.CompleteOnCurrentThread because that doesn't take CancellationToken.
 		// And it really can't be made to, since it sets state flags indicating the JoinableTask is
 		// blocking till completion.
 		// So instead, we new up a new JoinableTask to do the blocking. But we preserve the initial delegate
 		// so that if a hang occurs it blames the original JoinableTask.
 		owner.run(
-			() -> joinAsync(cancellationFuture),
+			() -> joinAsync(cancellationToken),
 			EnumSet.noneOf(JoinableFutureCreationOption.class)/*,
 			this.initialDelegate*/);
 		assert getFuture().isDone();
@@ -442,7 +442,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 */
 	@NotNull
 	public final CompletableFuture<T> joinAsync() {
-		return joinAsync(null);
+		return joinAsync(CancellationToken.none());
 	}
 
 	/**
@@ -453,14 +453,14 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * @return A future that completes after the asynchronous operation completes and the join is reverted.
 	 */
 	@NotNull
-	public final CompletableFuture<T> joinAsync(@Nullable CompletableFuture<?> cancellationFuture) {
-		if (cancellationFuture != null && cancellationFuture.isDone()) {
+	public final CompletableFuture<T> joinAsync(@NotNull CancellationToken cancellationToken) {
+		if (cancellationToken.isCancellationRequested()) {
 			return Futures.completedCancelled();
 		}
 
 		return Async.usingAsync(
 			ambientJobJoinsThis(),
-			() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationFuture)));
+			() -> Async.<T>awaitAsync(ThreadingTools.withCancellation(getFuture(), cancellationToken)));
 	}
 
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {

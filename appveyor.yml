@@ -1,0 +1,11 @@
+version: 1.0.{build}
+os: Visual Studio 2015
+init:
+- git config --global core.autocrlf true
+build_script:
+  - mvn -B verify -DskipTests
+test_script:
+  - mvn -B verify -DENABLE_JACOCO=true
+  - "SET PATH=C:\\Python34;C:\\Python34\\Scripts;%PATH%"
+  - pip install codecov
+  - codecov

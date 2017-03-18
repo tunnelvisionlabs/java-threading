@@ -4,9 +4,17 @@ package com.tunnelvisionlabs.util.concurrent;
 enum Requires {
 	;
 
-	public static void notNull(@NotNull Object value, String parameterName) {
+	public static <T> T notNull(@NotNull T value, String parameterName) {
 		if (value == null) {
 			throw new NullPointerException(parameterName + " cannot be null");
+		}
+
+		return value;
+	}
+
+	public static void argument(boolean condition, String parameterName, String message) {
+		if (!condition) {
+			throw new IllegalArgumentException(parameterName + ": " + message);
 		}
 	}
 

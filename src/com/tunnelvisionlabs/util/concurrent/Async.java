@@ -1,7 +1,9 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
@@ -17,6 +19,35 @@ public enum Async {
 	;
 
 	private static final ScheduledThreadPoolExecutor DELAY_SCHEDULER = new ScheduledThreadPoolExecutor(1);
+
+	@NotNull
+	public static <T> CompletableFuture<T> awaitAsync(@NotNull Awaitable<? extends T> awaitable) {
+		return awaitAsync(awaitable, AsyncFunctions.identity());
+	}
+
+	@NotNull
+	public static <T, U> CompletableFuture<U> awaitAsync(@NotNull Awaitable<? extends T> awaitable, @NotNull Function<? super T, ? extends CompletableFuture<U>> continuation) {
+		Awaiter<? extends T> awaiter = awaitable.getAwaiter();
+		if (awaiter.isDone()) {
+			try {
+				continuation.apply(awaiter.getResult());
+			} catch (Throwable ex) {
+				return Futures.fromException(ex);
+			}
+		}
+
+		final Function<? super T, ? extends CompletableFuture<U>> flowContinuation = ExecutionContext.wrap(continuation);
+
+		Executor executor = command -> awaiter.onCompleted(command);
+		return CompletableFuture
+			.supplyAsync(() -> flowContinuation.apply(awaiter.getResult()), executor)
+			.thenCompose(AsyncFunctions.<CompletableFuture<U>>unwrap());
+	}
+
+	@NotNull
+	public static <U> CompletableFuture<U> awaitAsync(@NotNull Awaitable<?> awaitable, @NotNull Supplier<? extends CompletableFuture<U>> continuation) {
+		return awaitAsync(awaitable, ignored -> continuation.get());
+	}
 
 	@NotNull
 	public static <T> CompletableFuture<T> awaitAsync(@NotNull CompletableFuture<? extends T> awaiter) {
@@ -115,6 +146,33 @@ public enum Async {
 	}
 
 	@NotNull
+	public static <U> CompletableFuture<U> usingAsync(@NotNull AutoCloseable resource, @NotNull Supplier<? extends CompletableFuture<U>> body) {
+		return usingAsync(resource, r -> body.get());
+	}
+
+	@NotNull
+	public static <T extends AutoCloseable, U> CompletableFuture<U> usingAsync(@NotNull T resource, @NotNull Function<? super T, ? extends CompletableFuture<U>> body) {
+		CompletableFuture<U> evaluatedBody;
+		try {
+			evaluatedBody = body.apply(resource);
+		} catch (Throwable ex) {
+			evaluatedBody = Futures.fromException(ex);
+		}
+
+		return finallyAsync(
+			evaluatedBody,
+			() -> {
+				try {
+					resource.close();
+				} catch (CompletionException | CancellationException ex) {
+					throw ex;
+				} catch (Throwable ex) {
+					throw new CompletionException(ex);
+				}
+			});
+	}
+
+	@NotNull
 	public static CompletableFuture<Void> forAsync(@NotNull Runnable initializer, @NotNull Supplier<? extends Boolean> condition, @NotNull Runnable increment, @NotNull Supplier<? extends CompletableFuture<?>> body) {
 		try {
 			initializer.run();
@@ -162,13 +220,8 @@ public enum Async {
 	}
 
 	@NotNull
-	public static Executor yieldAsync() {
-		SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
-		if (synchronizationContext != null) {
-			throw new UnsupportedOperationException("Not implemented");
-		}
-
-		return ForkJoinPool.commonPool();
+	public static Awaitable<Void> yieldAsync() {
+		return YieldAwaitable.INSTANCE;
 	}
 
 	@NotNull
@@ -183,6 +236,54 @@ public enum Async {
 			if (!future.isDone()) {
 				return awaitAsync(future, () -> whileImplAsync(futures));
 			}
+		}
+	}
+
+	@NotNull
+	public static CompletableFuture<CompletableFuture<?>> whenAny(@NotNull CompletableFuture<?>... futures) {
+		return CompletableFuture.anyOf(futures).handle(
+			(result, exception) -> {
+				for (CompletableFuture<?> future : futures) {
+					if (future.isDone()) {
+						return future;
+					}
+				}
+
+				throw new IllegalStateException("Expected at least one future to be complete.");
+			});
+	}
+
+	private static final class YieldAwaitable implements Awaitable<Void> {
+		public static final YieldAwaitable INSTANCE = new YieldAwaitable();
+
+		@Override
+		public Awaiter<Void> getAwaiter() {
+			return new YieldAwaiter();
+		}
+	}
+
+	private static final class YieldAwaiter implements Awaiter<Void> {
+		@Override
+		public boolean isDone() {
+			// yielding is always required for YieldAwaiter, hence false
+			return false;
+		}
+
+		@Override
+		public Void getResult() {
+			return null;
+		}
+
+		@Override
+		public void onCompleted(@NotNull Runnable continuation) {
+			Requires.notNull(continuation, "continuation");
+
+			SynchronizationContext synchronizationContext = SynchronizationContext.getCurrent();
+			if (synchronizationContext != null && synchronizationContext.getClass() != SynchronizationContext.class) {
+				synchronizationContext.execute(continuation);
+			}
+
+			ThreadPool.commonPool().execute(continuation);
 		}
 	}
 }

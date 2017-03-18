@@ -7,6 +7,8 @@ import java.util.function.Consumer;
 class SynchronizationContext implements Executor {
 	private static final ThreadLocal<SynchronizationContext> CURRENT_CONTEXT = new ThreadLocal<>();
 
+	private boolean waitNotificationRequired;
+
 	@Nullable
 	public static SynchronizationContext getCurrent() {
 		return CURRENT_CONTEXT.get();
@@ -22,7 +24,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	public final boolean isWaitNotificationRequired() {
-		throw new UnsupportedOperationException("Not implemented");
+		return waitNotificationRequired;
 	}
 
 	public void operationStarted() {
@@ -40,7 +42,7 @@ class SynchronizationContext implements Executor {
 	}
 
 	protected final void setWaitNotificationRequired() {
-		throw new UnsupportedOperationException("Not implemented");
+		waitNotificationRequired = true;
 	}
 
 	@Override

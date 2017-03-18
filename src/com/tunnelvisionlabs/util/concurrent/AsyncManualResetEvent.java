@@ -8,7 +8,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>Copied from Microsoft/vs-threading@14f77875.</p>
  */
-public class AsyncManualResetEvent {
+public class AsyncManualResetEvent implements Awaitable<Void> {
 	/**
 	 * Whether the future should allow executing continuations synchronously.
 	 */
@@ -157,15 +157,16 @@ public class AsyncManualResetEvent {
 		pulseAllAsync();
 	}
 
-//        /// <summary>
-//        /// Gets an awaiter that completes when this event is signaled.
-//        /// </summary>
+	/**
+	 * Gets an awaiter that completes when this event is signaled.
+	 */
 //        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
 //        [EditorBrowsable(EditorBrowsableState.Never)]
-//        public TaskAwaiter GetAwaiter()
-//        {
-//            return this.WaitAsync().GetAwaiter();
-//        }
+	@NotNull
+	@Override
+	public final FutureAwaiter<Void> getAwaiter() {
+		return new FutureAwaiter<>(waitAsync());
+	}
 
 	/**
 	 * Creates a new {@link CompletableFuture} to represent an unset event.

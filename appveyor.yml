@@ -8,4 +8,4 @@ test_script:
   - mvn -B verify -DENABLE_JACOCO=true
   - "SET PATH=C:\\Python34;C:\\Python34\\Scripts;%PATH%"
   - pip install codecov
-  - codecov
+  - codecov -F windows

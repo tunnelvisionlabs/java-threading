@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -124,33 +125,25 @@ public class AsyncAutoResetEventTest extends TestBase {
 		inlinedContinuation.get(ASYNC_DELAY, ASYNC_DELAY_UNIT);
 	}
 
-//        @Test
-//        public void testWaitAsync_WithCancellationToken_DoesNotClaimSignal()
-//        {
-//            var cts = new CancellationTokenSource();
-//            Task waitTask = this.evt.WaitAsync(cts.Token);
-//            Assert.False(waitTask.IsCompleted);
-//
-//            // Cancel the request and ensure that it propagates to the task.
-//            cts.Cancel();
-//            try
-//            {
-//                waitTask.GetAwaiter().GetResult();
-//                Assert.True(false, "Task was expected to transition to a canceled state.");
-//            }
-//            catch (OperationCanceledException ex)
-//            {
-//                if (!TestUtilities.IsNet45Mode)
-//                {
-//                    Assert.Equal(cts.Token, ex.CancellationToken);
-//                }
-//            }
-//
-//            // Now set the event and verify that a future waiter gets the signal immediately.
-//            this.evt.Set();
-//            waitTask = this.evt.WaitAsync();
-//            Assert.Equal(TaskStatus.RanToCompletion, waitTask.Status);
-//        }
+	@Test
+	public void testWaitAsync_WithCancellation_DoesNotClaimSignal() {
+		CompletableFuture<Void> waitFuture = event.waitAsync();
+		Assert.assertFalse(waitFuture.isDone());
+
+		// Cancel the request and ensure that it propagates to the task.
+		waitFuture.cancel(true);
+		try {
+			waitFuture.join();
+			Assert.fail("Future was expected to be cancelled.");
+		} catch (CancellationException ex) {
+		}
+
+		// Now set the event and verify that a future waiter gets the signal immediately.
+		event.set();
+		waitFuture = event.waitAsync();
+		Assert.assertTrue(waitFuture.isDone());
+		Assert.assertFalse(waitFuture.isCompletedExceptionally());
+	}
 
 //        [Fact]
 //        public void WaitAsync_WithCancellationToken_PrecanceledDoesNotClaimExistingSignal()

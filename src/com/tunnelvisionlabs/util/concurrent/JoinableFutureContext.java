@@ -7,6 +7,7 @@ import com.tunnelvisionlabs.util.concurrent.JoinableFutureFactory.SingleExecuteP
 import com.tunnelvisionlabs.util.validation.NotNull;
 import com.tunnelvisionlabs.util.validation.Nullable;
 import com.tunnelvisionlabs.util.validation.Requires;
+import com.tunnelvisionlabs.util.validation.Verify;
 import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
@@ -423,7 +424,7 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 		Requires.notNull(node, "node");
 		synchronized (hangNotifications) {
 			if (!hangNotifications.add(node)) {
-//                    Verify.FailOperation(Strings.JoinableTaskContextNodeAlreadyRegistered);
+				Verify.failOperation("JoinableFutureContextNodeAlreadyRegistered");
 			}
 		}
 

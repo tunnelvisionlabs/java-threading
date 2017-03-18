@@ -3,6 +3,7 @@ package com.tunnelvisionlabs.util.concurrent;
 
 import com.tunnelvisionlabs.util.validation.NotNull;
 import com.tunnelvisionlabs.util.validation.Requires;
+import com.tunnelvisionlabs.util.validation.Verify;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
@@ -95,7 +96,7 @@ enum SingleThreadedSynchronizationContext {
 
 		public final void pushFrame(FrameImpl frame) {
 			Requires.notNull(frame, "frame");
-//			Verify.Operation(this.ownedThreadId == Environment.CurrentManagedThreadId, "Can only push a message pump from the owned thread.");
+			Verify.operation(ownedThreadId == Thread.currentThread().getId(), "Can only push a message pump from the owned thread.");
 			frame.setOwner(this);
 
 			while (frame.getContinue()) {
@@ -165,7 +166,7 @@ enum SingleThreadedSynchronizationContext {
 
 			@Override
 			public final void setContinue(boolean value) {
-//					Verify.Operation(this.owner != null, "Frame not pushed yet.");
+				Verify.operation(owner != null, "Frame not pushed yet.");
 
 				this._continue = value;
 
@@ -180,7 +181,7 @@ enum SingleThreadedSynchronizationContext {
 
 			final void setOwner(SyncContext context) {
 				if (context != this.owner) {
-//					Verify.Operation(this.owner == null, "Frame already associated with a SyncContext");
+					Verify.operation(owner == null, "Frame already associated with a SyncContext");
 					this.owner = context;
 				}
 			}

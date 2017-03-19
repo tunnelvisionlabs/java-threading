@@ -1,6 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -163,5 +164,35 @@ public class AsyncTest extends TestBase {
 		});
 
 		asyncTest.join();
+	}
+
+	@Test
+	public void testDelayAsync_PreCancelled() {
+		try (CancellationTokenSource cancellationTokenSource = new CancellationTokenSource()) {
+			cancellationTokenSource.cancel();
+
+			CompletableFuture<Void> delay = Async.delayAsync(TEST_TIMEOUT, cancellationTokenSource.getToken());
+			Assert.assertTrue(delay.isDone());
+			Assert.assertTrue(delay.isCancelled());
+		}
+	}
+
+	@Test
+	public void testDelayAsync_PreCancelled_ZeroDuration() {
+		try (CancellationTokenSource cancellationTokenSource = new CancellationTokenSource()) {
+			cancellationTokenSource.cancel();
+
+			CompletableFuture<Void> delay = Async.delayAsync(Duration.ZERO, cancellationTokenSource.getToken());
+			Assert.assertTrue(delay.isDone());
+			Assert.assertTrue(delay.isCancelled());
+		}
+	}
+
+	@Test
+	public void testDelayAsync_ZeroDuration() {
+		CompletableFuture<Void> delay = Async.delayAsync(Duration.ZERO, CancellationToken.none());
+		Assert.assertTrue(delay.isDone());
+		Assert.assertFalse(delay.isCancelled());
+		Assert.assertFalse(delay.isCompletedExceptionally());
 	}
 }

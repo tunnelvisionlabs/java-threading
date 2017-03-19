@@ -71,6 +71,7 @@ class InlineResumable implements Awaitable<Void>, Awaiter<Void> {
 	/**
 	 * Executes the continuation immediately, on the caller's thread.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final void resume() {
 		this.resumed = true;
 		Runnable continuation = this.continuation;

@@ -74,6 +74,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 	}
 
 	@Test
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public void SuppressRelevance() {
 		try (RevertRelevance revert = defaultNode.suppressRelevance()) {
 		}
@@ -84,6 +85,7 @@ public class JoinableFutureContextNodeTest extends JoinableFutureTestBase {
 
 	@Test
 	@Category(FailsInCloudTest.class)
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public void testOnHangDetected_Registration() {
 		DerivedFactory factory = (DerivedFactory)this.derivedNode.getFactory();
 		factory.setHangDetectionTimeout(Duration.ofMillis(1));

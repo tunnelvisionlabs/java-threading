@@ -168,6 +168,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	}
 
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	private CompletableFuture<Void> getQueueNeedProcessEvent() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {
@@ -202,6 +203,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Gets a value indicating whether the async operation represented by this instance has completed.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final boolean isDone() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {
@@ -226,6 +228,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * Gets the asynchronous future that completes when the async operation completes.
 	 */
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	public final CompletableFuture<? extends T> getFuture() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {
@@ -256,6 +259,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 
 //        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final SynchronizationContext getApplicableJobSyncContext() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {
@@ -452,6 +456,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		});
 	}
 
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final <T> void post(Consumer<T> d, T state, boolean mainThreadAffinitized) {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			SingleExecuteProtector<T> wrapper = null;
@@ -569,6 +574,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		return new FutureAwaitable<>(joinAsync(), true).getAwaiter();
 	}
 
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final void setWrappedFuture(@NotNull CompletableFuture<? extends T> wrappedFuture) {
 		Requires.notNull(wrappedFuture, "wrappedFuture");
 
@@ -592,6 +598,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Fires when the underlying {@link CompletableFuture} is completed.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final void complete() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			AsyncManualResetEvent queueNeedProcessEvent = null;
@@ -624,6 +631,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		}
 	}
 
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final void removeDependency(@NotNull JoinableFuture<?> joinChild) {
 		Requires.notNull(joinChild, "joinChild");
 
@@ -664,6 +672,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Runs a loop to process all queued work items, returning only when the future is completed.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final T completeOnCurrentThread() {
 		assert this.wrappedTask != null;
 
@@ -794,6 +803,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Adds the specified flags to the {@link #state} field.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	private void addStateFlags(@NotNull Set<JoinableFutureFlag> flags) {
 		// Try to avoid taking a lock if the flags are already set appropriately.
 		if (!this.state.containsAll(flags)) {
@@ -805,6 +815,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		}
 	}
 
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	private boolean tryPollSelfOrDependencies(boolean onMainThread, @NotNull final StrongBox<Set<JoinableFuture<?>>> visited, @NotNull final StrongBox<SingleExecuteProtector<?>> work, @NotNull final StrongBox<CompletableFuture<?>> tryAgainAfter) {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {
@@ -890,6 +901,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	 * @param joinChild The {@link JoinableFuture} to join as a child.
 	 */
 	@NotNull
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final JoinRelease addDependency(@NotNull JoinableFuture<?> joinChild) {
 		Requires.notNull(joinChild, "joinChild");
 		if (this == joinChild) {
@@ -963,6 +975,7 @@ public class JoinableFuture<T> implements Awaitable<T> {
 	/**
 	 * Gets a value indicating whether the main thread is waiting for the future's completion
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	final boolean hasMainThreadSynchronousFutureWaiting() {
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 			synchronized (owner.getContext().getSyncContextLock()) {

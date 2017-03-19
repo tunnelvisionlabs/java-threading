@@ -268,6 +268,7 @@ public class JoinableFutureFactory {
 	 *
 	 * @param task The future whose completion is being waited on.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	protected void waitSynchronously(CompletableFuture<?> future) {
 		if (getContext().isOnMainThread()) {
 			// Suppress any reentrancy by causing this synchronously blocking wait to not pump any messages at all.
@@ -337,6 +338,7 @@ public class JoinableFutureFactory {
 	 *
 	 * @return {@code true} if the current synchronous future on the thread is waiting on a long running future.
 	 */
+	@SuppressWarnings(Suppressions.TRY_SCOPE)
 	protected final boolean isWaitingOnLongRunningFuture() {
 		JoinableFuture<?> currentBlockingTask = JoinableFuture.getFutureCompletingOnThisThread();
 		if (currentBlockingTask != null) {
@@ -1064,6 +1066,7 @@ public class JoinableFutureFactory {
 		/**
 		 * Executes the delegate if it has not already executed.
 		 */
+		@SuppressWarnings(Suppressions.TRY_SCOPE)
 		final boolean tryExecute() {
 			Consumer<T> invokeDelegate = this.invokeDelegate.getAndSet(null);
 			if (invokeDelegate != null) {

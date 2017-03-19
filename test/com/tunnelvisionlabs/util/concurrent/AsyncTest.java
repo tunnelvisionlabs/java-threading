@@ -1,6 +1,8 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 package com.tunnelvisionlabs.util.concurrent;
 
+import com.tunnelvisionlabs.util.validation.NotNull;
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -160,6 +162,33 @@ public class AsyncTest extends TestBase {
 					Assert.assertEquals((Integer)1, value.getValue());
 					return Futures.completedNull();
 				});
+		});
+
+		asyncTest.join();
+	}
+
+	@NotNull
+	private CompletableFuture<Void> sleepingMethodAsync(@NotNull Duration duration, @NotNull CancellationToken cancellationToken) {
+		return Async.runAsync(() -> {
+			try (Disposable registration = ThreadingTools.interruptOnCancel(cancellationToken)) {
+				try {
+					Thread.sleep(duration.toMillis());
+				} catch (InterruptedException ex) {
+					return Futures.completedCancelled();
+				}
+			}
+
+			return Futures.completedNull();
+		});
+	}
+
+	@Test
+	public void testCancelSleep() {
+		CompletableFuture<Void> asyncTest = Async.runAsync(() -> {
+			return Async.awaitAsync(AsyncAssert.assertCancelsAsync(() -> {
+				CancellationTokenSource cancellationTokenSource = new CancellationTokenSource(Duration.ofMillis(20));
+				return sleepingMethodAsync(Duration.ofMinutes(5), cancellationTokenSource.getToken());
+			}));
 		});
 
 		asyncTest.join();

@@ -3270,6 +3270,7 @@ public class JoinableFutureTest extends JoinableFutureTestBase {
 	}
 
 	@Test
+	@Ignore("GC test is unstable")
 	public void testSwitchToMainThreadShouldNotLeakJoinableFutureWhenGetResultRunsLater() {
 		CancellationTokenSource cts = new CancellationTokenSource();
 		DerivedJoinableFutureFactory factory = (DerivedJoinableFutureFactory)this.asyncPump;

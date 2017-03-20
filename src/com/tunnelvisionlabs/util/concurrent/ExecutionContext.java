@@ -240,9 +240,11 @@ class ExecutionContext {
 	public static <T, U> Function<T, U> wrap(@NotNull Function<T, U> function) {
 		ExecutionContext executionContext = capture();
 		return t -> {
-			StrongBox<U> result = new StrongBox<>();
+			StrongBox<U> result = SharedPools.<U>strongBox().allocate();
 			run(executionContext, state -> result.value = function.apply(t), null);
-			return result.value;
+			U value = result.value;
+			SharedPools.<U>strongBox().free(result);
+			return value;
 		};
 	}
 
@@ -250,9 +252,11 @@ class ExecutionContext {
 	public static <T> Supplier<T> wrap(@NotNull Supplier<T> supplier) {
 		ExecutionContext executionContext = capture();
 		return () -> {
-			StrongBox<T> result = new StrongBox<>();
+			StrongBox<T> result = SharedPools.<T>strongBox().allocate();
 			run(executionContext, state -> result.value = supplier.get(), null);
-			return result.value;
+			T value = result.value;
+			SharedPools.<T>strongBox().free(result);
+			return value;
 		};
 	}
 

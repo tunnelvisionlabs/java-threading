@@ -712,10 +712,12 @@ public class JoinableFuture<T> implements Awaitable<T> {
 					// Don't use IsCompleted as the condition because that
 					// includes queues of posted work that don't have to complete for the
 					// JoinableTask to be ready to return from the JTF.Run method.
-					StrongBox<Set<JoinableFuture<?>>> visited = new StrongBox<>();
+					StrongBox<Set<JoinableFuture<?>>> visited = SharedPools.<Set<JoinableFuture<?>>>strongBox().allocate();
+					StrongBox<SingleExecuteProtector<?>> work = SharedPools.<SingleExecuteProtector<?>>strongBox().allocate();
+					StrongBox<CompletableFuture<?>> tryAgainAfter = SharedPools.<CompletableFuture<?>>strongBox().allocate();
 					while (!isCompleteRequested()) {
-						StrongBox<SingleExecuteProtector<?>> work = new StrongBox<>();
-						StrongBox<CompletableFuture<?>> tryAgainAfter = new StrongBox<>();
+						work.value = null;
+						tryAgainAfter.value = null;
 						if (tryPollSelfOrDependencies(onMainThread, visited, work, tryAgainAfter)) {
 							work.value.tryExecute();
 						} else if (tryAgainAfter.value != null) {
@@ -725,6 +727,10 @@ public class JoinableFuture<T> implements Awaitable<T> {
 							assert tryAgainAfter.value.isDone();
 						}
 					}
+
+					SharedPools.<Set<JoinableFuture<?>>>strongBox().free(visited);
+					SharedPools.<SingleExecuteProtector<?>>strongBox().free(work);
+					SharedPools.<CompletableFuture<?>>strongBox().free(tryAgainAfter);
 				} finally {
 					try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getFactory().getContext().getNoMessagePumpSynchronizationContext())) {
 						synchronized (owner.getContext().getSyncContextLock()) {
@@ -1225,7 +1231,8 @@ public class JoinableFuture<T> implements Awaitable<T> {
 		Requires.notNull(syncTask, "synchronousFuture");
 
 		Set<JoinableFuture<?>> reachableTasks = null;
-		final StrongBox<Set<JoinableFuture<?>>> remainTasks = new StrongBox<>();
+		final StrongBox<Set<JoinableFuture<?>>> remainTasks = SharedPools.<Set<JoinableFuture<?>>>strongBox().allocate();
+		final StrongBox<Set<JoinableFuture<?>>> remainPlaceHold = SharedPools.<Set<JoinableFuture<?>>>strongBox().allocate();
 
 		if (force) {
 			reachableTasks = new HashSet<>();
@@ -1245,11 +1252,13 @@ public class JoinableFuture<T> implements Awaitable<T> {
 			syncTask.computeSelfAndDescendentOrJoinedJobsAndRemainFutures(reachableTasks, remainTasks.value);
 
 			// force to remove all invalid items
-			final StrongBox<Set<JoinableFuture<?>>> remainPlaceHold = new StrongBox<>();
 			for (JoinableFuture<?> remainTask : remainTasks.value) {
 				remainTask.removeDependingSynchronousFuture(syncTask, reachableTasks, remainPlaceHold);
 			}
 		}
+
+		SharedPools.<Set<JoinableFuture<?>>>strongBox().free(remainTasks);
+		SharedPools.<Set<JoinableFuture<?>>>strongBox().free(remainPlaceHold);
 	}
 
 	/**

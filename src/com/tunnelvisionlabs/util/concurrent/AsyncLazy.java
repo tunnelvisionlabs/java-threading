@@ -113,7 +113,7 @@ public class AsyncLazy<T> {
 				Verify.failOperation("ValueFactoryReentrancy");
 			}
 
-			final StrongBox<InlineResumable> resumableAwaiter = new StrongBox<>();
+			InlineResumable resumableAwaiter = null;
 			synchronized (syncObject) {
 				// Note that if multiple threads hit getValueAsync() before
 				// the valueFactory has completed its synchronous execution,
@@ -125,11 +125,12 @@ public class AsyncLazy<T> {
 						return Futures.completedCancelled();
 					}
 
-					resumableAwaiter.value = new InlineResumable();
+					resumableAwaiter = new InlineResumable();
+					final InlineResumable finalResumableAwaiter = resumableAwaiter;
 					Supplier<? extends CompletableFuture<? extends T>> originalValueFactory = this.valueFactory.getAndSet(null);
 					Supplier<? extends CompletableFuture<? extends T>> localValueFactory = () -> Async.runAsync(
 						() -> Async.awaitAsync(
-							resumableAwaiter.value,
+							finalResumableAwaiter,
 							() -> Async.awaitAsync(Async.configureAwait(originalValueFactory.get(), false))));
 
 					this.recursiveFactoryCheck.setValue(RECURSIVE_CHECK_SENTINEL);
@@ -154,8 +155,8 @@ public class AsyncLazy<T> {
 			}
 
 			// Allow the original value factory to actually run.
-			if (resumableAwaiter.value != null) {
-				resumableAwaiter.value.resume();
+			if (resumableAwaiter != null) {
+				resumableAwaiter.resume();
 			}
 		}
 

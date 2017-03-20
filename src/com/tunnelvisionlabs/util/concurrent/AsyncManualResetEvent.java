@@ -67,9 +67,10 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			future.complete(null);
 		}
 
-		StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+		StrongBox<CompletableFuture<Void>> secondaryHandlerBox = SharedPools.<CompletableFuture<Void>>strongBox().allocate();
 		this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
 		this.secondaryFuture = secondaryHandlerBox.value;
+		SharedPools.<CompletableFuture<Void>>strongBox().free(secondaryHandlerBox);
 	}
 
 	/**
@@ -131,9 +132,10 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 			if (this.isSet) {
 				this.future = this.createFuture();
 
-				StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+				StrongBox<CompletableFuture<Void>> secondaryHandlerBox = SharedPools.<CompletableFuture<Void>>strongBox().allocate();
 				this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
 				this.secondaryFuture = secondaryHandlerBox.value;
+				SharedPools.<CompletableFuture<Void>>strongBox().free(secondaryHandlerBox);
 
 				this.isSet = false;
 			}
@@ -162,9 +164,10 @@ public class AsyncManualResetEvent implements Awaitable<Void> {
 
 			this.future = this.createFuture();
 
-			StrongBox<CompletableFuture<Void>> secondaryHandlerBox = new StrongBox<>();
+			StrongBox<CompletableFuture<Void>> secondaryHandlerBox = SharedPools.<CompletableFuture<Void>>strongBox().allocate();
 			this.priorityFuture = Futures.createPriorityHandler(this.future, secondaryHandlerBox);
 			this.secondaryFuture = secondaryHandlerBox.value;
+			SharedPools.<CompletableFuture<Void>>strongBox().free(secondaryHandlerBox);
 
 			this.isSet = false;
 		}

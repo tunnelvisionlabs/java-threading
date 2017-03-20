@@ -593,8 +593,8 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 		try (SpecializedSyncContext syncContext = SpecializedSyncContext.apply(getNoMessagePumpSynchronizationContext())) {
 			synchronized (getSyncContextLock()) {
 				try {
-					StrongBox<Element> nodes = new StrongBox<>();
-					StrongBox<Element> links = new StrongBox<>();
+					StrongBox<Element> nodes = SharedPools.<Element>strongBox().allocate();
+					StrongBox<Element> links = SharedPools.<Element>strongBox().allocate();
 					Document dgml = createTemplateDgml(nodes, links);
 
 					Map<JoinableFuture<?>, Element> pendingTasksElements = createNodesForPendingFutures(dgml);
@@ -623,6 +623,12 @@ public class JoinableFutureContext implements HangReportContributor, Disposable 
 					for (Map.Entry<Element, Element> pair : taskLabels) {
 						links.value.appendChild(pair.getValue());
 					}
+
+					SharedPools.<Element>strongBox().free(nodes);
+					nodes = null;
+
+					SharedPools.<Element>strongBox().free(links);
+					links = null;
 
 					TransformerFactory transformerFactory = TransformerFactory.newInstance();
 					Transformer transformer = transformerFactory.newTransformer();
